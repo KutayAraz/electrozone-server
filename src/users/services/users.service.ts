@@ -6,26 +6,26 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { User } from "src/entities/User.entity";
 import { Repository } from "typeorm";
-import { CreateUserDto } from "./dtos/create-user.dto";
-import { UpdateUserDto } from "./dtos/update-user.dto";
-import { UpdatePasswordDto } from "./dtos/update-password.dto";
+import { CreateUserDto } from "../dtos/create-user.dto";
+import { UpdateUserDto } from "../dtos/update-user.dto";
+import { UpdatePasswordDto } from "../dtos/update-password.dto";
 
 @Injectable()
 export class UsersService {
   constructor(@InjectRepository(User) private usersRepo: Repository<User>) {}
 
-  async createUser(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto) {
     if (createUserDto.password !== createUserDto.retypedPassword) {
       throw new BadRequestException(["Passwords do not match"]);
     }
 
-    const existingUser = this.usersRepo.find({
-      where: [
-        {
-          email: createUserDto.email,
-        },
-      ],
+    const existingUser = await this.usersRepo.findOne({
+      where: {
+        email: createUserDto.email,
+      },
     });
+
+    console.log(existingUser);
 
     if (existingUser) {
       throw new BadRequestException(["A user with this email already exists"]);
@@ -37,6 +37,20 @@ export class UsersService {
 
   async find(id: number) {
     const user = await this.usersRepo.findOneBy({ id });
+
+    if (!user) {
+      throw new NotFoundException(["No user with this email found!"]);
+    }
+
+    return user;
+  }
+
+  async findByEmail(email: string) {
+    const user = await this.usersRepo.findOne({
+      where: {
+        email,
+      },
+    });
 
     if (!user) {
       throw new NotFoundException(["No user with this email found!"]);

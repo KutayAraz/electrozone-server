@@ -9,22 +9,35 @@ import {
   Post,
 } from "@nestjs/common";
 import { CreateUserDto } from "./dtos/create-user.dto";
-import { UsersService } from "./users.service";
+import { UsersService } from "./services/users.service";
 import { UpdateUserDto } from "./dtos/update-user.dto";
 import { UpdatePasswordDto } from "./dtos/update-password.dto";
 import { UserDto } from "./dtos/user.dto";
 import { Serialize } from "src/interceptors/serialize.interceptor";
+import { AuthService } from "./services/auth.service";
+import { SignUserDto } from "./dtos/sign-user.dto";
 
 @Controller("auth")
+@Serialize(UserDto)
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    private authService: AuthService,
+  ) {}
 
-  @Post()
+  @Post("/signup")
   async createNewUser(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.createUser(createUserDto);
+    return this.authService.signup(createUserDto);
   }
 
-  @Serialize(UserDto)
+  @Post("/signin")
+  async signUser(@Body() userCredentials: SignUserDto) {
+    return this.authService.signin(
+      userCredentials.email,
+      userCredentials.password,
+    );
+  }
+
   @Get(":id")
   getUser(@Param("id", ParseIntPipe) id: number) {
     return this.usersService.find(id);
