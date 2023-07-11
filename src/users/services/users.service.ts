@@ -36,6 +36,9 @@ export class UsersService {
   }
 
   async find(id: number) {
+    if(!id){
+      throw new BadRequestException(["No user is signed in!ü"])
+    }
     const user = await this.usersRepo.findOneBy({ id });
 
     if (!user) {
