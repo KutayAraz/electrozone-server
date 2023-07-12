@@ -56,7 +56,7 @@ export class UsersController {
     return user;
   }
 
-  @Get("/who")
+  @Get("/user")
   @UseGuards(AuthGuard)
   who(@CurrentUser() user: User) {
     return user;

@@ -28,7 +28,7 @@ export class UsersService {
     console.log(existingUser);
 
     if (existingUser) {
-      throw new BadRequestException(["A user with this email already exists"]);
+      throw new BadRequestException(["A user with this email already exists!"]);
     }
 
     const user = this.usersRepo.create(createUserDto);
@@ -37,7 +37,7 @@ export class UsersService {
 
   async find(id: number) {
     if(!id){
-      throw new BadRequestException(["No user is signed in!ü"])
+      throw new BadRequestException(["No user is signed in!"])
     }
     const user = await this.usersRepo.findOneBy({ id });
 
