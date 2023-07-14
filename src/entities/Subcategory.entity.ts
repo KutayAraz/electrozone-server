@@ -7,4 +7,5 @@ export class Subcategory {
 
   @Column()
   subcategory: string;
+  
 }

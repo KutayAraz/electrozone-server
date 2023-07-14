@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Review } from "./Review.entity";
 
 @Entity({ name: "products" })
 export class Product {
@@ -28,4 +29,7 @@ export class Product {
 
   @Column()
   wishlisted: number;
+
+  @OneToMany(() => Review, (review) => review.product)
+  reviews: Review[];
 }
