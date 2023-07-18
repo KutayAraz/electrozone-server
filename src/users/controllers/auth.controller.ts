@@ -3,9 +3,6 @@ import {
   ClassSerializerInterceptor,
   Controller,
   Delete,
-  Get,
-  Param,
-  ParseIntPipe,
   Patch,
   Post,
   Request,
@@ -16,12 +13,10 @@ import {
 import { CreateUserDto } from "../dtos/create-user.dto";
 import { UpdatePasswordDto } from "../dtos/update-password.dto";
 import { UserDto } from "../dtos/user.dto";
-import { Serialize } from "src/interceptors/serialize.interceptor";
 import { AuthService } from "../services/auth.service";
 import { SignUserDto } from "../dtos/sign-user.dto";
 import { AuthGuardLocal } from "../guards/local-auth.guard";
 import { CurrentUser } from "../decorators/current-user.decorator";
-import { User } from "src/entities/User.entity";
 import { JwtGuard } from "../guards/jwt-auth.guard";
 import { RefreshJwtGuard } from "../guards/refresh-jwt-auth.guard";
 
@@ -31,6 +26,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post("/signup")
+  @UseInterceptors(ClassSerializerInterceptor)
   async createNewUser(@Body() createUserDto: CreateUserDto) {
     return await this.authService.signup(createUserDto);
   }
@@ -48,7 +44,7 @@ export class AuthController {
   @UseInterceptors(ClassSerializerInterceptor)
   @Patch("/update-password")
   async updateUserPassword(
-    @CurrentUser() user: User,
+    @CurrentUser() user: UserDto,
     @Body() input: UpdatePasswordDto,
   ) {
     return await this.authService.updatePassword(user.id, input);
@@ -56,7 +52,7 @@ export class AuthController {
 
   @UseGuards(JwtGuard)
   @Delete("/profile")
-  removeUser(@CurrentUser() user: User) {
+  removeUser(@CurrentUser() user: UserDto) {
     return this.authService.remove(user.id);
   }
 

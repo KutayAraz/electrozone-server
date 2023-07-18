@@ -20,13 +20,6 @@ export class AuthService {
     @InjectRepository(User) private usersRepo: Repository<User>,
   ) {}
 
-  // public getTokenForUser(user: User): string {
-  //   return this.jwtService.sign({
-  //     email: user.email,
-  //     sub: user.id,
-  //   });
-  // }
-
   public async hashPassword(password: string): Promise<string> {
     return await bcrypt.hash(password, 10);
   }
@@ -52,7 +45,7 @@ export class AuthService {
     }
 
     if (!(await bcrypt.compare(password, user.password))) {
-      throw new BadRequestException("Entered password is incorrect");
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     const { password: excludedPassword, ...result } = user;
