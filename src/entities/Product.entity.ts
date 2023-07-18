@@ -1,5 +1,12 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { Review } from "./Review.entity";
+import { Subcategory } from "./Subcategory.entity";
 
 @Entity({ name: "products" })
 export class Product {
@@ -29,6 +36,9 @@ export class Product {
 
   @Column()
   wishlisted: number;
+
+  @ManyToOne(() => Subcategory, (subcategory) => subcategory.products)
+  subcategory: Subcategory;
 
   @OneToMany(() => Review, (review) => review.product)
   reviews: Review[];

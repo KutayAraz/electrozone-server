@@ -14,6 +14,8 @@ import { Review } from "./entities/Review.entity";
 import { OrdersModule } from "./orders/orders.module";
 import { Order } from "./entities/Order.entity";
 import { APP_PIPE } from "@nestjs/core";
+import { SubcategoriesModule } from './subcategories/subcategories.module';
+import { OrderItem } from "./entities/OrderDetail.entity";
 
 @Module({
   imports: [
@@ -32,7 +34,7 @@ import { APP_PIPE } from "@nestjs/core";
           username: config.get<string>("DB_USERNAME"),
           password: config.get<string>("DB_PASSWORD"),
           synchronize: true,
-          entities: [User, Category, Subcategory, Product, Review, Order],
+          entities: [User, Category, Subcategory, Product, Review, Order, OrderItem],
         };
       },
     }),
@@ -41,6 +43,7 @@ import { APP_PIPE } from "@nestjs/core";
     ProductsModule,
     ReviewsModule,
     OrdersModule,
+    SubcategoriesModule,
   ],
   providers: [
     AppService,
