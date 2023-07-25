@@ -5,7 +5,6 @@ import { CreateOrderDto } from "./dtos/create-order.dto";
 import { OrdersService } from "./orders.service";
 import { Serialize } from "src/interceptors/serialize.interceptor";
 import { OrderDto } from "./dtos/order.dto";
-import { ApproveOrderDto } from "./dtos/approve-order.dto";
 import { JwtGuard } from "src/users/guards/jwt-auth.guard";
 
 @Controller("orders")
@@ -23,10 +22,5 @@ export class OrdersController {
   @UseGuards(JwtGuard)
   async getOrders(@CurrentUser() user: User) {
     return await this.ordersService.fetch(user);
-  }
-
-  @Patch("/:id")
-  async approveOrder(@Param("id", ParseIntPipe) id: number, @Body() body: ApproveOrderDto){
-    return this.ordersService.changeApproval(id, body.approved)
   }
 }

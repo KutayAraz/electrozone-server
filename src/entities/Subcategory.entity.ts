@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -17,6 +18,7 @@ export class Subcategory {
   subcategory: string;
 
   @ManyToOne(() => Category, (category) => category.subcategories)
+  @JoinColumn({name: "categoryId"})
   category: Category;
 
   @OneToMany(() => Product, (product) => product.subcategory)

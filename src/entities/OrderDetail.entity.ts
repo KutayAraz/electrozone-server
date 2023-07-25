@@ -6,9 +6,8 @@ import {
   Column,
 } from "typeorm";
 import { Order } from "./Order.entity";
-import { Product } from "./Product.entity";
 
-@Entity()
+@Entity({name: "order-details"})
 export class OrderItem {
   @PrimaryGeneratedColumn()
   id: number;

@@ -17,27 +17,6 @@ export class OrdersService {
   }
 
   async fetch(user: User) {
-    const orders = await this.ordersRepo.find({
-      where: {
-        user,
-      },
-    });
-
-    return orders;
-  }
-
-  async changeApproval(id: number, approved: boolean) {
-    const order = await this.ordersRepo.findOne({
-      where: {
-        id,
-      },
-    });
-
-    if (!order) {
-      throw new NotFoundException("Order not found");
-    }
-
-    order.approved = approved;
-    return this.ordersRepo.save(order);
+    
   }
 }
