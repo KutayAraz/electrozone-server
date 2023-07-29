@@ -16,9 +16,9 @@ import { RefreshJwtStrategy } from "./strategies/refrestToken.strategy";
     TypeOrmModule.forFeature([User]),
     JwtModule.registerAsync({
       useFactory: () => ({
-        secret: process.env.AUTH_SECRET,
+        secret: "secret",
         signOptions: {
-          expiresIn: "2m",
+          expiresIn: "5m",
         },
       }),
     }),

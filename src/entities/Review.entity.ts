@@ -1,4 +1,11 @@
-import { AfterInsert, AfterUpdate, Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import {
+  AfterInsert,
+  AfterUpdate,
+  Column,
+  Entity,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { Product } from "./Product.entity";
 
 @Entity({ name: "reviews" })

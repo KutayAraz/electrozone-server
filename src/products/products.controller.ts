@@ -5,6 +5,8 @@ import { ProductsService } from "./products.service";
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
-  @Get(":subcategory/productId")
-  async getProduct(@Param("subcategory/product_name") product: string) {}
+  @Get(":id")
+  async getProduct(@Param("id", ParseIntPipe) id: number) {
+    return await this.productsService.findProduct(id)
+  }
 }

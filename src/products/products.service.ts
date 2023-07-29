@@ -9,11 +9,7 @@ export class ProductsService {
     @InjectRepository(Product) private productsRepo: Repository<Product>,
   ) {}
 
-  async findProduct(subcategory: string, productId: number) {
-    return await this.productsRepo
-      .createQueryBuilder("product")
-      .leftJoinAndSelect("product.subcategory", "subcategory")
-      .where("subcategory.subcategory = :subcategory", { subcategory })
-      .getMany();
+  async findProduct(id: number) {
+    return await this.productsRepo.findOneBy({id})
   }
 }

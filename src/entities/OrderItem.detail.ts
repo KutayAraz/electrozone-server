@@ -6,8 +6,9 @@ import {
   Column,
 } from "typeorm";
 import { Order } from "./Order.entity";
+import { Product } from "./Product.entity";
 
-@Entity({name: "order-details"})
+@Entity({ name: "order_items" })
 export class OrderItem {
   @PrimaryGeneratedColumn()
   id: number;
@@ -15,14 +16,14 @@ export class OrderItem {
   @Column()
   quantity: number;
 
-  @Column()
+  @Column("decimal", { precision: 10, scale: 2 })
   price: number;
-  
+
   @ManyToOne(() => Order, (order) => order.orderItems)
   @JoinColumn({ name: "order_id" })
   order: Order;
 
-//   @ManyToOne(() => Product, (product) => product.orderItems)
-//   @JoinColumn({ name: "product_id" })
-//   product: Product;
+  @ManyToOne(() => Product, (product) => product.orderItems)
+  @JoinColumn({ name: "product_id" })
+  product: Product;
 }

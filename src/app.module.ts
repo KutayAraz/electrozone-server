@@ -15,7 +15,7 @@ import { OrdersModule } from "./orders/orders.module";
 import { Order } from "./entities/Order.entity";
 import { APP_PIPE } from "@nestjs/core";
 import { SubcategoriesModule } from './subcategories/subcategories.module';
-import { OrderItem } from "./entities/OrderDetail.entity";
+import { OrderItem } from "./entities/OrderItem.detail";
 import { ProductImage } from "./entities/ProductImage.entity";
 import { UserWishlist } from "./entities/UserWishlist.entity";
 

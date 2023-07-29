@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { User } from "./User.entity";
-import { OrderItem } from "./OrderDetail.entity";
+import { OrderItem } from "./OrderItem.detail";
 
 @Entity({ name: "orders" })
 export class Order {
@@ -15,6 +15,9 @@ export class Order {
 
   @Column()
   orderTotal: number;
+
+  @Column()
+  orderDate: string;
 
   @ManyToOne(() => User, (user) => user.orders)
   user: User;

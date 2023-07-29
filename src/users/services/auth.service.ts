@@ -38,7 +38,9 @@ export class AuthService {
   }
 
   async validateUser(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersRepo.findOneBy({email});
+
+    console.log(user)
 
     if (!user) {
       throw new BadRequestException("No user found with this e-mail!");
@@ -52,6 +54,8 @@ export class AuthService {
 
     return result;
   }
+
+
 
   async signup(createUserDto: CreateUserDto) {
     let user = new User();

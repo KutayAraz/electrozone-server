@@ -18,7 +18,7 @@ export class Subcategory {
   subcategory: string;
 
   @ManyToOne(() => Category, (category) => category.subcategories)
-  @JoinColumn({name: "categoryId"})
+  @JoinColumn({ name: "categoryId" })
   category: Category;
 
   @OneToMany(() => Product, (product) => product.subcategory)

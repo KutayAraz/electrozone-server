@@ -21,12 +21,11 @@ import { JwtGuard } from "../guards/jwt-auth.guard";
 import { RefreshJwtGuard } from "../guards/refresh-jwt-auth.guard";
 
 @Controller("auth")
-@SerializeOptions({ strategy: "excludeAll" })
+@UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post("/signup")
-  @UseInterceptors(ClassSerializerInterceptor)
+  @Post("/signup")  
   async createNewUser(@Body() createUserDto: CreateUserDto) {
     return await this.authService.signup(createUserDto);
   }
@@ -41,7 +40,6 @@ export class AuthController {
   }
 
   @UseGuards(JwtGuard)
-  @UseInterceptors(ClassSerializerInterceptor)
   @Patch("/update-password")
   async updateUserPassword(
     @CurrentUser() user: UserDto,

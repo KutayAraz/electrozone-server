@@ -15,12 +15,11 @@ import { JwtGuard } from "../guards/jwt-auth.guard";
 import { UserDto } from "../dtos/user.dto";
 
 @Controller("user")
-@SerializeOptions({ strategy: "excludeAll" })
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @UseGuards(JwtGuard)
-  @UseInterceptors(ClassSerializerInterceptor)
+  
   @Get("/profile")
   async getCurrentUserProfile(@CurrentUser() user: UserDto) {
     return user;

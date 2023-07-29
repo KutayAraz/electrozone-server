@@ -7,9 +7,6 @@ export class OrderDto {
   @Expose()
   orderTotal: number;
 
-  @Expose()
-  approved: boolean;
-
   @Transform(({ obj }) => obj.user.id)
   @Expose()
   userId: number;

@@ -12,6 +12,7 @@ import { Review } from "./Review.entity";
 import { Subcategory } from "./Subcategory.entity";
 import { ProductImage } from "./ProductImage.entity";
 import { User } from "./User.entity";
+import { OrderItem } from "./OrderItem.detail";
 
 @Entity({ name: "products" })
 export class Product {
@@ -30,10 +31,10 @@ export class Product {
   @Column()
   thumbnail: string;
 
-  @Column()
+  @Column("decimal", { precision: 10, scale: 1 })
   averageRating: number;
 
-  @Column()
+  @Column("decimal", { precision: 10, scale: 2 })
   price: number;
 
   @Column()
@@ -56,6 +57,9 @@ export class Product {
 
   @ManyToMany(() => User, (user) => user.wishlist)
   wishlistedBy: User[];
+
+  @OneToMany(() => OrderItem, orderItem => orderItem.product)
+  orderItems: OrderItem[];
 
   @AfterInsert()
   updateAverageRating() {

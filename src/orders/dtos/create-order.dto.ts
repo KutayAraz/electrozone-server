@@ -1,8 +1,7 @@
-import { IsNumber, Max, Min } from "class-validator";
+import { IsArray, IsNumber } from "class-validator";
+import { CreateOrderItemDTO } from "./create-order-item.dto";
 
 export class CreateOrderDto {
-  @IsNumber()
-  @Min(0.5)
-  @Max(100000)
-  orderTotal: number;
+  @IsArray()
+  orderItems: CreateOrderItemDTO[];
 }
