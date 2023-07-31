@@ -36,7 +36,9 @@ export class UsersService {
       throw new NotFoundException(["No user with this email found!"]);
     }
 
-    return user;
+    const { password: excludedPassword, ...result } = user;
+
+    return result;
   }
 
   async update(id: number, updatedUserData: UpdateUserDto) {

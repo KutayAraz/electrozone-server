@@ -3,10 +3,14 @@ import {
   AfterUpdate,
   Column,
   Entity,
+  Index,
+  JoinColumn,
+  ManyToMany,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Product } from "./Product.entity";
+import { User } from "./User.entity";
 
 @Entity({ name: "reviews" })
 export class Review {
@@ -23,7 +27,11 @@ export class Review {
   comment: string;
 
   @ManyToOne(() => Product, (product) => product.reviews)
-  product: Product;
+  product: Product;  
+  
+  @ManyToOne(() => User, (user) => user.reviews)
+  @JoinColumn()
+  user: User;
 
   @AfterInsert()
   updateProductRating() {

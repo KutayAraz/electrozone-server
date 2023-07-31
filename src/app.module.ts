@@ -9,15 +9,15 @@ import { Category } from "./entities/Category.entity";
 import { ProductsModule } from "./products/products.module";
 import { Subcategory } from "./entities/Subcategory.entity";
 import { Product } from "./entities/Product.entity";
-import { ReviewsModule } from "./reviews/reviews.module";
 import { Review } from "./entities/Review.entity";
 import { OrdersModule } from "./orders/orders.module";
 import { Order } from "./entities/Order.entity";
-import { APP_PIPE } from "@nestjs/core";
+import { APP_GUARD, APP_PIPE } from "@nestjs/core";
 import { SubcategoriesModule } from './subcategories/subcategories.module';
 import { OrderItem } from "./entities/OrderItem.detail";
 import { ProductImage } from "./entities/ProductImage.entity";
 import { UserWishlist } from "./entities/UserWishlist.entity";
+import { AtGuard } from "./common/guards";
 
 @Module({
   imports: [
@@ -43,7 +43,6 @@ import { UserWishlist } from "./entities/UserWishlist.entity";
     UsersModule,
     CategoriesModule,
     ProductsModule,
-    ReviewsModule,
     OrdersModule,
     SubcategoriesModule,
   ],
@@ -54,6 +53,10 @@ import { UserWishlist } from "./entities/UserWishlist.entity";
       useValue: new ValidationPipe({
         whitelist: true,
       }),
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AtGuard,
     },
   ],
 })

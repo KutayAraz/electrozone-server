@@ -4,31 +4,30 @@ import {
   Controller,
   Get,
   Patch,
-  SerializeOptions,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { UsersService } from "../services/users.service";
 import { UpdateUserDto } from "../dtos/update-user.dto";
-import { CurrentUser } from "../decorators/current-user.decorator";
-import { JwtGuard } from "../guards/jwt-auth.guard";
 import { UserDto } from "../dtos/user.dto";
+import { AtGuard } from "src/common/guards";
+import { GetCurrentUser, GetCurrentUserId } from "src/common/decorators";
 
 @Controller("user")
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
-  @UseGuards(JwtGuard)
-  
+  @UseInterceptors(ClassSerializerInterceptor)
+  @UseGuards(AtGuard)  
   @Get("/profile")
-  async getCurrentUserProfile(@CurrentUser() user: UserDto) {
+  async getCurrentUserProfile(@GetCurrentUser() user: UserDto) {
     return user;
   }
 
-  @UseGuards(JwtGuard)
+  @UseGuards(AtGuard)
   @Patch("/profile")
   @UseInterceptors(ClassSerializerInterceptor)
-  async updateUser(@CurrentUser() user: UserDto, @Body() input: UpdateUserDto) {
-    return await this.usersService.update(user.id, input);
+  async updateUser(@GetCurrentUserId() id: number, @Body() input: UpdateUserDto) {
+    return await this.usersService.update(id, input);
   }
 }

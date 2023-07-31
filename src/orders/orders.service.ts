@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
 import { Repository } from "typeorm";
@@ -23,9 +27,15 @@ export class OrdersService {
     const order = new Order();
     order.user = user;
 
-    const total = orderItems.reduce((acc, item) => {
-      return acc + item.price * item.quantity;
-    }, 0);
+    let total = 0;
+    await Promise.all(
+      orderItems.map(async (item) => {
+        const product = await this.productsRepo.findOneBy({
+          id: item.productId,
+        });
+        total += product.price * item.quantity;
+      }),
+    );
 
     order.orderTotal = total;
     const orderDate = new Date().toLocaleDateString();
@@ -38,10 +48,11 @@ export class OrdersService {
         const orderItem = new OrderItem();
         orderItem.order = savedOrder;
         orderItem.quantity = item.quantity;
-        orderItem.price = item.price;
-        orderItem.product = await this.productsRepo.findOneBy({
+        const product = await this.productsRepo.findOneBy({
           id: item.productId,
         });
+        orderItem.product = product;
+        orderItem.price = product.price;
         return orderItem;
       }),
     );
@@ -67,12 +78,28 @@ export class OrdersService {
 
     return result;
   }
-  
-  async getOrderById(id: number): Promise<Order> {
-    return this.ordersRepo.findOne({
-      where: { id },
-      relations: ["orderItems", "user"],
+
+  async getOrderById(userId: number, orderId: number) {
+    const user = await this.usersRepo.findOne({
+      where: { id: userId },
+      relations: ["orders", "orders.orderItems", "orders.orderItems.product"],
     });
+
+    const order = user.orders.find((o) => o.id === orderId);
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    const orderItems = await this.orderItemsRepo
+      .createQueryBuilder("order_item")
+      .leftJoinAndSelect("order_item.product", "product")
+      .where("order_item.order_id = :orderId", { orderId: orderId })
+      .getMany();
+
+    order.orderItems = orderItems;
+
+    return order;
   }
 
   async getOrdersForUser(userId: number): Promise<Order[]> {
@@ -82,7 +109,48 @@ export class OrdersService {
           id: userId,
         },
       },
-      relations: ["orderItems", "user"],
+      relations: ["orderItems", "orderItems.product"],
     });
+  }
+
+  async deleteOrder(userId: number, orderId: number) {
+    const order = await this.ordersRepo.findOne({
+      where: { id: orderId },
+      relations: ["user"],
+    });
+
+    if (!order) {
+      throw new NotFoundException("Order not found");
+    }
+    if (order.user.id !== userId) {
+      throw new UnauthorizedException(
+        "You did not place this order, therefore can not modify it",
+      );
+    }
+
+    const currentDate = new Date();
+    const orderDate = new Date(order.orderDate);
+
+    if (currentDate.getTime() - orderDate.getTime() > 86400000) {
+      throw new UnauthorizedException(
+        "Cannot delete an order that is over a day old",
+      );
+    } else {
+      const order = await this.ordersRepo.findOneOrFail({
+        where: { id: orderId },
+        relations: ["orderItems"],
+      });
+      const orderItems = order.orderItems;
+      await Promise.all(
+        orderItems.map(async (orderItem) => {
+          await this.orderItemsRepo.delete(orderItem.id);
+        }),
+      );
+      await this.ordersRepo.delete(orderId);
+    }
+
+    return {
+      message: "Order deleted successfully",
+    };
   }
 }

@@ -6,8 +6,5 @@ export class CreateOrderItemDTO {
   quantity: number;
 
   @IsNumber()
-  price: number;
-
-  @IsNumber()
   productId: number;
 }
