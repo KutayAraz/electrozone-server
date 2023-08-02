@@ -15,6 +15,7 @@ import { CreateReviewDto } from "./dtos/create-review.dto";
 
 @Controller("products")
 export class ProductsController {
+  q;
   constructor(private productsService: ProductsService) {}
 
   @Get(":id")
@@ -35,11 +36,11 @@ export class ProductsController {
 
   @Get(":productId/review")
   @UseGuards(AtGuard)
-  checkCanReview(
+  async checkCanReview(
     @GetCurrentUserId() userId: number,
     @Param("productId") productId: string,
   ) {
-    return this.productsService.canCurrentUserReview(
+    return await this.productsService.canCurrentUserReview(
       parseInt(productId),
       userId,
     );

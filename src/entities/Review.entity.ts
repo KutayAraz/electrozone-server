@@ -1,11 +1,7 @@
 import {
-  AfterInsert,
-  AfterUpdate,
   Column,
   Entity,
-  Index,
   JoinColumn,
-  ManyToMany,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
@@ -27,19 +23,9 @@ export class Review {
   comment: string;
 
   @ManyToOne(() => Product, (product) => product.reviews)
-  product: Product;  
-  
+  product: Product;
+
   @ManyToOne(() => User, (user) => user.reviews)
   @JoinColumn()
   user: User;
-
-  @AfterInsert()
-  updateProductRating() {
-    this.product.calculateAverageRating();
-  }
-
-  @AfterUpdate()
-  updateProductRatingAfterUpdate() {
-    this.product.calculateAverageRating();
-  }
 }

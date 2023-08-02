@@ -16,7 +16,7 @@ import { APP_GUARD, APP_PIPE } from "@nestjs/core";
 import { SubcategoriesModule } from './subcategories/subcategories.module';
 import { OrderItem } from "./entities/OrderItem.detail";
 import { ProductImage } from "./entities/ProductImage.entity";
-import { UserWishlist } from "./entities/UserWishlist.entity";
+import { Wishlist } from "./entities/Wishlist";
 import { AtGuard } from "./common/guards";
 
 @Module({
@@ -36,7 +36,7 @@ import { AtGuard } from "./common/guards";
           username: config.get<string>("DB_USERNAME"),
           password: config.get<string>("DB_PASSWORD"),
           synchronize: true,
-          entities: [User, Category, Subcategory, Product, Review, Order, OrderItem, ProductImage, UserWishlist],
+          entities: [User, Category, Subcategory, Product, Review, Order, OrderItem, ProductImage, Wishlist],
         };
       },
     }),

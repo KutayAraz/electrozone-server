@@ -10,6 +10,7 @@ import { Order } from "./Order.entity";
 import { Product } from "./Product.entity";
 import { Exclude, Expose } from "class-transformer";
 import { Review } from "./Review.entity";
+import { Wishlist } from "./Wishlist";
 
 @Entity({ name: "users" })
 export class User {
@@ -41,9 +42,8 @@ export class User {
   @OneToMany(() => Order, (order) => order.user)
   orders: Order[];
 
-  @ManyToMany(() => Product, { cascade: true })
-  @JoinTable()
-  wishlist: Product[];
+  @OneToMany(() => Wishlist, wishlist => wishlist.user)
+  wishlists: Wishlist[];
 
   @OneToMany(() => Review, (review) => review.user)
   reviews: Review[];
