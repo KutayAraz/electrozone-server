@@ -38,8 +38,8 @@ export class OrdersService {
     );
 
     order.orderTotal = total;
-    const orderDate = new Date().toLocaleDateString();
-    order.orderDate = orderDate;
+    const orderDate = new Date();
+    order.orderDate = new Date();
 
     const savedOrder = await this.ordersRepo.save(order);
 
@@ -51,6 +51,8 @@ export class OrdersService {
         const product = await this.productsRepo.findOneBy({
           id: item.productId,
         });
+        product.sold += orderItem.quantity;
+        await this.productsRepo.save(product);
         orderItem.product = product;
         orderItem.price = product.price;
         return orderItem;
@@ -79,8 +81,50 @@ export class OrdersService {
     return result;
   }
 
+  async deleteOrder(userId: number, orderId: number) {
+    const order = await this.ordersRepo.findOneOrFail({
+      where: { id: orderId },
+      relations: ["user", "orderItems"],
+    });
+
+    if (!order) {
+      throw new NotFoundException("Order not found");
+    }
+    if (order.user.id !== userId) {
+      throw new UnauthorizedException(
+        "You did not place this order, therefore can not modify it",
+      );
+    }
+
+    if (new Date().getTime() - order.orderDate.getTime() > 86400000) {
+      throw new UnauthorizedException(
+        "Cannot delete an order that is over a day old",
+      );
+    } else {
+      await Promise.all(
+        order.orderItems.map(async (orderItem) => {
+          const order_item = await this.orderItemsRepo.findOneOrFail({
+            where: { id: orderItem.id },
+            relations: ["product"],
+          });
+          const product = await this.productsRepo.findOneByOrFail({
+            id: order_item.product.id,
+          });
+          product.sold -= orderItem.quantity;
+          await this.productsRepo.save(product);
+          await this.orderItemsRepo.delete(orderItem.id);
+        }),
+      );
+      await this.ordersRepo.delete(orderId);
+    }
+
+    return {
+      message: "Order deleted successfully",
+    };
+  }
+
   async getOrderById(userId: number, orderId: number) {
-    const user = await this.usersRepo.findOne({
+    const user = await this.usersRepo.findOneOrFail({
       where: { id: userId },
       relations: ["orders", "orders.orderItems", "orders.orderItems.product"],
     });
@@ -111,46 +155,5 @@ export class OrdersService {
       },
       relations: ["orderItems", "orderItems.product"],
     });
-  }
-
-  async deleteOrder(userId: number, orderId: number) {
-    const order = await this.ordersRepo.findOne({
-      where: { id: orderId },
-      relations: ["user"],
-    });
-
-    if (!order) {
-      throw new NotFoundException("Order not found");
-    }
-    if (order.user.id !== userId) {
-      throw new UnauthorizedException(
-        "You did not place this order, therefore can not modify it",
-      );
-    }
-
-    const currentDate = new Date();
-    const orderDate = new Date(order.orderDate);
-
-    if (currentDate.getTime() - orderDate.getTime() > 86400000) {
-      throw new UnauthorizedException(
-        "Cannot delete an order that is over a day old",
-      );
-    } else {
-      const order = await this.ordersRepo.findOneOrFail({
-        where: { id: orderId },
-        relations: ["orderItems"],
-      });
-      const orderItems = order.orderItems;
-      await Promise.all(
-        orderItems.map(async (orderItem) => {
-          await this.orderItemsRepo.delete(orderItem.id);
-        }),
-      );
-      await this.ordersRepo.delete(orderId);
-    }
-
-    return {
-      message: "Order deleted successfully",
-    };
   }
 }

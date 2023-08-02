@@ -1,5 +1,6 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   ManyToOne,
   OneToMany,
@@ -16,8 +17,8 @@ export class Order {
   @Column()
   orderTotal: number;
 
-  @Column()
-  orderDate: string;
+  @CreateDateColumn()
+  orderDate: Date;
 
   @ManyToOne(() => User, (user) => user.orders)
   user: User;

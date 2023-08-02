@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ProductsService } from "./products.service";
-import { GetCurrentUser, GetCurrentUserId } from "src/common/decorators";
+import { GetCurrentUserId } from "src/common/decorators";
 import { AtGuard } from "src/common/guards";
 import { CreateReviewDto } from "./dtos/create-review.dto";
 
@@ -58,6 +58,34 @@ export class ProductsController {
       userId,
       createReviewDto.rating,
       createReviewDto.comment,
+    );
+  }
+
+  @Get("most_wishlisted")
+  async getMostWishlisted() {
+    return await this.productsService.getTopWishlisted();
+  }
+
+  @Get("most_sold")
+  async getMostSold() {
+    return await this.productsService.getTopSelling();
+  }
+
+  @Get(":subcategoryId/most_wishlisted")
+  async getMostWishlistedBySubcategory(
+    @Param("subcategoryId") subcategoryId: string,
+  ) {
+    return await this.productsService.getTopSellingBySubcategory(
+      parseInt(subcategoryId),
+    );
+  }
+
+  @Get(":subcategoryId/most_sold")
+  async getMostSoldBySubcategory(
+    @Param("subcategoryId") subcategoryId: string,
+  ) {
+    return await this.productsService.getTopWishlistedBySubcategory(
+      parseInt(subcategoryId),
     );
   }
 }
