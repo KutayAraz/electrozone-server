@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
-import { OrderItem } from "src/entities/OrderItem.detail";
 import { Product } from "src/entities/Product.entity";
 import { Review } from "src/entities/Review.entity";
 import { User } from "src/entities/User.entity";
@@ -9,9 +8,13 @@ import { Wishlist } from "src/entities/Wishlist";
 import { Repository } from "typeorm";
 import { CreateProductDto } from "./dtos/create-product.dto";
 import { Subcategory } from "src/entities/Subcategory.entity";
+import { OpensearchClient } from "nestjs-opensearch";
+import { DataSet, searchProductByKeyword } from "src/search/dtos/search.dto";
+import { Client } from "@opensearch-project/opensearch";
 
 @Injectable()
 export class ProductsService {
+  client: Client;
   constructor(
     @InjectRepository(Product) private productsRepo: Repository<Product>,
     @InjectRepository(Review) private reviewsRepo: Repository<Review>,
@@ -21,7 +24,12 @@ export class ProductsService {
     private subcategoriesRepo: Repository<Subcategory>,
     @InjectRepository(Wishlist)
     private wishlistRepo: Repository<Wishlist>,
-  ) {}
+    private readonly openSearchClient: OpensearchClient,
+  ) {
+    this.client = new Client({
+      node: "http://localhost:9200",
+    });
+  }
 
   async findProduct(id: number) {
     const product = await this.productsRepo.findOneBy({ id });
@@ -194,6 +202,123 @@ export class ProductsService {
       subcategory,
     });
 
+    await this.singleDataIngestion({
+      indexName: "products",
+      products: [
+        {
+          productName: newProduct.productName,
+          brand: newProduct.brand,
+          description: newProduct.description,
+          id: `${newProduct.id}`,
+        },
+      ],
+    });
+
     return await this.productsRepo.save(newProduct);
+  }
+
+  async searchForProducts(query: string) {
+    return await this.searchCharaterByKeyword({
+      indexName: "products",
+      keyword: query,
+    });
+  }
+
+  async bulkDataIngestion(input: DataSet): Promise<any> {
+    console.log(
+      `Inside bulkUpload() Method | Ingesting Bulk data of length ${input.products.length} having index ${input.indexName}`,
+    );
+
+    const body = input.products.flatMap((doc) => {
+      return [{ index: { _index: input.indexName, _id: doc.id } }, doc];
+    });
+
+    try {
+      let res = await this.openSearchClient.bulk({ body });
+      return res.body;
+    } catch (err) {
+      console.log(`Exception occurred : ${err})`);
+      return {
+        httpCode: 500,
+        error: err,
+      };
+    }
+  }
+
+  async singleDataIngestion(input: DataSet): Promise<any> {
+    console.log(
+      `Inside singleUpload() Method | Ingesting single data with index ${input.indexName} `,
+    );
+
+    let product = input.products[0];
+
+    try {
+      let res = await this.client.index({
+        id: product.id,
+        index: input.indexName,
+        body: {
+          id: product.id,
+          productName: product.productName,
+          brand: product.brand,
+          description: product.description,
+        },
+      });
+      return res.body;
+    } catch (err) {
+      console.log(`Exception occurred : ${err})`);
+      return {
+        httpCode: 500,
+        error: err,
+      };
+    }
+  }
+
+  async searchCharaterByKeyword(input: searchProductByKeyword): Promise<any> {
+    console.log(`Inside searchByKeyword() Method`);
+    let body: any;
+
+    console.log(
+      `Searching for Keyword: ${input.keyword} in the index : ${input.indexName} `,
+    );
+    body = {
+      query: {
+        multi_match: {
+          query: input.keyword,
+        },
+      },
+    };
+
+    try {
+      let res = await this.openSearchClient.search({
+        index: input.indexName,
+        body,
+      });
+      if (res.body.hits.total.value == 0) {
+        return {
+          httpCode: 200,
+          data: [],
+          message: `No Data found based based on Keyword: ${input.keyword}`,
+        };
+      }
+      let result = res.body.hits.hits.map((item) => {
+        return {
+          _id: item._id,
+          data: item._source,
+        };
+      });
+
+      return {
+        httpCode: 200,
+        data: result,
+        message: `Data fetched successfully based on Keyword: ${input.keyword}`,
+      };
+    } catch (error) {
+      console.log(`Exception occurred while doing : ${error})`);
+      return {
+        httpCode: 500,
+        data: [],
+        error: error,
+      };
+    }
   }
 }
