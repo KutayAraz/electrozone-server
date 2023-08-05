@@ -6,7 +6,6 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
 import { Repository } from "typeorm";
-import { CreateOrderDto } from "./dtos/create-order.dto";
 import { User } from "src/entities/User.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
 import { CreateOrderItemDTO } from "./dtos/create-order-item.dto";
@@ -38,8 +37,6 @@ export class OrdersService {
     );
 
     order.orderTotal = total;
-    const orderDate = new Date();
-    order.orderDate = new Date();
 
     const savedOrder = await this.ordersRepo.save(order);
 

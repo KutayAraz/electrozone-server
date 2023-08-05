@@ -9,16 +9,12 @@ import {
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
-import { User } from "src/entities/User.entity";
 import { CreateOrderDto } from "./dtos/create-order.dto";
 import { OrdersService } from "./orders.service";
 import { AtGuard } from "src/common/guards";
 import {
-  GetCurrentUser,
   GetCurrentUserId,
-  Public,
 } from "src/common/decorators";
-import { UserDto } from "src/users/dtos/user.dto";
 
 @Controller("orders")
 export class OrdersController {

@@ -7,6 +7,8 @@ import { Review } from "src/entities/Review.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist";
 import { Repository } from "typeorm";
+import { CreateProductDto } from "./dtos/create-product.dto";
+import { Subcategory } from "src/entities/Subcategory.entity";
 
 @Injectable()
 export class ProductsService {
@@ -14,8 +16,9 @@ export class ProductsService {
     @InjectRepository(Product) private productsRepo: Repository<Product>,
     @InjectRepository(Review) private reviewsRepo: Repository<Review>,
     @InjectRepository(User) private usersRepo: Repository<User>,
-    @InjectRepository(OrderItem) private orderItemsRepo: Repository<OrderItem>,
     @InjectRepository(Order) private ordersRepo: Repository<Order>,
+    @InjectRepository(Subcategory)
+    private subcategoriesRepo: Repository<Subcategory>,
     @InjectRepository(Wishlist)
     private wishlistRepo: Repository<Wishlist>,
   ) {}
@@ -119,7 +122,6 @@ export class ProductsService {
     const review = new Review();
     review.product = product;
     review.user = user;
-    review.reviewDate = new Date();
     review.rating = rating;
     review.comment = comment;
     await this.productsRepo.save(product);
@@ -180,5 +182,18 @@ export class ProductsService {
       .orderBy("product.wishlisted", "DESC")
       .take(take)
       .getMany();
+  }
+
+  async createNewProduct(createProductDto: CreateProductDto) {
+    const subcategory = await this.subcategoriesRepo.findOneBy({
+      id: createProductDto.subcategoryId,
+    });
+
+    const newProduct = this.productsRepo.create({
+      ...createProductDto,
+      subcategory,
+    });
+
+    return await this.productsRepo.save(newProduct);
   }
 }

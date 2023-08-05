@@ -28,7 +28,7 @@ export class Product {
   @Column()
   thumbnail: string;
 
-  @Column("decimal", { precision: 10, scale: 1, nullable: false })
+  @Column("decimal", { precision: 10, scale: 1, nullable: true, default: null })
   averageRating: number;
 
   @Column("decimal", { precision: 10, scale: 2 })
@@ -37,10 +37,10 @@ export class Product {
   @Column()
   stock: number;
 
-  @Column()
+  @Column({default: 0})
   sold: number;
 
-  @Column()
+  @Column({default: 0})
   wishlisted: number;
 
   @OneToMany(() => Review, (review) => review.product, { eager: true })

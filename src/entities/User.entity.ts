@@ -1,14 +1,6 @@
-import {
-  Column,
-  Entity,
-  JoinTable,
-  ManyToMany,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from "typeorm";
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Order } from "./Order.entity";
-import { Product } from "./Product.entity";
-import { Exclude, Expose } from "class-transformer";
+import { Exclude } from "class-transformer";
 import { Review } from "./Review.entity";
 import { Wishlist } from "./Wishlist";
 
@@ -36,13 +28,13 @@ export class User {
   @Column()
   city: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   hashedRt: string;
 
   @OneToMany(() => Order, (order) => order.user)
   orders: Order[];
 
-  @OneToMany(() => Wishlist, wishlist => wishlist.user)
+  @OneToMany(() => Wishlist, (wishlist) => wishlist.user)
   wishlists: Wishlist[];
 
   @OneToMany(() => Review, (review) => review.user)

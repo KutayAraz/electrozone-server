@@ -13,7 +13,7 @@ import { Review } from "./entities/Review.entity";
 import { OrdersModule } from "./orders/orders.module";
 import { Order } from "./entities/Order.entity";
 import { APP_GUARD, APP_PIPE } from "@nestjs/core";
-import { SubcategoriesModule } from './subcategories/subcategories.module';
+import { SubcategoriesModule } from "./subcategories/subcategories.module";
 import { OrderItem } from "./entities/OrderItem.detail";
 import { ProductImage } from "./entities/ProductImage.entity";
 import { Wishlist } from "./entities/Wishlist";
@@ -36,7 +36,17 @@ import { AtGuard } from "./common/guards";
           username: config.get<string>("DB_USERNAME"),
           password: config.get<string>("DB_PASSWORD"),
           synchronize: true,
-          entities: [User, Category, Subcategory, Product, Review, Order, OrderItem, ProductImage, Wishlist],
+          entities: [
+            User,
+            Category,
+            Subcategory,
+            Product,
+            Review,
+            Order,
+            OrderItem,
+            ProductImage,
+            Wishlist,
+          ],
         };
       },
     }),

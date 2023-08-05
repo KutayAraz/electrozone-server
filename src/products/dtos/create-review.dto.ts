@@ -1,9 +1,12 @@
-import { IsDate, IsNumber, IsString, Length, Max, Min, max, maxDate } from "class-validator";
+import {
+  IsNumber,
+  IsString,
+  Length,
+  Max,
+  Min,
+} from "class-validator";
 
 export class CreateReviewDto {
-  @IsDate()
-  reviewDate: Date = new Date();
-
   @IsNumber()
   @Min(0)
   @Max(5)

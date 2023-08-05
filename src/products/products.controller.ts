@@ -9,9 +9,10 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ProductsService } from "./products.service";
-import { GetCurrentUserId } from "src/common/decorators";
+import { GetCurrentUserId, Public } from "src/common/decorators";
 import { AtGuard } from "src/common/guards";
 import { CreateReviewDto } from "./dtos/create-review.dto";
+import { CreateProductDto } from "./dtos/create-product.dto";
 
 @Controller("products")
 export class ProductsController {
@@ -61,16 +62,19 @@ export class ProductsController {
     );
   }
 
+  @Public()
   @Get("most_wishlisted")
   async getMostWishlisted() {
     return await this.productsService.getTopWishlisted();
   }
 
+  @Public()
   @Get("most_sold")
   async getMostSold() {
     return await this.productsService.getTopSelling();
   }
 
+  @Public()
   @Get(":subcategoryId/most_wishlisted")
   async getMostWishlistedBySubcategory(
     @Param("subcategoryId") subcategoryId: string,
@@ -80,6 +84,7 @@ export class ProductsController {
     );
   }
 
+  @Public()
   @Get(":subcategoryId/most_sold")
   async getMostSoldBySubcategory(
     @Param("subcategoryId") subcategoryId: string,
@@ -87,5 +92,11 @@ export class ProductsController {
     return await this.productsService.getTopWishlistedBySubcategory(
       parseInt(subcategoryId),
     );
+  }
+
+  @Public()
+  @Post()
+  async addNewProduct(@Body() createNewProduct: CreateProductDto) {
+    return await this.productsService.createNewProduct(createNewProduct);
   }
 }

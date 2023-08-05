@@ -8,6 +8,7 @@ import { Wishlist } from "src/entities/Wishlist";
 import { Review } from "src/entities/Review.entity";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
+import { Subcategory } from "src/entities/Subcategory.entity";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { OrderItem } from "src/entities/OrderItem.detail";
       Review,
       Order,
       OrderItem,
+      Subcategory
     ]),
   ],
   controllers: [ProductsController],
