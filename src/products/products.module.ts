@@ -11,6 +11,7 @@ import { OrderItem } from "src/entities/OrderItem.detail";
 import { Subcategory } from "src/entities/Subcategory.entity";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { OpensearchModule } from "nestjs-opensearch";
+import { OpenSearchService } from "./opensearch.service";
 
 @Module({
   imports: [
@@ -24,11 +25,8 @@ import { OpensearchModule } from "nestjs-opensearch";
       Subcategory,
     ]),
     ConfigModule,
-    OpensearchModule.forRoot({
-      node: "http://localhost:9200",
-    }),
   ],
   controllers: [ProductsController],
-  providers: [ProductsService],
+  providers: [ProductsService, OpenSearchService],
 })
 export class ProductsModule {}

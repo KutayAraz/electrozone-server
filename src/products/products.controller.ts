@@ -101,8 +101,8 @@ export class ProductsController {
   }
 
   @Public()
-  @Get(":query")
-  async findProducts(@Param("query") query: string){
-    return this.productsService.searchForProducts(query)
+  @Get("search/:query")
+  async searchForProducts(@Param("query") query:string){
+    return await this.productsService.searchProducts(query)
   }
 }
