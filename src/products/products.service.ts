@@ -233,25 +233,25 @@ export class ProductsService {
           bool: {
             should: [
               {
-                regexp: {
+                wildcard: {
                   productName: {
-                    query,
+                    value: `${query}*`,
                     boost: 5, // Higher boost for productName
                   },
                 },
               },
               {
-                regexp: {
+                wildcard: {
                   brand: {
-                    query,
+                    value: `${query}*`,
                     boost: 3, // Medium boost for brand
                   },
                 },
               },
               {
-                regexp: {
+                wildcard: {
                   description: {
-                    query,
+                    value: `${query}*`,
                     boost: 1, // Lowest boost for description
                   },
                 },
@@ -269,8 +269,8 @@ export class ProductsService {
 
   async addProduct(product: Product) {
     const doc = {
-      productName: "Samsung Oled TV",
-      brand: "Samsung",
+      productName: "a tv proıduct ",
+      brand: "samsung",
       description: "This is tv",
     };
     await this.opensearchService.client.index({
