@@ -99,4 +99,10 @@ export class ProductsController {
   async addNewProduct(@Body() createNewProduct: CreateProductDto) {
     return await this.productsService.createNewProduct(createNewProduct);
   }
+
+  @Public()
+  @Get("search/:query")
+  async getProductsBySearch(@Param("query") query: string) {
+    return this.productsService.findBySearch(query);
+  }
 }

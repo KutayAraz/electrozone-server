@@ -196,4 +196,16 @@ export class ProductsService {
 
     return await this.productsRepo.save(newProduct);
   }
+
+  async findBySearch(search: string) {
+    return await this.productsRepo
+      .createQueryBuilder("product")
+      .where(`product.productName LIKE :search`, { search: "%" + search + "%" })
+      .orWhere(`product.brand LIKE :search`, { search: "%" + search + "%" })
+      .orWhere(`product.description LIKE :search`, {
+        search: "%" + search + "%",
+      })
+      .orderBy("product.productName", "ASC")
+      .getMany();
+  }
 }
