@@ -94,15 +94,19 @@ export class ProductsController {
     );
   }
 
+  @UseGuards(AtGuard)
   @Public()
   @Post()
-  async addNewProduct(@Body() createNewProduct: CreateProductDto) {
-    return await this.productsService.createNewProduct(createNewProduct);
+  async addNewProduct(
+    @GetCurrentUserId() userId: number,
+    @Body() createNewProduct: CreateProductDto,
+  ) {
+    return await this.productsService.createNewProduct(userId, createNewProduct);
   }
 
   @Public()
   @Get("search/:query")
-  async searchForProducts(@Param("query") query:string){
-    return await this.productsService.searchProducts(query)
+  async searchForProducts(@Param("query") query: string) {
+    return await this.productsService.searchProducts(query);
   }
 }

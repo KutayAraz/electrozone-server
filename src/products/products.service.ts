@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
 import { Product } from "src/entities/Product.entity";
@@ -8,7 +12,7 @@ import { Wishlist } from "src/entities/Wishlist";
 import { Repository } from "typeorm";
 import { CreateProductDto } from "./dtos/create-product.dto";
 import { Subcategory } from "src/entities/Subcategory.entity";
-import { OpenSearchService } from "./opensearch.service";
+import { OpensearchClient } from "nestjs-opensearch";
 
 @Injectable()
 export class ProductsService {
@@ -21,7 +25,7 @@ export class ProductsService {
     private subcategoriesRepo: Repository<Subcategory>,
     @InjectRepository(Wishlist)
     private wishlistRepo: Repository<Wishlist>,
-    private readonly opensearchService: OpenSearchService,
+    private opensearchServiceMod: OpensearchClient,
   ) {}
 
   async findProduct(id: number) {
@@ -185,48 +189,8 @@ export class ProductsService {
       .getMany();
   }
 
-  async createNewProduct(createProductDto: CreateProductDto) {
-    const subcategory = await this.subcategoriesRepo.findOneBy({
-      id: createProductDto.subcategoryId,
-    });
-
-    const newProduct = this.productsRepo.create({
-      ...createProductDto,
-      subcategory,
-    });
-    await this.addProduct(newProduct);
-    // await this.defineMapping()
-    return await this.productsRepo.save(newProduct);
-  }
-
-  async defineMapping() {
-    await this.opensearchService.client.indices.putMapping({
-      index: "products",
-      body: {
-        mappings: {
-          properties: {
-            productName: {
-              type: "text",
-              analyzer: "partial_search",
-            },
-          },
-        },
-        settings: {
-          analysis: {
-            analyzer: {
-              partial_search: {
-                type: "standard",
-                tokenizer: "keyword",
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
   async searchProducts(query: string) {
-    const result = await this.opensearchService.client.search({
+    const result = await this.opensearchServiceMod.search({
       index: "products",
       body: {
         query: {
@@ -267,15 +231,35 @@ export class ProductsService {
     return hits.map((hit) => hit._source);
   }
 
-  async addProduct(product: Product) {
+  async indexProduct(product: Product) {
     const doc = {
-      productName: "a tv proıduct ",
-      brand: "samsung",
-      description: "This is tv",
+      id: product.id,
+      productName: product.productName,
+      brand: product.brand,
+      description: product.description,
     };
-    await this.opensearchService.client.index({
+    await this.opensearchServiceMod.index({
       index: "products",
       body: doc,
     });
+  }
+
+  async createNewProduct(userId: number, createProductDto: CreateProductDto) {
+    const user = await this.usersRepo.findOneByOrFail({id: userId})
+
+    if (user.role !== "admin"){
+      throw new UnauthorizedException("You are not authorized to add a new product")
+    }
+
+    const subcategory = await this.subcategoriesRepo.findOneBy({
+      id: createProductDto.subcategoryId,
+    });
+
+    const newProduct = this.productsRepo.create({
+      ...createProductDto,
+      subcategory,
+    });
+    await this.indexProduct(newProduct);
+    return await this.productsRepo.save(newProduct);
   }
 }

@@ -1,2 +1,0 @@
-curl -XGET -u 'kutayaraz:Kutay731!' 'https://search-electrozone-hjkvc55vcca2elrazvcp7olyue.eu-north-1.es.amazonaws.com/products/_search?q=this&pretty=true'
-curl -XPUT -u 'kutayaraz:Kutay731!' 'https://search-electrozone-hjkvc55vcca2elrazvcp7olyue.eu-north-1.es.amazonaws.com/movies/_doc/1' -d '{"director": "Burton, Tim", "genre": ["Comedy","Sci-Fi"], "year": 1996, "actor": ["Jack Nicholson","Pierce Brosnan","Sarah Jessica Parker"], "title": "Mars Attacks!"}' -H 'Content-Type: application/json'

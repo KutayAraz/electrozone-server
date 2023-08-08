@@ -1,4 +1,5 @@
 import {
+  AfterInsert,
   Column,
   Entity,
   ManyToOne,
@@ -37,20 +38,20 @@ export class Product {
   @Column()
   stock: number;
 
-  @Column({default: 0})
+  @Column({ default: 0 })
   sold: number;
 
-  @Column({default: 0})
+  @Column({ default: 0 })
   wishlisted: number;
+
+  @ManyToOne(() => Subcategory, (subcategory) => subcategory.products)
+  subcategory: Subcategory;
 
   @OneToMany(() => Review, (review) => review.product, { eager: true })
   reviews: Review[];
 
   @OneToMany(() => ProductImage, (productImage) => productImage.product)
   productImages: ProductImage[];
-
-  @ManyToOne(() => Subcategory, (subcategory) => subcategory.products)
-  subcategory: Subcategory;
 
   @OneToMany(() => Wishlist, (wishlist) => wishlist.product)
   wishlists: Wishlist[];

@@ -28,6 +28,9 @@ export class User {
   @Column()
   city: string;
 
+  @Column({ default: "user" })
+  role: string;
+
   @Column({ nullable: true })
   hashedRt: string;
 

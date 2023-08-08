@@ -11,10 +11,19 @@ import { OrderItem } from "src/entities/OrderItem.detail";
 import { Subcategory } from "src/entities/Subcategory.entity";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { OpensearchModule } from "nestjs-opensearch";
-import { OpenSearchService } from "./opensearch.service";
 
 @Module({
   imports: [
+    OpensearchModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        node: config.get("OPENSEARCH_NODE"),
+        auth: {
+          username: config.get("OPENSEARCH_USER"),
+          password: config.get("OPENSEARCH_PASSWORD"),
+        },
+      }),
+    }),
     TypeOrmModule.forFeature([
       Product,
       User,
@@ -27,6 +36,6 @@ import { OpenSearchService } from "./opensearch.service";
     ConfigModule,
   ],
   controllers: [ProductsController],
-  providers: [ProductsService, OpenSearchService],
+  providers: [ProductsService],
 })
 export class ProductsModule {}
