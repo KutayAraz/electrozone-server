@@ -6,6 +6,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ProductsService } from "./products.service";
@@ -16,7 +17,6 @@ import { CreateProductDto } from "./dtos/create-product.dto";
 
 @Controller("products")
 export class ProductsController {
-  q;
   constructor(private productsService: ProductsService) {}
 
   @Get(":id")
@@ -95,14 +95,10 @@ export class ProductsController {
   }
 
   @Public()
-  @Post()
-  async addNewProduct(@Body() createNewProduct: CreateProductDto) {
-    return await this.productsService.createNewProduct(createNewProduct);
-  }
-
-  @Public()
-  @Get("search/:query")
-  async getProductsBySearch(@Param("query") query: string) {
-    return this.productsService.findBySearch(query);
+  @Get()
+  async getProductsBySearch(@Query('search') encodedSearchQuery: string) {
+    const searchQuery = decodeURIComponent(encodedSearchQuery);
+    console.log(searchQuery)
+    return this.productsService.findBySearch(searchQuery);
   }
 }

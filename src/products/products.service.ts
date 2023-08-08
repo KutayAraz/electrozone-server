@@ -6,7 +6,7 @@ import { Product } from "src/entities/Product.entity";
 import { Review } from "src/entities/Review.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist";
-import { Repository } from "typeorm";
+import { Brackets, Repository } from "typeorm";
 import { CreateProductDto } from "./dtos/create-product.dto";
 import { Subcategory } from "src/entities/Subcategory.entity";
 
@@ -184,28 +184,35 @@ export class ProductsService {
       .getMany();
   }
 
-  async createNewProduct(createProductDto: CreateProductDto) {
-    const subcategory = await this.subcategoriesRepo.findOneBy({
-      id: createProductDto.subcategoryId,
-    });
-
-    const newProduct = this.productsRepo.create({
-      ...createProductDto,
-      subcategory,
-    });
-
-    return await this.productsRepo.save(newProduct);
-  }
-
   async findBySearch(search: string) {
-    return await this.productsRepo
-      .createQueryBuilder("product")
-      .where(`product.productName LIKE :search`, { search: "%" + search + "%" })
-      .orWhere(`product.brand LIKE :search`, { search: "%" + search + "%" })
-      .orWhere(`product.description LIKE :search`, {
-        search: "%" + search + "%",
-      })
-      .orderBy("product.productName", "ASC")
-      .getMany();
+    const searchWords = search.split(" ");
+
+    const query = this.productsRepo.createQueryBuilder("product");
+
+    query.where(
+      new Brackets((qb) => {
+        searchWords.forEach((word, index) => {
+          if (index === 0) {
+            qb.where(`product.productName LIKE :search${index}`, {
+              [`search${index}`]: `%${word}%`,
+            });
+          } else {
+            qb.orWhere(`product.productName LIKE :search${index}`, {
+              [`search${index}`]: `%${word}%`,
+            });
+          }
+        });
+      }),
+    );
+
+    query.orWhere(`product.brand LIKE :search`, { search: `%${search}%` });
+
+    query.orWhere(`product.description LIKE :search`, {
+      search: `%${search}%`,
+    });
+
+    query.orderBy("product.productName", "ASC");
+
+    return await query.getMany();
   }
 }
