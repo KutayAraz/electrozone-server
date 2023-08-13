@@ -70,6 +70,15 @@ export class ProductsService {
     }
   }
 
+  async getReviewsByProductId(productId: number): Promise<Review[]> {
+    // Use the reviewRepository to query the reviews based on the product ID
+    const reviews = await this.reviewsRepo.find({
+      where: { product: { id: productId } },
+    });
+
+    return reviews;
+  }
+
   async canCurrentUserReview(selectedProductId: number, userId: number) {
     const orders = await this.ordersRepo
       .createQueryBuilder("order")
@@ -160,29 +169,7 @@ export class ProductsService {
       .getMany();
   }
 
-  async getTopSellingBySubcategory(
-    subcategoryId: number,
-    take: number = 5,
-  ): Promise<Product[]> {
-    return this.productsRepo
-      .createQueryBuilder("product")
-      .where("product.subcategoryId = :subcatId", { subcatId: subcategoryId })
-      .orderBy("product.sold", "DESC")
-      .take(take)
-      .getMany();
-  }
 
-  async getTopWishlistedBySubcategory(
-    subcategoryId: number,
-    take: number = 5,
-  ): Promise<Product[]> {
-    return this.productsRepo
-      .createQueryBuilder("product")
-      .where("product.subcategoryId = :subcatId", { subcatId: subcategoryId })
-      .orderBy("product.wishlisted", "DESC")
-      .take(take)
-      .getMany();
-  }
 
   async findBySearch(search: string) {
     const searchWords = search.split(" ");

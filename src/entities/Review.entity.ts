@@ -17,7 +17,7 @@ export class Review {
   @CreateDateColumn()
   reviewDate: Date;
 
-  @Column()
+  @Column("decimal", { precision: 10, scale: 1,})
   rating: number;
 
   @Column()

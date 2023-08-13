@@ -19,6 +19,7 @@ import { CreateProductDto } from "./dtos/create-product.dto";
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
+  @Public()
   @Get(":id")
   async getProduct(@Param("id", ParseIntPipe) id: number) {
     return await this.productsService.findProduct(id);
@@ -32,6 +33,16 @@ export class ProductsController {
     return await this.productsService.toggleWishlist(
       parseInt(productId),
       userId,
+    );
+  }
+
+  @Public()
+  @Get(":productId/reviews")
+  async getProductReviews(
+    @Param("productId") productId: string,
+  ) {
+    return await this.productsService.getReviewsByProductId(
+      parseInt(productId),
     );
   }
 
@@ -75,30 +86,10 @@ export class ProductsController {
   }
 
   @Public()
-  @Get(":subcategoryId/most_wishlisted")
-  async getMostWishlistedBySubcategory(
-    @Param("subcategoryId") subcategoryId: string,
-  ) {
-    return await this.productsService.getTopSellingBySubcategory(
-      parseInt(subcategoryId),
-    );
-  }
-
-  @Public()
-  @Get(":subcategoryId/most_sold")
-  async getMostSoldBySubcategory(
-    @Param("subcategoryId") subcategoryId: string,
-  ) {
-    return await this.productsService.getTopWishlistedBySubcategory(
-      parseInt(subcategoryId),
-    );
-  }
-
-  @Public()
   @Get()
-  async getProductsBySearch(@Query('search') encodedSearchQuery: string) {
+  async getProductsBySearch(@Query("search") encodedSearchQuery: string) {
     const searchQuery = decodeURIComponent(encodedSearchQuery);
-    console.log(searchQuery)
+    console.log(searchQuery);
     return this.productsService.findBySearch(searchQuery);
   }
 }
