@@ -26,7 +26,11 @@ export class CartsService {
       .where("cartItem.cartId = :cartId", { cartId: cart.id })
       .getMany();
 
-    return cart.cartTotal, cart.totalQuantity, products;
+      return {
+        cartTotal: cart.cartTotal,
+        totalQuantity: cart.totalQuantity,
+        products: products,
+      };
   }
 
   async addProductToCart(userId: number, productId: number, quantity: number) {
@@ -51,7 +55,8 @@ export class CartsService {
     if (product) {
       product.quantity += quantity;
       product.amount = quantity * foundProduct.price;
-      return await this.cartItemsRepo.save(product);
+      await this.cartItemsRepo.save(product);
+      return await this.getUserCart(userId);
     } else {
       const cartItem = new CartItem();
       cartItem.product = foundProduct;
@@ -63,8 +68,7 @@ export class CartsService {
 
       await this.cartsRepo.save(cart);
       await this.cartItemsRepo.save(cartItem);
-
-      return cart.cartTotal, cart.totalQuantity, cartItem;
+      return await this.getUserCart(userId);
     }
   }
 
@@ -92,7 +96,9 @@ export class CartsService {
 
       await this.cartItemsRepo.save(productToUpdate);
       await this.cartsRepo.save(cart);
-      return { cart, productToUpdate };
+      return await this.getUserCart(userId);
+    } else {
+      return await this.addProductToCart(userId, productId, quantity)
     }
   }
 
@@ -113,16 +119,24 @@ export class CartsService {
 
       await this.cartsRepo.save(cart);
       await this.cartItemsRepo.delete(productToRemove);
+      return await this.getUserCart(userId);
     }
   }
 
   async clearCart(userId: number) {
-    const user = await this.usersRepo.findOneBy({ id: userId });
-    const cart = await this.cartsRepo.findOne({ where: { user } });
+    try {
+      const user = await this.usersRepo.findOneBy({ id: userId });
+      const cart = await this.cartsRepo.findOne({ where: { user } });
 
-    cart.cartTotal = 0;
-    cart.totalQuantity = 0;
-    await this.cartsRepo.save(cart);
-    await this.cartItemsRepo.delete({ cart });
+      cart.cartTotal = 0;
+      cart.totalQuantity = 0;
+
+      await this.cartsRepo.save(cart);
+      await this.cartItemsRepo.delete({ cart });
+
+      return { success: true, message: "Cart cleared successfully." };
+    } catch (error) {
+      return { success: false, message: "Failed to clear the cart." };
+    }
   }
 }
