@@ -13,11 +13,22 @@ import { ProductsService } from "./products.service";
 import { GetCurrentUserId, Public } from "src/common/decorators";
 import { AtGuard } from "src/common/guards";
 import { CreateReviewDto } from "./dtos/create-review.dto";
-import { CreateProductDto } from "./dtos/create-product.dto";
 
 @Controller("products")
 export class ProductsController {
   constructor(private productsService: ProductsService) {}
+
+  @Public()
+  @Get("/most-wishlisted")
+  async getMostWishlisted() {
+    return await this.productsService.getTopWishlisted();
+  }
+
+  @Public()
+  @Get("most-sold")
+  async getMostSold(@Param("id") id: string) {
+    return await this.productsService.getTopSelling();
+  }
 
   @Public()
   @Get(":id")
@@ -38,9 +49,7 @@ export class ProductsController {
 
   @Public()
   @Get(":productId/reviews")
-  async getProductReviews(
-    @Param("productId") productId: string,
-  ) {
+  async getProductReviews(@Param("productId") productId: string) {
     return await this.productsService.getReviewsByProductId(
       parseInt(productId),
     );
@@ -71,18 +80,6 @@ export class ProductsController {
       createReviewDto.rating,
       createReviewDto.comment,
     );
-  }
-
-  @Public()
-  @Get("most_wishlisted")
-  async getMostWishlisted() {
-    return await this.productsService.getTopWishlisted();
-  }
-
-  @Public()
-  @Get("most_sold")
-  async getMostSold() {
-    return await this.productsService.getTopSelling();
   }
 
   @Public()

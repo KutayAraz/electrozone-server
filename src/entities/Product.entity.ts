@@ -10,6 +10,7 @@ import { Subcategory } from "./Subcategory.entity";
 import { ProductImage } from "./ProductImage.entity";
 import { OrderItem } from "./OrderItem.detail";
 import { Wishlist } from "./Wishlist";
+import { CartItem } from "./CartItem.entity";
 
 @Entity({ name: "products" })
 export class Product {
@@ -57,4 +58,7 @@ export class Product {
 
   @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
   orderItems: OrderItem[];
+
+  @OneToMany(() => CartItem, (cartItem) => cartItem.product)
+  cartItems: CartItem[];
 }

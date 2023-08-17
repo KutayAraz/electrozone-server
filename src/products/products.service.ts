@@ -1,14 +1,11 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
-import { OrderItem } from "src/entities/OrderItem.detail";
 import { Product } from "src/entities/Product.entity";
 import { Review } from "src/entities/Review.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist";
 import { Brackets, Repository } from "typeorm";
-import { CreateProductDto } from "./dtos/create-product.dto";
-import { Subcategory } from "src/entities/Subcategory.entity";
 
 @Injectable()
 export class ProductsService {
@@ -17,8 +14,6 @@ export class ProductsService {
     @InjectRepository(Review) private reviewsRepo: Repository<Review>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Order) private ordersRepo: Repository<Order>,
-    @InjectRepository(Subcategory)
-    private subcategoriesRepo: Repository<Subcategory>,
     @InjectRepository(Wishlist)
     private wishlistRepo: Repository<Wishlist>,
   ) {}
@@ -71,7 +66,6 @@ export class ProductsService {
   }
 
   async getReviewsByProductId(productId: number): Promise<Review[]> {
-    // Use the reviewRepository to query the reviews based on the product ID
     const reviews = await this.reviewsRepo.find({
       where: { product: { id: productId } },
     });
@@ -168,8 +162,6 @@ export class ProductsService {
       .take(take)
       .getMany();
   }
-
-
 
   async findBySearch(search: string) {
     const searchWords = search.split(" ");

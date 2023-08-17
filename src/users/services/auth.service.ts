@@ -29,6 +29,19 @@ export class AuthService {
     return await bcrypt.hash(password, 10);
   }
 
+  private capitalizeFirstLetterOfEachWord(input: string): string {
+    const words = input.split(" ");
+
+    const capitalizedWords = words.map((word) => {
+      const lowercaseWord = word.toLocaleLowerCase('tr-TR');
+      const capitalizedWord =
+        lowercaseWord.charAt(0).toLocaleUpperCase('tr-TR') + lowercaseWord.slice(1);
+      return capitalizedWord;
+    });
+
+    return capitalizedWords.join(" ");
+  }
+
   async updatePassword(id: number, updatedPasswordData: UpdatePasswordDto) {
     const user = await this.usersService.find(id);
 
@@ -74,10 +87,10 @@ export class AuthService {
 
     user.email = createUserDto.email;
     user.password = await this.hashPassword(createUserDto.password);
-    user.firstName = createUserDto.firstName;
-    user.lastName = createUserDto.lastName;
-    user.address = createUserDto.address;
-    user.city = createUserDto.city;
+    user.firstName = this.capitalizeFirstLetterOfEachWord(createUserDto.firstName)
+    user.lastName = this.capitalizeFirstLetterOfEachWord(createUserDto.lastName)
+    user.address = this.capitalizeFirstLetterOfEachWord(createUserDto.address)
+    user.city = this.capitalizeFirstLetterOfEachWord(createUserDto.city)
 
     user = this.usersRepo.create(user);
 
@@ -106,7 +119,7 @@ export class AuthService {
     const { password, hashedRt, ...result } = user;
 
     return { ...result, ...tokens };
-  } 
+  }
 
   async logout(userId: number): Promise<boolean> {
     await this.usersRepo.update({ id: userId }, { hashedRt: null });
@@ -142,7 +155,7 @@ export class AuthService {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("AT_SECRET"),
-        expiresIn: "15m",
+        expiresIn: "120m",
       }),
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("RT_SECRET"),
