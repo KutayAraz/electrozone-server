@@ -1,5 +1,4 @@
 import { Module, ValidationPipe } from "@nestjs/common";
-import { AppService } from "./app.service";
 import { UsersModule } from "./users/users.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { CategoriesModule } from "./categories/categories.module";
@@ -66,7 +65,6 @@ import { CartItem } from "./entities/CartItem.entity";
     CartsModule,
   ],
   providers: [
-    AppService,
     {
       provide: APP_PIPE,
       useValue: new ValidationPipe({
