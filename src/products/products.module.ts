@@ -9,6 +9,8 @@ import { Review } from "src/entities/Review.entity";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
 import { Subcategory } from "src/entities/Subcategory.entity";
+import { ReviewsController } from "./reviews.controller";
+import { ReviewsService } from "./reviews.service";
 
 @Module({
   imports: [
@@ -22,7 +24,7 @@ import { Subcategory } from "src/entities/Subcategory.entity";
       Subcategory
     ]),
   ],
-  controllers: [ProductsController],
-  providers: [ProductsService],
+  controllers: [ProductsController, ReviewsController],
+  providers: [ProductsService, ReviewsService],
 })
 export class ProductsModule {}

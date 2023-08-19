@@ -1,5 +1,4 @@
 import { Module, ValidationPipe } from "@nestjs/common";
-import { AppService } from "./app.service";
 import { UsersModule } from "./users/users.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { CategoriesModule } from "./categories/categories.module";
@@ -18,6 +17,9 @@ import { OrderItem } from "./entities/OrderItem.detail";
 import { ProductImage } from "./entities/ProductImage.entity";
 import { Wishlist } from "./entities/Wishlist";
 import { AtGuard } from "./common/guards";
+import { CartsModule } from './carts/carts.module';
+import { Cart } from "./entities/Cart.entity";
+import { CartItem } from "./entities/CartItem.entity";
 
 @Module({
   imports: [
@@ -36,6 +38,9 @@ import { AtGuard } from "./common/guards";
           username: config.get<string>("DB_USERNAME"),
           password: config.get<string>("DB_PASSWORD"),
           synchronize: true,
+          extra: {
+            decimalNumbers: true
+          },
           entities: [
             User,
             Category,
@@ -46,6 +51,8 @@ import { AtGuard } from "./common/guards";
             OrderItem,
             ProductImage,
             Wishlist,
+            Cart,
+            CartItem
           ],
         };
       },
@@ -55,9 +62,9 @@ import { AtGuard } from "./common/guards";
     ProductsModule,
     OrdersModule,
     SubcategoriesModule,
+    CartsModule,
   ],
   providers: [
-    AppService,
     {
       provide: APP_PIPE,
       useValue: new ValidationPipe({

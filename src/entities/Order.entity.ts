@@ -14,7 +14,7 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column("decimal", { precision: 10, scale: 2, default: 0 })
   orderTotal: number;
 
   @CreateDateColumn()
@@ -23,6 +23,6 @@ export class Order {
   @ManyToOne(() => User, (user) => user.orders)
   user: User;
 
-  @OneToMany(() => OrderItem, (orderItem) => orderItem.order, {cascade: true})
+  @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
   orderItems: OrderItem[];
 }

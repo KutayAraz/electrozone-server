@@ -1,14 +1,14 @@
 import {
   Entity,
   PrimaryGeneratedColumn,
-  ManyToOne,
   Column,
+  ManyToOne,
 } from "typeorm";
-import { Order } from "./Order.entity";
+import { Cart } from "./Cart.entity";
 import { Product } from "./Product.entity";
 
-@Entity({ name: "order_items" })
-export class OrderItem {
+@Entity({ name: "cart_items" })
+export class CartItem {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -16,11 +16,11 @@ export class OrderItem {
   quantity: number;
 
   @Column("decimal", { precision: 10, scale: 2 })
-  price: number;
+  amount: number;
 
-  @ManyToOne(() => Order, (order) => order.orderItems)
-  order: Order;
-
-  @ManyToOne(() => Product, (product) => product.orderItems)
+  @ManyToOne(() => Product, (product) => product.cartItems)
   product: Product;
+
+  @ManyToOne(() => Cart, (cart) => cart.products)
+  cart: Cart;
 }

@@ -1,29 +1,39 @@
 import {
-  Body,
   Controller,
   Get,
   Param,
   ParseIntPipe,
   Patch,
-  Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ProductsService } from "./products.service";
 import { GetCurrentUserId, Public } from "src/common/decorators";
 import { AtGuard } from "src/common/guards";
-import { CreateReviewDto } from "./dtos/create-review.dto";
-import { CreateProductDto } from "./dtos/create-product.dto";
 
 @Controller("products")
 export class ProductsController {
-  q;
   constructor(private productsService: ProductsService) {}
 
+  @Public()
+  @Get("/most-wishlisted")
+  async getMostWishlisted() {
+    return await this.productsService.getTopWishlisted();
+  }
+
+  @Public()
+  @Get("most-sold")
+  async getMostSold(@Param("id") id: string) {
+    return await this.productsService.getTopSelling();
+  }
+
+  @Public()
   @Get(":id")
   async getProduct(@Param("id", ParseIntPipe) id: number) {
     return await this.productsService.findProduct(id);
   }
 
+  @UseGuards(AtGuard)
   @Patch(":productId/wishlist")
   async toggleWishlist(
     @Param("productId") productId: string,
@@ -35,68 +45,11 @@ export class ProductsController {
     );
   }
 
-  @Get(":productId/review")
-  @UseGuards(AtGuard)
-  async checkCanReview(
-    @GetCurrentUserId() userId: number,
-    @Param("productId") productId: string,
-  ) {
-    return await this.productsService.canCurrentUserReview(
-      parseInt(productId),
-      userId,
-    );
-  }
-
-  @Post(":productId/review")
-  @UseGuards(AtGuard)
-  createReview(
-    @Body() createReviewDto: CreateReviewDto,
-    @GetCurrentUserId() userId: number,
-    @Param("productId") productId: string,
-  ) {
-    return this.productsService.addReview(
-      parseInt(productId),
-      userId,
-      createReviewDto.rating,
-      createReviewDto.comment,
-    );
-  }
-
   @Public()
-  @Get("most_wishlisted")
-  async getMostWishlisted() {
-    return await this.productsService.getTopWishlisted();
-  }
-
-  @Public()
-  @Get("most_sold")
-  async getMostSold() {
-    return await this.productsService.getTopSelling();
-  }
-
-  @Public()
-  @Get(":subcategoryId/most_wishlisted")
-  async getMostWishlistedBySubcategory(
-    @Param("subcategoryId") subcategoryId: string,
-  ) {
-    return await this.productsService.getTopSellingBySubcategory(
-      parseInt(subcategoryId),
-    );
-  }
-
-  @Public()
-  @Get(":subcategoryId/most_sold")
-  async getMostSoldBySubcategory(
-    @Param("subcategoryId") subcategoryId: string,
-  ) {
-    return await this.productsService.getTopWishlistedBySubcategory(
-      parseInt(subcategoryId),
-    );
-  }
-
-  @Public()
-  @Post()
-  async addNewProduct(@Body() createNewProduct: CreateProductDto) {
-    return await this.productsService.createNewProduct(createNewProduct);
+  @Get()
+  async getProductsBySearch(@Query("search") encodedSearchQuery: string) {
+    const searchQuery = decodeURIComponent(encodedSearchQuery);
+    console.log(searchQuery);
+    return this.productsService.findBySearch(searchQuery);
   }
 }

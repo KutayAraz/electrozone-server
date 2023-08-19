@@ -135,7 +135,7 @@ export class OrdersService {
     const orderItems = await this.orderItemsRepo
       .createQueryBuilder("order_item")
       .leftJoinAndSelect("order_item.product", "product")
-      .where("order_item.order_id = :orderId", { orderId: orderId })
+      .where("order_item.orderId = :orderId", { orderId })
       .getMany();
 
     order.orderItems = orderItems;

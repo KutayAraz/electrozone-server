@@ -29,78 +29,18 @@ export class AuthService {
     return await bcrypt.hash(password, 10);
   }
 
-  // async refreshToken(user: User) {
-  //   const payload = {
-  //     username: user.email,
-  //     sub: {
-  //       id: user.id,
-  //     },
-  //   };
+  private capitalizeFirstLetterOfEachWord(input: string): string {
+    const words = input.split(" ");
 
-  //   return {
-  //     accessToken: this.jwtService.sign(payload),
-  //   };
-  // }
+    const capitalizedWords = words.map((word) => {
+      const lowercaseWord = word.toLocaleLowerCase('tr-TR');
+      const capitalizedWord =
+        lowercaseWord.charAt(0).toLocaleUpperCase('tr-TR') + lowercaseWord.slice(1);
+      return capitalizedWord;
+    });
 
-  // async validateUser(email: string, password: string) {
-  //   const user = await this.usersRepo.findOneBy({ email });
-
-  //   console.log(user);
-
-  //   if (!user) {
-  //     throw new BadRequestException("No user found with this e-mail!");
-  //   }
-
-  //   if (!(await bcrypt.compare(password, user.password))) {
-  //     throw new UnauthorizedException("Invalid credentials");
-  //   }
-
-  //   const { password: excludedPassword, ...result } = user;
-
-  //   return result;
-  // }
-
-  // async signup(createUserDto: CreateUserDto) {
-  //   let user = new User();
-
-  //   if (createUserDto.password !== createUserDto.retypedPassword) {
-  //     throw new BadRequestException(["Passwords are not identical"]);
-  //   }
-
-  //   const existingUser = await this.usersRepo.findOneBy({
-  //     email: createUserDto.email,
-  //   });
-
-  //   if (existingUser) {
-  //     throw new BadRequestException(["username or email is already taken"]);
-  //   }
-
-  //   user.email = createUserDto.email;
-  //   user.password = await this.hashPassword(createUserDto.password);
-  //   user.firstName = createUserDto.firstName;
-  //   user.lastName = createUserDto.lastName;
-  //   user.address = createUserDto.address;
-  //   user.city = createUserDto.city;
-
-  //   user = this.usersRepo.create(user);
-
-  //   return await this.usersRepo.save(user);
-  // }
-
-  // async signin(email: string, password: string) {
-  //   const user = await this.validateUser(email, password);
-
-  //   const payload = {
-  //     email,
-  //     sub: user.id,
-  //   };
-
-  //   return {
-  //     ...user,
-  //     accessToken: this.jwtService.sign(payload),
-  //     refreshToken: this.jwtService.sign(payload, { expiresIn: "2d" }),
-  //   };
-  // }
+    return capitalizedWords.join(" ");
+  }
 
   async updatePassword(id: number, updatedPasswordData: UpdatePasswordDto) {
     const user = await this.usersService.find(id);
@@ -147,10 +87,10 @@ export class AuthService {
 
     user.email = createUserDto.email;
     user.password = await this.hashPassword(createUserDto.password);
-    user.firstName = createUserDto.firstName;
-    user.lastName = createUserDto.lastName;
-    user.address = createUserDto.address;
-    user.city = createUserDto.city;
+    user.firstName = this.capitalizeFirstLetterOfEachWord(createUserDto.firstName)
+    user.lastName = this.capitalizeFirstLetterOfEachWord(createUserDto.lastName)
+    user.address = this.capitalizeFirstLetterOfEachWord(createUserDto.address)
+    user.city = this.capitalizeFirstLetterOfEachWord(createUserDto.city)
 
     user = this.usersRepo.create(user);
 
@@ -179,7 +119,7 @@ export class AuthService {
     const { password, hashedRt, ...result } = user;
 
     return { ...result, ...tokens };
-  } 
+  }
 
   async logout(userId: number): Promise<boolean> {
     await this.usersRepo.update({ id: userId }, { hashedRt: null });
@@ -215,7 +155,7 @@ export class AuthService {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("AT_SECRET"),
-        expiresIn: "15m",
+        expiresIn: "120m",
       }),
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("RT_SECRET"),
