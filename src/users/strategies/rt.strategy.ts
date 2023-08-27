@@ -9,17 +9,18 @@ import { JwtPayload, JwtPayloadWithRt } from '../types';
 export class RtStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(config: ConfigService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: (req: Request) => {
+        return req.cookies?.refresh_token;
+      },
       secretOrKey: config.get<string>('RT_SECRET'),
       passReqToCallback: true,
     });
   }
 
   validate(req: Request, payload: JwtPayload): JwtPayloadWithRt {
-    const refreshToken = req
-      ?.get('authorization')
-      ?.replace('Bearer', '')
-      .trim();
+    const refreshToken = req.cookies?.refresh_token;
+
+    console.log("refresh token is" + "hello");
 
     if (!refreshToken) throw new ForbiddenException('Refresh token malformed');
 

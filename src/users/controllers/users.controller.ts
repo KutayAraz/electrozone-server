@@ -21,7 +21,7 @@ export class UsersController {
   @UseGuards(AtGuard)  
   @Get("/profile")
   async getCurrentUserProfile(@GetCurrentUser() user: UserDto) {
-    return user;
+    return this.usersService.findByEmail(user.email);
   }
 
   @UseGuards(AtGuard)

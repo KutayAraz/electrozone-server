@@ -9,12 +9,20 @@ import {
 } from "@nestjs/common";
 import { CartsService } from "./carts.service";
 import { AtGuard } from "src/common/guards";
-import { GetCurrentUserId } from "src/common/decorators";
+import { GetCurrentUserId, Public } from "src/common/decorators";
 import { CartItemDto } from "./dtos/cart-item.dto";
 
 @Controller("carts")
 export class CartsController {
   constructor(private readonly cartsService: CartsService) {}
+
+  @Public()
+  @Post("local-cart")
+  async getLocalCartInformation(@Body() localCartDto: CartItemDto[]) {
+    const resp = await this.cartsService.getLocalCartInformation(localCartDto);
+    console.log(resp);
+    return resp;
+  }
 
   @UseGuards(AtGuard)
   @Get("user-cart")
@@ -54,10 +62,7 @@ export class CartsController {
     @GetCurrentUserId() userId: number,
     @Body("productId") productId: number,
   ) {
-    return await this.cartsService.removeItemFromCart(
-      userId,
-      productId,
-    );
+    return await this.cartsService.removeItemFromCart(userId, productId);
   }
 
   @UseGuards(AtGuard)

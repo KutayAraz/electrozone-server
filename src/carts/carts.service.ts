@@ -4,7 +4,8 @@ import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
-import { Repository } from "typeorm";
+import { EntityNotFoundError, Repository } from "typeorm";
+import { CartItemDto } from "./dtos/cart-item.dto";
 
 @Injectable()
 export class CartsService {
@@ -16,9 +17,28 @@ export class CartsService {
   ) {}
 
   async getUserCart(userId: number) {
-    const cart = await this.cartsRepo.findOne({
-      where: { user: { id: userId } },
-    });
+    let cart;
+
+    try {
+      cart = await this.cartsRepo.findOneOrFail({
+        where: { user: { id: userId } },
+      });
+    } catch (error) {
+      // Handle the error (if it's related to not finding the cart)
+      if (error instanceof EntityNotFoundError) {
+        const user = await this.usersRepo.findOneByOrFail({ id: userId });
+        cart = this.cartsRepo.create({
+          user: user,
+          cartTotal: 0,
+          totalQuantity: 0,
+          // Add other necessary initializations if needed
+        });
+        await this.cartsRepo.save(cart);
+      } else {
+        // If it's another type of error, rethrow it.
+        throw error;
+      }
+    }
 
     const products = await this.cartItemsRepo
       .createQueryBuilder("cartItem")
@@ -26,13 +46,36 @@ export class CartsService {
       .where("cartItem.cartId = :cartId", { cartId: cart.id })
       .getMany();
 
-      return {
-        cartTotal: cart.cartTotal,
-        totalQuantity: cart.totalQuantity,
-        products: products,
-      };
+    return {
+      cartTotal: cart.cartTotal,
+      totalQuantity: cart.totalQuantity,
+      products: products,
+    };
   }
 
+  async getLocalCartInformation(products: CartItemDto[]) {
+    if (!Array.isArray(products)) {
+      throw new Error("Expected an array of products");
+    }
+  
+    let cartTotal = 0;
+  
+    const localCartProductsPromises = products.map(async (product) => {
+      const foundProduct = await this.productsRepo.findOneBy({ id: product.productId });
+      const productTotal = foundProduct.price * product.quantity;
+      cartTotal += productTotal;
+      return {
+        ...foundProduct,
+        quantity: product.quantity,
+        productTotal
+      };
+    });
+  
+    const localCartProducts = await Promise.all(localCartProductsPromises);
+  
+    return { cartTotal, localCartProducts };
+  }
+  
   async addProductToCart(userId: number, productId: number, quantity: number) {
     const user = await this.usersRepo.findOneBy({ id: userId });
     let cart = await this.cartsRepo.findOne({
@@ -98,7 +141,7 @@ export class CartsService {
       await this.cartsRepo.save(cart);
       return await this.getUserCart(userId);
     } else {
-      return await this.addProductToCart(userId, productId, quantity)
+      return await this.addProductToCart(userId, productId, quantity);
     }
   }
 

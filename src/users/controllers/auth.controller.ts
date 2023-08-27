@@ -9,7 +9,11 @@ import {
   UseInterceptors,
   HttpCode,
   HttpStatus,
+  Res,
+  Req,
+  BadRequestException,
 } from "@nestjs/common";
+import { Response, Request } from "express";
 import { CreateUserDto } from "../dtos/create-user.dto";
 import { UpdatePasswordDto } from "../dtos/update-password.dto";
 import { UserDto } from "../dtos/user.dto";
@@ -19,6 +23,7 @@ import {
   Public,
   GetCurrentUserId,
   GetCurrentUser,
+  GetCurrentUserIdFromCookies,
 } from "../../common/decorators";
 import { Tokens } from "../types";
 import { AtGuard, RtGuard } from "src/common/guards";
@@ -29,17 +34,27 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Public()
-  @Post("local/signup")
+  @Post("signup")
   @HttpCode(HttpStatus.CREATED)
   signupLocal(@Body() dto: CreateUserDto) {
     return this.authService.signupLocal(dto);
   }
 
   @Public()
-  @Post("local/signin")
+  @Post("signin")
   @HttpCode(HttpStatus.OK)
-  signinLocal(@Body() dto: SignUserDto): Promise<Tokens> {
-    return this.authService.signinLocal(dto);
+  async signinLocal(
+    @Body() dto: SignUserDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const user = await this.authService.signinLocal(dto);
+
+    res.cookie("refreshToken", user.refresh_token, {
+      expires: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days in milliseconds
+      httpOnly: true,
+    });
+
+    return user;
   }
 
   @Post("logout")
@@ -64,33 +79,27 @@ export class AuthController {
   }
 
   @Public()
-  @UseGuards(RtGuard)
   @Post("refresh")
   @HttpCode(HttpStatus.OK)
-  refreshTokens(
-    @GetCurrentUserId() userId: number,
-    @GetCurrentUser("refreshToken") refreshToken: string,
-  ): Promise<Tokens> {
-    return this.authService.refreshTokens(userId, refreshToken);
+  async refreshTokens(
+    @GetCurrentUserIdFromCookies() userId: number,
+    @Req() request: Request,
+    @Res() res: Response,
+  ) {
+    const refreshToken = request.cookies?.refreshToken;
+    if (!refreshToken) {
+      throw new BadRequestException("Refresh token missing in cookie.");
+    }
+
+    const tokens = await this.authService.refreshTokens(userId, refreshToken);
+    res.cookie("refreshToken", tokens.refresh_token, {
+      httpOnly: true,
+      expires: new Date(new Date().getTime() + 48 * 60 * 60 * 1000),
+      sameSite: "strict",
+    });
+
+    res.json({
+      access_token: tokens.access_token,
+    });
   }
 }
-
-// @Post("/signup")
-// async createNewUser(@Body() createUserDto: CreateUserDto) {
-//   return await this.authService.signup(createUserDto);
-// }
-
-// @UseGuards(AuthGuardLocal)
-// @Post("/signin")
-// async signUser(@Body() userCredentials: SignUserDto) {
-//   return await this.authService.signin(
-//     userCredentials.email,
-//     userCredentials.password,
-//   );
-// }
-
-// @UseGuards(RefreshJwtGuard)
-// @Post("refresh")
-// async refreshToken(@Request() req) {
-//   return this.authService.refreshToken(req.user);
-// }

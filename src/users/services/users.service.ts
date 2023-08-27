@@ -36,7 +36,7 @@ export class UsersService {
       throw new NotFoundException(["No user with this email found!"]);
     }
 
-    const { password: excludedPassword, ...result } = user;
+    const { password: excludedPassword, hashedRt: excludedRt, ...result } = user;
 
     return result;
   }

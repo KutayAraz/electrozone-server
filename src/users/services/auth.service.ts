@@ -33,9 +33,10 @@ export class AuthService {
     const words = input.split(" ");
 
     const capitalizedWords = words.map((word) => {
-      const lowercaseWord = word.toLocaleLowerCase('tr-TR');
+      const lowercaseWord = word.toLocaleLowerCase("tr-TR");
       const capitalizedWord =
-        lowercaseWord.charAt(0).toLocaleUpperCase('tr-TR') + lowercaseWord.slice(1);
+        lowercaseWord.charAt(0).toLocaleUpperCase("tr-TR") +
+        lowercaseWord.slice(1);
       return capitalizedWord;
     });
 
@@ -87,10 +88,14 @@ export class AuthService {
 
     user.email = createUserDto.email;
     user.password = await this.hashPassword(createUserDto.password);
-    user.firstName = this.capitalizeFirstLetterOfEachWord(createUserDto.firstName)
-    user.lastName = this.capitalizeFirstLetterOfEachWord(createUserDto.lastName)
-    user.address = this.capitalizeFirstLetterOfEachWord(createUserDto.address)
-    user.city = this.capitalizeFirstLetterOfEachWord(createUserDto.city)
+    user.firstName = this.capitalizeFirstLetterOfEachWord(
+      createUserDto.firstName,
+    );
+    user.lastName = this.capitalizeFirstLetterOfEachWord(
+      createUserDto.lastName,
+    );
+    user.address = this.capitalizeFirstLetterOfEachWord(createUserDto.address);
+    user.city = this.capitalizeFirstLetterOfEachWord(createUserDto.city);
 
     user = this.usersRepo.create(user);
 
@@ -130,9 +135,10 @@ export class AuthService {
     const user = await this.usersRepo.findOneBy({
       id: userId,
     });
+    
     if (!user || !user.hashedRt) throw new ForbiddenException("Access Denied");
 
-    const rtMatches = await bcrypt.compare(user.hashedRt, rt);
+    const rtMatches = await bcrypt.compare(rt, user.hashedRt);
     if (!rtMatches) throw new ForbiddenException("Invalid Credentials");
 
     const tokens = await this.getTokens(user.id, user.email);
@@ -155,11 +161,11 @@ export class AuthService {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("AT_SECRET"),
-        expiresIn: "120m",
+        expiresIn: "1m",
       }),
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("RT_SECRET"),
-        expiresIn: "7d",
+        expiresIn: "60m",
       }),
     ]);
 
