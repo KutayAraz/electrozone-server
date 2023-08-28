@@ -57,25 +57,27 @@ export class CartsService {
     if (!Array.isArray(products)) {
       throw new Error("Expected an array of products");
     }
-  
+
     let cartTotal = 0;
-  
+
     const localCartProductsPromises = products.map(async (product) => {
-      const foundProduct = await this.productsRepo.findOneBy({ id: product.productId });
+      const foundProduct = await this.productsRepo.findOneBy({
+        id: product.productId,
+      });
       const productTotal = foundProduct.price * product.quantity;
       cartTotal += productTotal;
       return {
         ...foundProduct,
         quantity: product.quantity,
-        productTotal
+        productTotal,
       };
     });
-  
+
     const localCartProducts = await Promise.all(localCartProductsPromises);
-  
+
     return { cartTotal, localCartProducts };
   }
-  
+
   async addProductToCart(userId: number, productId: number, quantity: number) {
     const user = await this.usersRepo.findOneBy({ id: userId });
     let cart = await this.cartsRepo.findOne({
@@ -113,6 +115,54 @@ export class CartsService {
       await this.cartItemsRepo.save(cartItem);
       return await this.getUserCart(userId);
     }
+  }
+
+  async getBuyNowCartInfo(productId: number, quantity: number) {
+    const product = await this.productsRepo.findOneByOrFail({ id: productId });
+    const cartTotal = product.price * quantity;
+
+    return { ...product, cartTotal };
+  }
+
+  async mergeLocalWithBackendCart(
+    userId: number,
+    localCartItems: CartItemDto[],
+  ) {
+    const user = await this.usersRepo.findOneBy({ id: userId });
+
+    let backendCart = await this.cartsRepo.findOne({
+      where: { user: { id: userId } },
+    });
+
+    if (!backendCart) {
+      backendCart = new Cart();
+      backendCart.user = user;
+      await this.cartsRepo.save(backendCart);
+    }
+
+    for (const localItem of localCartItems) {
+      const existingProduct = await this.cartItemsRepo.findOne({
+        where: { cart: backendCart, product: { id: localItem.productId } },
+        relations: ["product"],
+      });
+
+      if (existingProduct) {
+        await this.updateCartItemQuantity(
+          userId,
+          localItem.productId,
+          localItem.quantity + existingProduct.quantity,
+        );
+      } else {
+        await this.addProductToCart(
+          userId,
+          localItem.productId,
+          localItem.quantity,
+        );
+      }
+    }
+
+    // Return the merged cart
+    return await this.getUserCart(userId);
   }
 
   async updateCartItemQuantity(

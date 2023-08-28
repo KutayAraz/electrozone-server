@@ -19,15 +19,31 @@ export class CartsController {
   @Public()
   @Post("local-cart")
   async getLocalCartInformation(@Body() localCartDto: CartItemDto[]) {
-    const resp = await this.cartsService.getLocalCartInformation(localCartDto);
-    console.log(resp);
-    return resp;
+    return await this.cartsService.getLocalCartInformation(localCartDto);
   }
 
   @UseGuards(AtGuard)
   @Get("user-cart")
   async getUserCart(@GetCurrentUserId() id: number) {
     return await this.cartsService.getUserCart(id);
+  }
+
+  @UseGuards(AtGuard)
+  @Get("buynow-cart")
+  async getBuyNowCartInfo(@Body() cartItem: CartItemDto) {
+    return await this.cartsService.getBuyNowCartInfo(
+      cartItem.productId,
+      cartItem.quantity,
+    );
+  }
+
+  @UseGuards(AtGuard)
+  @Patch("user-cart")
+  async mergeCarts(
+    @GetCurrentUserId() userId: number,
+    @Body() cartItems: CartItemDto[],
+  ) {
+    return await this.cartsService.mergeLocalWithBackendCart(userId, cartItems);
   }
 
   @UseGuards(AtGuard)
