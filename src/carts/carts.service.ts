@@ -59,23 +59,43 @@ export class CartsService {
     }
 
     let cartTotal = 0;
+    let totalQuantity = 0;
 
     const localCartProductsPromises = products.map(async (product) => {
       const foundProduct = await this.productsRepo.findOneBy({
         id: product.productId,
       });
-      const productTotal = foundProduct.price * product.quantity;
-      cartTotal += productTotal;
+
+      if (!foundProduct) {
+        throw new Error(`Product with id ${product.productId} not found`);
+      }
+
+      const amount = foundProduct.price * product.quantity;
+
+      cartTotal += amount;
+      totalQuantity += product.quantity;
+
       return {
-        ...foundProduct,
+        id: product.productId,
         quantity: product.quantity,
-        productTotal,
+        amount,
+        product: {
+          id: foundProduct.id,
+          productName: foundProduct.productName,
+          brand: foundProduct.brand,
+          thumbnail: foundProduct.thumbnail,
+          price: foundProduct.price
+        },
       };
     });
 
     const localCartProducts = await Promise.all(localCartProductsPromises);
 
-    return { cartTotal, localCartProducts };
+    return {
+      cartTotal,
+      totalQuantity,
+      products: localCartProducts,
+    };
   }
 
   async addProductToCart(userId: number, productId: number, quantity: number) {

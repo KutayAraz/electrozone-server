@@ -38,7 +38,7 @@ export class CartsController {
   }
 
   @UseGuards(AtGuard)
-  @Patch("user-cart")
+  @Patch("merge-carts")
   async mergeCarts(
     @GetCurrentUserId() userId: number,
     @Body() cartItems: CartItemDto[],

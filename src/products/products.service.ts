@@ -26,6 +26,17 @@ export class ProductsService {
     return returnedProduct;
   }
 
+  async checkWishlist(productId: number, userId: number) {
+    const isWishlisted = await this.wishlistRepo.find({
+      where: {
+        product: { id: productId },
+        user: { id: userId },
+      },
+    });
+    
+    return isWishlisted.length > 0;
+  }
+
   async toggleWishlist(productId: number, userId: number) {
     const user = await this.usersRepo.findOne({
       where: { id: userId },

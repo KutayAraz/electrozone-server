@@ -34,6 +34,18 @@ export class ProductsController {
   }
 
   @UseGuards(AtGuard)
+  @Get(":productId/wishlist")
+  async checkWishlist(
+    @Param("productId") productId: string,
+    @GetCurrentUserId() userId: number,
+  ) {
+    return await this.productsService.checkWishlist(
+      parseInt(productId),
+      userId,
+    );
+  }
+
+  @UseGuards(AtGuard)
   @Patch(":productId/wishlist")
   async toggleWishlist(
     @Param("productId") productId: string,
