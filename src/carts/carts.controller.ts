@@ -29,7 +29,7 @@ export class CartsController {
   }
 
   @UseGuards(AtGuard)
-  @Get("buynow-cart")
+  @Post("buynow-cart")
   async getBuyNowCartInfo(@Body() cartItem: CartItemDto) {
     return await this.cartsService.getBuyNowCartInfo(
       cartItem.productId,

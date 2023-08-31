@@ -17,25 +17,22 @@ export class CartsService {
   ) {}
 
   async getUserCart(userId: number) {
-    let cart;
+    let cart: Cart;
 
     try {
       cart = await this.cartsRepo.findOneOrFail({
         where: { user: { id: userId } },
       });
     } catch (error) {
-      // Handle the error (if it's related to not finding the cart)
       if (error instanceof EntityNotFoundError) {
         const user = await this.usersRepo.findOneByOrFail({ id: userId });
         cart = this.cartsRepo.create({
           user: user,
           cartTotal: 0,
           totalQuantity: 0,
-          // Add other necessary initializations if needed
         });
         await this.cartsRepo.save(cart);
       } else {
-        // If it's another type of error, rethrow it.
         throw error;
       }
     }
@@ -70,7 +67,7 @@ export class CartsService {
         throw new Error(`Product with id ${product.productId} not found`);
       }
 
-      const amount = foundProduct.price * product.quantity;
+      const amount = Number((foundProduct.price * product.quantity).toFixed(2));
 
       cartTotal += amount;
       totalQuantity += product.quantity;
@@ -84,7 +81,7 @@ export class CartsService {
           productName: foundProduct.productName,
           brand: foundProduct.brand,
           thumbnail: foundProduct.thumbnail,
-          price: foundProduct.price
+          price: foundProduct.price,
         },
       };
     });
@@ -138,10 +135,32 @@ export class CartsService {
   }
 
   async getBuyNowCartInfo(productId: number, quantity: number) {
-    const product = await this.productsRepo.findOneByOrFail({ id: productId });
-    const cartTotal = product.price * quantity;
+    const foundProduct = await this.productsRepo.findOneByOrFail({
+      id: productId,
+    });
 
-    return { ...product, cartTotal };
+    const amount = Number((foundProduct.price * quantity).toFixed(2));
+    const cartTotal = amount;
+    const totalQuantity = quantity;
+
+    const product = {
+      id: foundProduct.id,
+      quantity: totalQuantity,
+      amount,
+      product: {
+        id: foundProduct.id,
+        productName: foundProduct.productName,
+        brand: foundProduct.brand,
+        thumbnail: foundProduct.thumbnail,
+        price: foundProduct.price,
+      },
+    };
+
+    return {
+      cartTotal,
+      totalQuantity,
+      products: [product],
+    };
   }
 
   async mergeLocalWithBackendCart(
