@@ -33,13 +33,14 @@ export class ProductsService {
         user: { id: userId },
       },
     });
-    
+
     return isWishlisted.length > 0;
   }
 
   async toggleWishlist(productId: number, userId: number) {
     const user = await this.usersRepo.findOne({
       where: { id: userId },
+      select: ["id"],
       relations: ["wishlists"],
     });
 
@@ -60,36 +61,90 @@ export class ProductsService {
       },
     });
 
+    let action: string;
+
     if (isWishlisted.length > 0) {
       product.wishlisted--;
       await this.productsRepo.save(product);
-      return await this.wishlistRepo.remove(isWishlisted);
+      await this.wishlistRepo.remove(isWishlisted);
+      action = "removed";
     } else {
       product.wishlisted++;
       await this.productsRepo.save(product);
       const item = new Wishlist();
       item.product = product;
       item.user = user;
-
-      const save = this.wishlistRepo.create(item);
-      return await this.wishlistRepo.save(item);
+      await this.wishlistRepo.save(item);
+      action = "added";
     }
+    return {
+      status: "success",
+      action: action,
+      productId: productId,
+    };
   }
 
-  async getTopSelling(take: number = 10): Promise<Product[]> {
-    return this.productsRepo
+  async getTopSelling(take: number = 10): Promise<any[]> {
+    const rawData = await this.productsRepo
       .createQueryBuilder("product")
+      .select(["product.id", "product.productName", "product.thumbnail"])
+      .leftJoin("product.subcategory", "subcategory")
+      .addSelect(["subcategory.subcategory"])
+      .leftJoin("subcategory.category", "category")
+      .addSelect(["category.category"])
       .orderBy("product.sold", "DESC")
       .take(take)
-      .getMany();
+      .getRawMany();
+
+    return rawData.map((row) => ({
+      id: row.product_id,
+      productName: row.product_productName,
+      thumbnail: row.product_thumbnail,
+      subcategory: row.subcategory_subcategory,
+      category: row.category_category,
+    }));
   }
 
-  async getTopWishlisted(take: number = 10): Promise<Product[]> {
-    return this.productsRepo
+  async getTopWishlisted(take: number = 10): Promise<any[]> {
+    const rawData = await this.productsRepo
       .createQueryBuilder("product")
+      .select(["product.id", "product.productName", "product.thumbnail"])
+      .leftJoin("product.subcategory", "subcategory")
+      .addSelect(["subcategory.subcategory"])
+      .leftJoin("subcategory.category", "category")
+      .addSelect(["category.category"])
       .orderBy("product.wishlisted", "DESC")
       .take(take)
-      .getMany();
+      .getRawMany();
+
+    return rawData.map((row) => ({
+      id: row.product_id,
+      productName: row.product_productName,
+      thumbnail: row.product_thumbnail,
+      subcategory: row.subcategory_subcategory,
+      category: row.category_category,
+    }));
+  }
+
+  async getBestRated(take: number = 10): Promise<any[]> {
+    const rawData = await this.productsRepo
+      .createQueryBuilder("product")
+      .select(["product.id", "product.productName", "product.thumbnail"])
+      .leftJoin("product.subcategory", "subcategory")
+      .addSelect(["subcategory.subcategory"])
+      .leftJoin("subcategory.category", "category")
+      .addSelect(["category.category"])
+      .orderBy("product.averageRating", "DESC")
+      .take(take)
+      .getRawMany();
+
+    return rawData.map((row) => ({
+      id: row.product_id,
+      productName: row.product_productName,
+      thumbnail: row.product_thumbnail,
+      subcategory: row.subcategory_subcategory,
+      category: row.category_category,
+    }));
   }
 
   async findBySearch(search: string) {

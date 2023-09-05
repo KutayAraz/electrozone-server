@@ -18,7 +18,7 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @UseInterceptors(ClassSerializerInterceptor)
-  @UseGuards(AtGuard)  
+  @UseGuards(AtGuard)
   @Get("/profile")
   async getCurrentUserProfile(@GetCurrentUser() user: UserDto) {
     return this.usersService.findByEmail(user.email);
@@ -27,7 +27,16 @@ export class UsersController {
   @UseGuards(AtGuard)
   @Patch("/profile")
   @UseInterceptors(ClassSerializerInterceptor)
-  async updateUser(@GetCurrentUserId() id: number, @Body() input: UpdateUserDto) {
+  async updateUser(
+    @GetCurrentUserId() id: number,
+    @Body() input: UpdateUserDto,
+  ) {
     return await this.usersService.update(id, input);
+  }
+
+  @UseGuards(AtGuard)
+  @Get("/wishlist")
+  async getUserWishlist(@GetCurrentUserId() userId: number) {
+    return await this.usersService.getUserWishlist(userId);
   }
 }

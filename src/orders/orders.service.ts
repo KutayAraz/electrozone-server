@@ -49,6 +49,7 @@ export class OrdersService {
           id: item.productId,
         });
         product.sold += orderItem.quantity;
+        product.stock -= orderItem.quantity;
         await this.productsRepo.save(product);
         orderItem.product = product;
         orderItem.price = product.price;
@@ -108,6 +109,7 @@ export class OrdersService {
             id: order_item.product.id,
           });
           product.sold -= orderItem.quantity;
+          product.stock += orderItem.quantity;
           await this.productsRepo.save(product);
           await this.orderItemsRepo.delete(orderItem.id);
         }),

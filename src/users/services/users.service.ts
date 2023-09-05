@@ -7,10 +7,14 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { User } from "src/entities/User.entity";
 import { Repository } from "typeorm";
 import { UpdateUserDto } from "../dtos/update-user.dto";
+import { Wishlist } from "src/entities/Wishlist";
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectRepository(User) private usersRepo: Repository<User>) {}
+  constructor(
+    @InjectRepository(User) private usersRepo: Repository<User>,
+    @InjectRepository(Wishlist) private wishlistsRepo: Repository<Wishlist>,
+  ) {}
 
   async find(id: number) {
     if (!id) {
@@ -36,7 +40,11 @@ export class UsersService {
       throw new NotFoundException(["No user with this email found!"]);
     }
 
-    const { password: excludedPassword, hashedRt: excludedRt, ...result } = user;
+    const {
+      password: excludedPassword,
+      hashedRt: excludedRt,
+      ...result
+    } = user;
 
     return result;
   }
@@ -48,5 +56,28 @@ export class UsersService {
     Object.assign(user, otherFields);
 
     return await this.usersRepo.save(user);
+  }
+
+  async getUserWishlist(userId: number) {
+    const wishlists = await this.wishlistsRepo.find({
+      where: { user: { id: userId } },
+      relations: ["product", "product.subcategory", "product.subcategory.category"],
+    });
+  
+    const wishlistedProducts = wishlists.map((wishlist) => {
+      const product = wishlist.product;
+      return {
+        id: product.id,
+        productName: product.productName,
+        brand: product.brand,
+        thumbnail: product.thumbnail,
+        price: product.price,
+        stock: product.stock,
+        subcategory: product.subcategory.subcategory, 
+        category: product.subcategory.category?.category,
+      };
+    });
+  
+    return wishlistedProducts;
   }
 }

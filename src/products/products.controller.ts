@@ -23,8 +23,14 @@ export class ProductsController {
 
   @Public()
   @Get("most-sold")
-  async getMostSold(@Param("id") id: string) {
+  async getMostSold() {
     return await this.productsService.getTopSelling();
+  }
+
+  @Public()
+  @Get("best-rated")
+  async getBestRated() {
+    return await this.productsService.getBestRated();
   }
 
   @Public()
@@ -61,7 +67,6 @@ export class ProductsController {
   @Get()
   async getProductsBySearch(@Query("search") encodedSearchQuery: string) {
     const searchQuery = decodeURIComponent(encodedSearchQuery);
-    console.log(searchQuery);
     return this.productsService.findBySearch(searchQuery);
   }
 }
