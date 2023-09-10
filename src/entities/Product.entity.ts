@@ -44,7 +44,7 @@ export class Product {
   @Column({default: 0})
   wishlisted: number;
 
-  @OneToMany(() => Review, (review) => review.product, { eager: true })
+  @OneToMany(() => Review, (review) => review.product)
   reviews: Review[];
 
   @OneToMany(() => ProductImage, (productImage) => productImage.product)

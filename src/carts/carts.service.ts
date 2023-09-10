@@ -39,14 +39,42 @@ export class CartsService {
 
     const products = await this.cartItemsRepo
       .createQueryBuilder("cartItem")
-      .innerJoinAndSelect("cartItem.product", "product")
+      .select([
+        "cartItem.id",
+        "cartItem.quantity",
+        "cartItem.amount",
+        "product.productName",
+        "product.averageRating",
+        "product.thumbnail",
+        "product.price",
+        "product.id",
+        "product.stock",
+        "subcategory.subcategory",
+        "category.category",
+      ])
+      .innerJoin("cartItem.product", "product")
+      .innerJoin("product.subcategory", "subcategory")
+      .innerJoin("subcategory.category", "category")
       .where("cartItem.cartId = :cartId", { cartId: cart.id })
       .getMany();
+
+    const formattedProducts = products.map((product) => ({
+      cartItemId: product.id,
+      quantity: product.quantity,
+      amount: product.amount,
+      id: product.product.id,
+      productName: product.product.productName,
+      avgRating: product.product.averageRating,
+      thumbnail: product.product.thumbnail,
+      price: product.product.price,
+      subcategory: product.product.subcategory.subcategory,
+      category: product.product.subcategory.category.category,
+    }));
 
     return {
       cartTotal: cart.cartTotal,
       totalQuantity: cart.totalQuantity,
-      products: products,
+      products: formattedProducts,
     };
   }
 
@@ -59,8 +87,11 @@ export class CartsService {
     let totalQuantity = 0;
 
     const localCartProductsPromises = products.map(async (product) => {
-      const foundProduct = await this.productsRepo.findOneBy({
-        id: product.productId,
+      const foundProduct = await this.productsRepo.findOne({
+        where: {
+          id: product.productId,
+        },
+        relations: ["subcategory", "subcategory.category"],
       });
 
       if (!foundProduct) {
@@ -76,13 +107,12 @@ export class CartsService {
         id: product.productId,
         quantity: product.quantity,
         amount,
-        product: {
-          id: foundProduct.id,
-          productName: foundProduct.productName,
-          brand: foundProduct.brand,
-          thumbnail: foundProduct.thumbnail,
-          price: foundProduct.price,
-        },
+        productName: foundProduct.productName,
+        thumbnail: foundProduct.thumbnail,
+        price: foundProduct.price,
+        brand: foundProduct.brand,
+        subcategory: foundProduct.subcategory.subcategory,
+        category: foundProduct.subcategory.category.category,
       };
     });
 
@@ -135,8 +165,11 @@ export class CartsService {
   }
 
   async getBuyNowCartInfo(productId: number, quantity: number) {
-    const foundProduct = await this.productsRepo.findOneByOrFail({
-      id: productId,
+    const foundProduct = await this.productsRepo.findOneOrFail({
+      where: {
+        id: productId,
+      },
+      relations: ["subcategory", "subcategory.category"],
     });
 
     const amount = Number((foundProduct.price * quantity).toFixed(2));
@@ -147,13 +180,12 @@ export class CartsService {
       id: foundProduct.id,
       quantity: totalQuantity,
       amount,
-      product: {
-        id: foundProduct.id,
-        productName: foundProduct.productName,
-        brand: foundProduct.brand,
-        thumbnail: foundProduct.thumbnail,
-        price: foundProduct.price,
-      },
+      productName: foundProduct.productName,
+      thumbnail: foundProduct.thumbnail,
+      price: foundProduct.price,
+      brand: foundProduct.brand,
+      subcategory: foundProduct.subcategory.subcategory,
+      category: foundProduct.subcategory.category.category,
     };
 
     return {
@@ -199,8 +231,6 @@ export class CartsService {
         );
       }
     }
-
-    // Return the merged cart
     return await this.getUserCart(userId);
   }
 

@@ -19,11 +19,18 @@ export class ProductsService {
   ) {}
 
   async findProduct(id: number) {
-    const product = await this.productsRepo.findOneBy({ id });
+    const product = await this.productsRepo.findOne({
+      where: { id },
+      relations: ["productImages", "subcategory", "subcategory.category", "reviews"],
+    });
 
-    const { sold, wishlisted, ...returnedProduct } = product;
+    const { sold, wishlisted, subcategory, ...returnedProduct } = product;
 
-    return returnedProduct;
+    return {
+      ...returnedProduct,
+      subcategory: subcategory.subcategory,
+      category: subcategory.category.category,
+    };
   }
 
   async checkWishlist(productId: number, userId: number) {

@@ -59,24 +59,7 @@ export class OrdersService {
 
     await this.orderItemsRepo.save(orderItemsEntities);
 
-    const result = {
-      id: savedOrder.id,
-      orderTotal: savedOrder.orderTotal,
-      orderDate: savedOrder.orderDate,
-      orderItems: orderItemsEntities.map((item) => {
-        return {
-          product: item.product,
-          quantity: item.quantity,
-          price: item.price,
-        };
-      }),
-      firstName: user.firstName,
-      lastName: user.lastName,
-      address: user.address,
-      city: user.city,
-    };
-
-    return result;
+    return savedOrder.id;
   }
 
   async deleteOrder(userId: number, orderId: number) {

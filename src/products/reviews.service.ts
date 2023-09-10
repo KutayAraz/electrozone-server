@@ -74,9 +74,7 @@ export class ReviewsService {
     });
     const user = await this.usersRepo.findOneByOrFail({ id: userId });
 
-    if (!(await this.canCurrentUserReview(productId, userId))) {
-      throw new Error("Cannot add more than one review per product.");
-    }
+    await this.canCurrentUserReview(productId, userId)
     const review = new Review();
     review.product = product;
     review.user = user;

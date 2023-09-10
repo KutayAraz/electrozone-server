@@ -14,7 +14,7 @@ export class ReviewsController {
     return await this.reviewsService.getReviewsByProductId(parseInt(productId));
   }
 
-  @Get(":productId/review")
+  @Get(":productId/canReview")
   @UseGuards(AtGuard)
   async checkCanReview(
     @GetCurrentUserId() userId: number,
