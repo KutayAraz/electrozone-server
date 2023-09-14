@@ -23,7 +23,7 @@ export class Product {
   @Column()
   brand: string;
 
-  @Column()
+  @Column("json", {nullable: true})
   description: string;
 
   @Column()
