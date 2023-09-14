@@ -49,10 +49,10 @@ export class OrdersController {
   @UseGuards(AtGuard)
   @UseInterceptors(ClassSerializerInterceptor)
   @Delete("user/:orderId")
-  async deleteOrder(
+  async cancelOrder(
     @GetCurrentUserId() id: number,
     @Param("orderId") orderId: string,
   ) {
-    return this.ordersService.deleteOrder(id, parseInt(orderId));
+    return this.ordersService.cancelOrder(id, parseInt(orderId));
   }
 }

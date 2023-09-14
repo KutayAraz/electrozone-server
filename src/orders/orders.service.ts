@@ -62,7 +62,29 @@ export class OrdersService {
     return savedOrder.id;
   }
 
-  async deleteOrder(userId: number, orderId: number) {
+  async isOrderCancellable(userId: number, orderId: number) {
+    const order = await this.ordersRepo.findOneOrFail({
+      where: { id: orderId },
+      relations: ["user", "orderItems"],
+    });
+
+    if (!order) {
+      throw new NotFoundException("Order not found");
+    }
+    if (order.user.id !== userId) {
+      throw new UnauthorizedException(
+        "You did not place this order, therefore can not modify it",
+      );
+    }
+
+    if (new Date().getTime() - order.orderDate.getTime() > 86400000) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  async cancelOrder(userId: number, orderId: number) {
     const order = await this.ordersRepo.findOneOrFail({
       where: { id: orderId },
       relations: ["user", "orderItems"],
@@ -108,7 +130,13 @@ export class OrdersService {
   async getOrderById(userId: number, orderId: number) {
     const user = await this.usersRepo.findOneOrFail({
       where: { id: userId },
-      relations: ["orders", "orders.orderItems", "orders.orderItems.product"],
+      relations: [
+        "orders",
+        "orders.orderItems",
+        "orders.orderItems.product",
+        "orders.orderItems.product.subcategory",
+        "orders.orderItems.product.subcategory.category",
+      ],
     });
 
     const order = user.orders.find((o) => o.id === orderId);
@@ -117,25 +145,74 @@ export class OrdersService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    const orderItems = await this.orderItemsRepo
-      .createQueryBuilder("order_item")
-      .leftJoinAndSelect("order_item.product", "product")
-      .where("order_item.orderId = :orderId", { orderId })
-      .getMany();
+    const transformedOrderItems = order.orderItems.map((orderItem) => ({
+      id: orderItem.product.id,
+      quantity: orderItem.quantity,
+      price: orderItem.quantity * orderItem.product.price,
+      productName: orderItem.product.productName,
+      brand: orderItem.product.brand,
+      thumbnail: orderItem.product.thumbnail,
+      category: orderItem.product.subcategory.category.category,
+      subcategory: orderItem.product.subcategory.subcategory,
+    }));
 
-    order.orderItems = orderItems;
+    const isCancellable = await this.isOrderCancellable(userId, orderId);
 
-    return order;
+    return {
+      id: order.id,
+      user: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        address: user.address,
+        city: user.city,
+      },
+      orderTotal: order.orderTotal,
+      orderDate: order.orderDate,
+      orderItems: transformedOrderItems,
+      isCancellable,
+    };
   }
 
-  async getOrdersForUser(userId: number): Promise<Order[]> {
-    return this.ordersRepo.find({
-      where: {
+  async getOrdersForUser(userId: number) {
+    const orders = await this.ordersRepo.find({
+      where: { user: { id: userId } },
+      relations: [
+        "user",
+        "orderItems",
+        "orderItems.product",
+        "orderItems.product.subcategory",
+        "orderItems.product.subcategory.category",
+      ],
+      order: {
+        orderDate: "DESC"
+      }
+    });
+
+    return orders.map((order) => {
+      const orderQuantity = order.orderItems.reduce(
+        (sum, item) => sum + item.quantity,
+        0,
+      );
+
+      const transformedOrderItems = order.orderItems.map((item) => ({
+        productId: item.product.id,
+        productName: item.product.productName,
+        thumbnail: item.product.thumbnail,
+        subcategory: item.product.subcategory.subcategory,
+        category: item.product.subcategory.category.category,
+      }));
+
+      return {
+        orderId: order.id,
+        orderTotal: order.orderTotal,
+        orderDate: order.orderDate,
+        orderQuantity,
         user: {
-          id: userId,
+          firstName: order.user.firstName,
+          lastName: order.user.lastName,
         },
-      },
-      relations: ["orderItems", "orderItems.product"],
+        orderItems: transformedOrderItems,
+      };
     });
   }
 }
