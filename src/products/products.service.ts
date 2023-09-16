@@ -21,7 +21,12 @@ export class ProductsService {
   async findProduct(id: number) {
     const product = await this.productsRepo.findOne({
       where: { id },
-      relations: ["productImages", "subcategory", "subcategory.category", "reviews"],
+      relations: [
+        "productImages",
+        "subcategory",
+        "subcategory.category",
+        "reviews",
+      ],
     });
 
     const { sold, wishlisted, subcategory, ...returnedProduct } = product;
@@ -94,63 +99,78 @@ export class ProductsService {
   async getTopSelling(take: number = 10): Promise<any[]> {
     const rawData = await this.productsRepo
       .createQueryBuilder("product")
-      .select(["product.id", "product.productName", "product.thumbnail"])
+      .select([
+        "product.id",
+        "product.productName",
+        "product.thumbnail",
+        "product.sold",
+      ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
       .leftJoin("subcategory.category", "category")
       .addSelect(["category.category"])
       .orderBy("product.sold", "DESC")
       .take(take)
-      .getRawMany();
+      .getMany();
 
     return rawData.map((row) => ({
-      id: row.product_id,
-      productName: row.product_productName,
-      thumbnail: row.product_thumbnail,
-      subcategory: row.subcategory_subcategory,
-      category: row.category_category,
+      id: row.id,
+      productName: row.productName,
+      thumbnail: row.thumbnail,
+      subcategory: row.subcategory.subcategory,
+      category: row.subcategory.category.category,
     }));
   }
 
   async getTopWishlisted(take: number = 10): Promise<any[]> {
     const rawData = await this.productsRepo
       .createQueryBuilder("product")
-      .select(["product.id", "product.productName", "product.thumbnail"])
+      .select([
+        "product.id",
+        "product.productName",
+        "product.thumbnail",
+        "product.sold",
+      ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
       .leftJoin("subcategory.category", "category")
       .addSelect(["category.category"])
       .orderBy("product.wishlisted", "DESC")
       .take(take)
-      .getRawMany();
+      .getMany();
 
     return rawData.map((row) => ({
-      id: row.product_id,
-      productName: row.product_productName,
-      thumbnail: row.product_thumbnail,
-      subcategory: row.subcategory_subcategory,
-      category: row.category_category,
+      id: row.id,
+      productName: row.productName,
+      thumbnail: row.thumbnail,
+      subcategory: row.subcategory.subcategory,
+      category: row.subcategory.category.category,
     }));
   }
 
   async getBestRated(take: number = 10): Promise<any[]> {
     const rawData = await this.productsRepo
       .createQueryBuilder("product")
-      .select(["product.id", "product.productName", "product.thumbnail"])
+      .select([
+        "product.id",
+        "product.productName",
+        "product.thumbnail",
+        "product.sold",
+      ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
       .leftJoin("subcategory.category", "category")
       .addSelect(["category.category"])
       .orderBy("product.averageRating", "DESC")
       .take(take)
-      .getRawMany();
+      .getMany();
 
     return rawData.map((row) => ({
-      id: row.product_id,
-      productName: row.product_productName,
-      thumbnail: row.product_thumbnail,
-      subcategory: row.subcategory_subcategory,
-      category: row.category_category,
+      id: row.id,
+      productName: row.productName,
+      thumbnail: row.thumbnail,
+      subcategory: row.subcategory.subcategory,
+      category: row.subcategory.category.category,
     }));
   }
 
