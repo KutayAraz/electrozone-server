@@ -129,7 +129,7 @@ export class ProductsService {
         "product.id",
         "product.productName",
         "product.thumbnail",
-        "product.sold",
+        "product.wishlisted",
       ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
@@ -155,7 +155,7 @@ export class ProductsService {
         "product.id",
         "product.productName",
         "product.thumbnail",
-        "product.sold",
+        "product.averageRating",
       ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
