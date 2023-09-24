@@ -1,8 +1,6 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Order } from "src/entities/Order.entity";
 import { Product } from "src/entities/Product.entity";
-import { Review } from "src/entities/Review.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist";
 import { Brackets, Repository } from "typeorm";
@@ -11,9 +9,7 @@ import { Brackets, Repository } from "typeorm";
 export class ProductsService {
   constructor(
     @InjectRepository(Product) private productsRepo: Repository<Product>,
-    @InjectRepository(Review) private reviewsRepo: Repository<Review>,
     @InjectRepository(User) private usersRepo: Repository<User>,
-    @InjectRepository(Order) private ordersRepo: Repository<Order>,
     @InjectRepository(Wishlist)
     private wishlistRepo: Repository<Wishlist>,
   ) {}
@@ -179,26 +175,33 @@ export class ProductsService {
 
     const query = this.productsRepo.createQueryBuilder("product");
 
+    query.leftJoinAndSelect("product.subcategory", "subcategory");
+    query.leftJoinAndSelect("subcategory.category", "category");
+
     query.where(
       new Brackets((qb) => {
         searchWords.forEach((word, index) => {
+          const fragment = word.length > 2 ? word.substring(0, 3) : word;
           if (index === 0) {
-            qb.where(`product.productName LIKE :search${index}`, {
-              [`search${index}`]: `%${word}%`,
+            qb.where(`product.productName LIKE :likeSearch${index}`, {
+              [`likeSearch${index}`]: `%${fragment}%`,
             });
           } else {
-            qb.orWhere(`product.productName LIKE :search${index}`, {
-              [`search${index}`]: `%${word}%`,
+            qb.orWhere(`product.productName LIKE :likeSearch${index}`, {
+              [`likeSearch${index}`]: `%${fragment}%`,
             });
           }
         });
       }),
     );
+    
 
-    query.orWhere(`product.brand LIKE :search`, { search: `%${search}%` });
+    query.orWhere(`product.brand LIKE :brandSearch`, {
+      brandSearch: `%${search}%`,
+    });
 
-    query.orWhere(`product.description LIKE :search`, {
-      search: `%${search}%`,
+    query.orWhere(`product.description LIKE :descriptionSearch`, {
+      descriptionSearch: `%${search}%`,
     });
 
     query.orderBy("product.productName", "ASC");

@@ -9,7 +9,7 @@ export class SubcategoriesController {
   @Public()
   @Get(":name/featured")
   async getAllProducts(@Param("name") name: string) {
-    return await this.subcategoriesService.findProducts(name);
+    return await this.subcategoriesService.getFeaturedProducts(name);
   }
 
   @Public()

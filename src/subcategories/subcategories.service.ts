@@ -9,63 +9,65 @@ export class SubcategoriesService {
     @InjectRepository(Product) private productsRepo: Repository<Product>,
   ) {}
 
-  async findProducts(subcategory: string) {
-    return await this.productsRepo
+  async getProducts(
+    subcategory: string,
+    orderByField: string,
+    orderDirection: "ASC" | "DESC",
+  ) {
+    const rawProducts = await this.productsRepo
       .createQueryBuilder("product")
-      .leftJoinAndSelect("product.subcategory", "subcategory")
+      .select([
+        "product.id",
+        "product.productName",
+        "product.brand",
+        "product.thumbnail",
+        "product.averageRating",
+        "product.price",
+        "product.stock",
+        "product.wishlisted",
+      ])
+      .addSelect("subcategory.subcategory", "subcategory")
+      .leftJoin("product.subcategory", "subcategory")
+      .addSelect("category.category", "category")
+      .leftJoin("subcategory.category", "category")
       .where("subcategory.subcategory = :subcategory", { subcategory })
-      .orderBy("product.sold", "DESC")
-      .getMany();
+      .orderBy(orderByField, orderDirection)
+      .getRawMany();
+
+    return rawProducts.map((rawProduct) => ({
+      id: rawProduct.product_id,
+      productName: rawProduct.product_productName,
+      brand: rawProduct.product_brand,
+      thumbnail: rawProduct.product_thumbnail,
+      averageRating: rawProduct.product_averageRating,
+      price: rawProduct.product_price,
+      stock: rawProduct.product_stock,
+      subcategory: rawProduct.subcategory,
+      category: rawProduct.category,
+    }));
+  }
+
+  async getFeaturedProducts(subcategory: string) {
+    return await this.getProducts(subcategory, "product.sold", "DESC");
   }
 
   async getProductsBasedOnRating(subcategory: string) {
-    return await this.productsRepo
-      .createQueryBuilder("product")
-      .leftJoinAndSelect("product.subcategory", "subcategory")
-      .where("subcategory.subcategory = :subcategory", { subcategory })
-      .orderBy("product.averageRating", "DESC")
-      .getMany();
+    return await this.getProducts(subcategory, "product.averageRating", "DESC");
   }
 
   async getProductsByPriceAsc(subcategory: string) {
-    return await this.productsRepo
-      .createQueryBuilder("product")
-      .leftJoinAndSelect("product.subcategory", "subcategory")
-      .where("subcategory.subcategory = :subcategory", { subcategory })
-      .orderBy("product.price", "ASC")
-      .getMany();
+    return await this.getProducts(subcategory, "product.price", "ASC");
   }
 
   async getProductsByPriceDesc(subcategory: string) {
-    return await this.productsRepo
-      .createQueryBuilder("product")
-      .leftJoinAndSelect("product.subcategory", "subcategory")
-      .where("subcategory.subcategory = :subcategory", { subcategory })
-      .orderBy("product.price", "DESC")
-      .getMany();
+    return await this.getProducts(subcategory, "product.price", "DESC");
   }
 
-  async getTopSelling(subcategoryName: string) {
-    return this.productsRepo
-      .createQueryBuilder("product")
-      .innerJoinAndSelect("product.subcategory", "subcategory")
-      .where("subcategory.subcategory = :name", {
-        name: subcategoryName,
-      })
-      .orderBy("product.sold", "DESC")
-      .take(5)
-      .getMany();
+  async getTopSelling(subcategory: string) {
+    return await this.getProducts(subcategory, "product.sold", "DESC");
   }
 
-  async getTopWishlistedProducts(subcategoryName: string) {
-    return this.productsRepo
-      .createQueryBuilder("product")
-      .innerJoinAndSelect("product.subcategory", "subcategory")
-      .where("subcategory.subcategory = :name", {
-        name: subcategoryName,
-      })
-      .orderBy("product.wishlisted", "DESC")
-      .take(5)
-      .getMany();
+  async getTopWishlistedProducts(subcategory: string) {
+    return await this.getProducts(subcategory, "product.wishlisted", "DESC");
   }
 }
