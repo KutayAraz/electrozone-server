@@ -97,7 +97,7 @@ export class AuthController {
     }
 
     const tokens = await this.authService.refreshTokens(userId, refreshToken);
-    res.cookie("refreshToken", tokens.refresh_token, {
+    res.cookie("refresh_token", tokens.refresh_token, {
       httpOnly: true,
       expires: new Date(new Date().getTime() + 48 * 60 * 60 * 1000),
       sameSite: "strict",
