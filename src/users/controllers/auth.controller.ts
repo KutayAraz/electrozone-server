@@ -49,17 +49,21 @@ export class AuthController {
   ) {
     const user = await this.authService.signinLocal(dto);
 
-    res.cookie("refreshToken", user.refresh_token, {
+    res.cookie("refresh_token", user.refresh_token, {
       expires: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days in milliseconds
       httpOnly: true,
+      sameSite: "strict",
+      secure: true,
     });
 
     return user;
   }
 
+  @Public()
   @Post("logout")
+  @UseGuards(RtGuard)
   @HttpCode(HttpStatus.OK)
-  logout(@GetCurrentUserId() userId: number): Promise<boolean> {
+  logout(@GetCurrentUserIdFromCookies() userId: number): Promise<boolean> {
     return this.authService.logout(userId);
   }
 
@@ -79,6 +83,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(RtGuard)
   @Post("refresh")
   @HttpCode(HttpStatus.OK)
   async refreshTokens(
@@ -96,6 +101,7 @@ export class AuthController {
       httpOnly: true,
       expires: new Date(new Date().getTime() + 48 * 60 * 60 * 1000),
       sameSite: "strict",
+      secure: true
     });
 
     res.json({

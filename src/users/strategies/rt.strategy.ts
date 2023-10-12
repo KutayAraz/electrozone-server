@@ -20,8 +20,6 @@ export class RtStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   validate(req: Request, payload: JwtPayload): JwtPayloadWithRt {
     const refreshToken = req.cookies?.refresh_token;
 
-    console.log("refresh token is" + "hello");
-
     if (!refreshToken) throw new ForbiddenException('Refresh token malformed');
 
     return {

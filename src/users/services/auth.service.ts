@@ -112,7 +112,7 @@ export class AuthService {
       email: dto.email,
     });
 
-    if (!user) throw new ForbiddenException("Access Denied hahaha");
+    if (!user) throw new ForbiddenException("Access Denied");
 
     if (!(await bcrypt.compare(dto.password, user.password))) {
       throw new UnauthorizedException("Invalid credentials");
@@ -161,11 +161,11 @@ export class AuthService {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("AT_SECRET"),
-        expiresIn: "10m",
+        expiresIn: "15m",
       }),
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("RT_SECRET"),
-        expiresIn: "60m",
+        expiresIn: "7d",
       }),
     ]);
 
