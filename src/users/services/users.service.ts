@@ -55,15 +55,25 @@ export class UsersService {
     const { password, ...otherFields } = updatedUserData;
     Object.assign(user, otherFields);
 
-    return await this.usersRepo.save(user);
+    await this.usersRepo.save(user);
+
+    return {
+      email: user.email,
+      address: user.address,
+      city: user.city,
+    };
   }
 
   async getUserWishlist(userId: number) {
     const wishlists = await this.wishlistsRepo.find({
       where: { user: { id: userId } },
-      relations: ["product", "product.subcategory", "product.subcategory.category"],
+      relations: [
+        "product",
+        "product.subcategory",
+        "product.subcategory.category",
+      ],
     });
-  
+
     const wishlistedProducts = wishlists.map((wishlist) => {
       const product = wishlist.product;
       return {
@@ -73,11 +83,11 @@ export class UsersService {
         thumbnail: product.thumbnail,
         price: product.price,
         stock: product.stock,
-        subcategory: product.subcategory.subcategory, 
+        subcategory: product.subcategory.subcategory,
         category: product.subcategory.category?.category,
       };
     });
-  
+
     return wishlistedProducts;
   }
 }

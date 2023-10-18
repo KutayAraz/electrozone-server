@@ -15,6 +15,7 @@ import * as bcrypt from "bcrypt";
 import { Tokens, JwtPayload } from "../types";
 import { ConfigService } from "@nestjs/config";
 import { SignUserDto } from "../dtos/sign-user.dto";
+import { Response } from "express";
 
 @Injectable()
 export class AuthService {
@@ -107,7 +108,7 @@ export class AuthService {
     return { ...user, ...tokens };
   }
 
-  async signinLocal(dto: SignUserDto): Promise<Tokens> {
+  async signinLocal(dto: SignUserDto, res: Response): Promise<Tokens> {
     const user = await this.usersRepo.findOneBy({
       email: dto.email,
     });
@@ -121,21 +122,32 @@ export class AuthService {
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRtHash(user.id, tokens.refresh_token);
 
+    this.setRefreshTokenCookie(res, tokens.refresh_token);
+
     const { password, hashedRt, ...result } = user;
 
     return { ...result, ...tokens };
   }
 
   async logout(userId: number): Promise<boolean> {
-    await this.usersRepo.update({ id: userId }, { hashedRt: null });
-    return true;
+    try {
+      await this.usersRepo.update({ id: userId }, { hashedRt: null });
+      return true;
+    } catch (error: unknown) {
+      console.log(error);
+      throw new BadRequestException("There was an error trying to log out");
+    }
   }
 
-  async refreshTokens(userId: number, rt: string): Promise<Tokens> {
+  async refreshTokens(
+    userId: number,
+    rt: string,
+    res: Response,
+  ): Promise<Tokens> {
     const user = await this.usersRepo.findOneBy({
       id: userId,
     });
-    
+
     if (!user || !user.hashedRt) throw new ForbiddenException("Access Denied");
 
     const rtMatches = await bcrypt.compare(rt, user.hashedRt);
@@ -144,7 +156,18 @@ export class AuthService {
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRtHash(user.id, tokens.refresh_token);
 
+    this.setRefreshTokenCookie(res, tokens.refresh_token);
+
     return tokens;
+  }
+
+  private setRefreshTokenCookie(res: Response, token: string) {
+    res.cookie("refresh_token", token, {
+      httpOnly: true,
+      expires: new Date(new Date().getTime() + 120 * 60 * 60 * 1000),
+      sameSite: "strict",
+      secure: true,
+    });
   }
 
   async updateRtHash(userId: number, rt: string): Promise<void> {
@@ -165,7 +188,7 @@ export class AuthService {
       }),
       this.jwtService.signAsync(jwtPayload, {
         secret: this.config.get<string>("RT_SECRET"),
-        expiresIn: "7d",
+        expiresIn: "5d",
       }),
     ]);
 

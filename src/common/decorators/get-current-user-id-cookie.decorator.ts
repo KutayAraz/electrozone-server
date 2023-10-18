@@ -8,7 +8,7 @@ import * as jwt from "jsonwebtoken";
 export const GetCurrentUserIdFromCookies = createParamDecorator(
   (_: undefined, context: ExecutionContext): number => {
     const request = context.switchToHttp().getRequest();
-    const rawToken = request.cookies?.refreshToken;
+    const rawToken = request.cookies?.refresh_token;
 
     if (!rawToken) {
       throw new BadRequestException("Token not found in cookie.");

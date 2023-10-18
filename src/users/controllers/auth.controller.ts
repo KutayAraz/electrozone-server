@@ -47,21 +47,14 @@ export class AuthController {
     @Body() dto: SignUserDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user = await this.authService.signinLocal(dto);
-
-    res.cookie("refresh_token", user.refresh_token, {
-      expires: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days in milliseconds
-      httpOnly: true,
-      sameSite: "strict",
-      secure: true,
-    });
-
+    const user = await this.authService.signinLocal(dto, res);
     return user;
   }
+  
 
   @Public()
-  @Post("logout")
   @UseGuards(RtGuard)
+  @Post("logout")
   @HttpCode(HttpStatus.OK)
   logout(@GetCurrentUserIdFromCookies() userId: number): Promise<boolean> {
     return this.authService.logout(userId);
@@ -91,21 +84,16 @@ export class AuthController {
     @Req() request: Request,
     @Res() res: Response,
   ) {
-    const refreshToken = request.cookies?.refreshToken;
+    const refreshToken = request.cookies?.refresh_token;
     if (!refreshToken) {
       throw new BadRequestException("Refresh token missing in cookie.");
     }
-
-    const tokens = await this.authService.refreshTokens(userId, refreshToken);
-    res.cookie("refresh_token", tokens.refresh_token, {
-      httpOnly: true,
-      expires: new Date(new Date().getTime() + 48 * 60 * 60 * 1000),
-      sameSite: "strict",
-      secure: true
-    });
-
+  
+    const tokens = await this.authService.refreshTokens(userId, refreshToken, res);
+  
     res.json({
       access_token: tokens.access_token,
     });
   }
+  
 }

@@ -10,6 +10,7 @@ import { User } from "src/entities/User.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
 import { CreateOrderItemDTO } from "./dtos/create-order-item.dto";
 import { Product } from "src/entities/Product.entity";
+import { CartsService } from "src/carts/carts.service";
 
 @Injectable()
 export class OrdersService {
@@ -18,6 +19,7 @@ export class OrdersService {
     @InjectRepository(OrderItem) private orderItemsRepo: Repository<OrderItem>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Product) private productsRepo: Repository<Product>,
+    private readonly cartsService: CartsService,
   ) {}
 
   async createOrder(userId: number, orderItems: CreateOrderItemDTO[]) {
@@ -58,6 +60,7 @@ export class OrdersService {
     );
 
     await this.orderItemsRepo.save(orderItemsEntities);
+    await this.cartsService.clearCart(userId);
 
     return savedOrder.id;
   }
@@ -184,8 +187,8 @@ export class OrdersService {
         "orderItems.product.subcategory.category",
       ],
       order: {
-        orderDate: "DESC"
-      }
+        orderDate: "DESC",
+      },
     });
 
     return orders.map((order) => {
