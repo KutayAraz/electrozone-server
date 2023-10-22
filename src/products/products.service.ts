@@ -98,8 +98,11 @@ export class ProductsService {
       .select([
         "product.id",
         "product.productName",
+        "product.brand",
         "product.thumbnail",
         "product.sold",
+        "product.averageRating",
+        "product.price",
       ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
@@ -112,7 +115,10 @@ export class ProductsService {
     return rawData.map((row) => ({
       id: row.id,
       productName: row.productName,
+      brand: row.brand,
       thumbnail: row.thumbnail,
+      averageRating: row.averageRating,
+      price: row.price,
       subcategory: row.subcategory.subcategory,
       category: row.subcategory.category.category,
     }));
@@ -124,8 +130,11 @@ export class ProductsService {
       .select([
         "product.id",
         "product.productName",
+        "product.brand",
         "product.thumbnail",
         "product.wishlisted",
+        "product.averageRating",
+        "product.price",
       ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
@@ -138,7 +147,10 @@ export class ProductsService {
     return rawData.map((row) => ({
       id: row.id,
       productName: row.productName,
+      brand: row.brand,
       thumbnail: row.thumbnail,
+      averageRating: row.averageRating,
+      price: row.price,
       subcategory: row.subcategory.subcategory,
       category: row.subcategory.category.category,
     }));
@@ -150,8 +162,10 @@ export class ProductsService {
       .select([
         "product.id",
         "product.productName",
+        "product.brand",
         "product.thumbnail",
         "product.averageRating",
+        "product.price",
       ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
@@ -164,7 +178,10 @@ export class ProductsService {
     return rawData.map((row) => ({
       id: row.id,
       productName: row.productName,
+      brand: row.brand,
       thumbnail: row.thumbnail,
+      averageRating: row.averageRating,
+      price: row.price,
       subcategory: row.subcategory.subcategory,
       category: row.subcategory.category.category,
     }));
@@ -194,7 +211,6 @@ export class ProductsService {
         });
       }),
     );
-    
 
     query.orWhere(`product.brand LIKE :brandSearch`, {
       brandSearch: `%${search}%`,

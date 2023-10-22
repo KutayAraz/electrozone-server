@@ -22,13 +22,13 @@ export class ProductsController {
   }
 
   @Public()
-  @Get("most-sold")
+  @Get("best-sellers")
   async getMostSold() {
     return await this.productsService.getTopSelling();
   }
 
   @Public()
-  @Get("best-rated")
+  @Get("top-rated")
   async getBestRated() {
     return await this.productsService.getBestRated();
   }
