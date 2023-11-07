@@ -37,6 +37,10 @@ import { CartItem } from "./entities/CartItem.entity";
           port: config.get<number>("DB_PORT"),
           username: config.get<string>("DB_USERNAME"),
           password: config.get<string>("DB_PASSWORD"),
+          ssl: {
+            require: true,
+            rejectUnauthorized: false, 
+          },
           synchronize: true,
           extra: {
             decimalNumbers: true,
