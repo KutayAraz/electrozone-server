@@ -146,7 +146,7 @@ export class CartsService {
 
     if (product) {
       product.quantity += quantity;
-      product.amount = quantity * foundProduct.price;
+      product.amount = product.quantity * foundProduct.price;
       await this.cartItemsRepo.save(product);
       return await this.getUserCart(userId);
     } else {

@@ -165,7 +165,7 @@ export class AuthService {
     res.cookie("refresh_token", token, {
       httpOnly: true,
       expires: new Date(new Date().getTime() + 120 * 60 * 60 * 1000),
-      sameSite: "strict",
+      sameSite: "none",
       secure: true,
     });
   }
