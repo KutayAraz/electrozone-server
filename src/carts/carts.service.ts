@@ -147,7 +147,9 @@ export class CartsService {
     if (product) {
       product.quantity += quantity;
       product.amount = product.quantity * foundProduct.price;
+      cart.totalQuantity += quantity;
       await this.cartItemsRepo.save(product);
+      await this.cartsRepo.save(cart);
       return await this.getUserCart(userId);
     } else {
       const cartItem = new CartItem();
@@ -203,25 +205,30 @@ export class CartsService {
 
     let backendCart = await this.cartsRepo.findOne({
       where: { user: { id: userId } },
+      relations: ["products", "products.product"],
     });
 
     if (!backendCart) {
       backendCart = new Cart();
       backendCart.user = user;
+      backendCart.products = [];
       await this.cartsRepo.save(backendCart);
     }
 
+    const existingItemsMap = new Map<number, CartItem>();
+    backendCart.products.forEach((item) => {
+      existingItemsMap.set(item.product.id, item);
+    });
+
     for (const localItem of localCartItems) {
-      const existingProduct = await this.cartItemsRepo.findOne({
-        where: { cart: backendCart, product: { id: localItem.productId } },
-        relations: ["product"],
-      });
+      const existingProduct = existingItemsMap.get(localItem.productId);
 
       if (existingProduct) {
+        const newQuantity = localItem.quantity + existingProduct.quantity;
         await this.updateCartItemQuantity(
           userId,
           localItem.productId,
-          localItem.quantity + existingProduct.quantity,
+          newQuantity,
         );
       } else {
         await this.addProductToCart(
@@ -231,6 +238,7 @@ export class CartsService {
         );
       }
     }
+
     return await this.getUserCart(userId);
   }
 

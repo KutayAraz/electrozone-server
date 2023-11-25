@@ -16,6 +16,7 @@ import { Tokens, JwtPayload } from "../types";
 import { ConfigService } from "@nestjs/config";
 import { SignUserDto } from "../dtos/sign-user.dto";
 import { Response } from "express";
+import { Cart } from "src/entities/Cart.entity";
 
 @Injectable()
 export class AuthService {
@@ -24,6 +25,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private config: ConfigService,
     @InjectRepository(User) private usersRepo: Repository<User>,
+    @InjectRepository(Cart) private cartsRepo: Repository<Cart>,
   ) {}
 
   public async hashPassword(password: string): Promise<string> {
@@ -108,7 +110,7 @@ export class AuthService {
     return { ...user, ...tokens };
   }
 
-  async signinLocal(dto: SignUserDto, res: Response): Promise<Tokens> {
+  async signinLocal(dto: SignUserDto, res: Response): Promise<any> {
     const user = await this.usersRepo.findOneBy({
       email: dto.email,
     });
@@ -121,12 +123,22 @@ export class AuthService {
 
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRtHash(user.id, tokens.refresh_token);
-
     this.setRefreshTokenCookie(res, tokens.refresh_token);
+
+    // Fetch user's cart to get the item count
+    const cart = await this.cartsRepo.findOne({
+      where: { user: { id: user.id } },
+    });
+
+    const cartItemCount = cart ? cart.totalQuantity : 0; // Fetch total quantity
 
     const { password, hashedRt, ...result } = user;
 
-    return { ...result, ...tokens };
+    return {
+      ...result,
+      access_token: tokens.access_token, // Only return access token
+      cartItemCount, // Include cart item count in the response
+    };
   }
 
   async logout(userId: number): Promise<boolean> {

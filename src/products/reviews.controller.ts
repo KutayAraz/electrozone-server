@@ -1,8 +1,18 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpStatus,
+  Param,
+  Post,
+  Res,
+  UseGuards,
+} from "@nestjs/common";
 import { ReviewsService } from "./reviews.service";
 import { Public, GetCurrentUserId } from "src/common/decorators";
 import { AtGuard } from "src/common/guards";
 import { CreateReviewDto } from "./dtos/create-review.dto";
+import { Response } from "express";
 
 @Controller("reviews")
 export class ReviewsController {
@@ -28,16 +38,28 @@ export class ReviewsController {
 
   @Post(":productId/review")
   @UseGuards(AtGuard)
-  createReview(
+  async createReview(
     @Body() createReviewDto: CreateReviewDto,
     @GetCurrentUserId() userId: number,
     @Param("productId") productId: string,
+    @Res() response: Response,
   ) {
-    return this.reviewsService.addReview(
-      parseInt(productId),
-      userId,
-      createReviewDto.rating,
-      createReviewDto.comment,
-    );
+    try {
+      const newRating = await this.reviewsService.addReview(
+        parseInt(productId),
+        userId,
+        createReviewDto.rating,
+        createReviewDto.comment,
+      );
+      return response.status(HttpStatus.OK).json({
+        message: "Review added successfully",
+        newRating: newRating,
+      });
+    } catch (error) {
+      return response.status(HttpStatus.BAD_REQUEST).json({
+        message: "An error occurred while adding your review.",
+        error: error.message,
+      });
+    }
   }
 }

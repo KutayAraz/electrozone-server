@@ -8,9 +8,13 @@ import { AuthService } from "./services/auth.service";
 import { JwtModule } from "@nestjs/jwt";
 import { AtStrategy, RtStrategy } from "./strategies";
 import { Wishlist } from "src/entities/Wishlist";
+import { Cart } from "src/entities/Cart.entity";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Wishlist]), JwtModule.register({})],
+  imports: [
+    TypeOrmModule.forFeature([User, Wishlist, Cart]),
+    JwtModule.register({}),
+  ],
   controllers: [UsersController, AuthController],
   providers: [UsersService, AuthService, AtStrategy, RtStrategy],
 })

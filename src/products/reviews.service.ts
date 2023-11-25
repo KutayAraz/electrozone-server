@@ -73,11 +73,12 @@ export class ReviewsService {
       relations: ["reviews"],
     });
     const user = await this.usersRepo.findOneByOrFail({ id: userId });
-
-    await this.canCurrentUserReview(productId, userId)
+    console.log("aloo1");
+    await this.canCurrentUserReview(productId, userId);
     const review = new Review();
     review.product = product;
     review.user = user;
+    console.log("aloo");
     review.rating = rating;
     review.comment = comment;
     await this.productsRepo.save(product);
@@ -97,6 +98,6 @@ export class ReviewsService {
     updatedProduct.averageRating = newRating;
     await this.productsRepo.save(updatedProduct);
 
-    return `New rating after the review is ${newRating}`;
+    return newRating;
   }
 }
