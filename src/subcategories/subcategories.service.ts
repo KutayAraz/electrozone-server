@@ -7,13 +7,10 @@ import { Repository } from "typeorm";
 export class SubcategoriesService {
   constructor(
     @InjectRepository(Product) private productsRepo: Repository<Product>,
-  ) {}
+  ) { }
 
-  async getProducts(
-    subcategory: string,
-    orderByField: string,
-    orderDirection: "ASC" | "DESC",
-  ) {
+  async getProducts(subcategory: string, orderByField: string, orderDirection: 'ASC' | 'DESC', page: number, limit: number) {
+    const offset = (page - 1) * limit;
     const rawProducts = await this.productsRepo
       .createQueryBuilder("product")
       .select([
@@ -32,6 +29,8 @@ export class SubcategoriesService {
       .leftJoin("subcategory.category", "category")
       .where("subcategory.subcategory = :subcategory", { subcategory })
       .orderBy(orderByField, orderDirection)
+      .offset(offset) // Skip the previous pages
+      .limit(limit) // Take the next 'limit' number of items
       .getRawMany();
 
     return rawProducts.map((rawProduct) => ({
@@ -47,27 +46,27 @@ export class SubcategoriesService {
     }));
   }
 
-  async getFeaturedProducts(subcategory: string) {
-    return await this.getProducts(subcategory, "product.sold", "DESC");
+  async getFeaturedProducts(subcategory: string, page: number, limit: number) {
+    return await this.getProducts(subcategory, "product.sold", "DESC", page, limit);
   }
 
-  async getProductsBasedOnRating(subcategory: string) {
-    return await this.getProducts(subcategory, "product.averageRating", "DESC");
+  async getProductsBasedOnRating(subcategory: string, page: number, limit: number) {
+    return await this.getProducts(subcategory, "product.averageRating", "DESC", page, limit);
   }
 
-  async getProductsByPriceAsc(subcategory: string) {
-    return await this.getProducts(subcategory, "product.price", "ASC");
+  async getProductsByPriceAsc(subcategory: string, page: number, limit: number) {
+    return await this.getProducts(subcategory, "product.price", "ASC", page, limit);
   }
 
-  async getProductsByPriceDesc(subcategory: string) {
-    return await this.getProducts(subcategory, "product.price", "DESC");
+  async getProductsByPriceDesc(subcategory: string, page: number, limit: number) {
+    return await this.getProducts(subcategory, "product.price", "DESC", page, limit);
   }
 
-  async getTopSelling(subcategory: string) {
-    return await this.getProducts(subcategory, "product.sold", "DESC");
+  async getTopSelling(subcategory: string, page: number, limit: number) {
+    return await this.getProducts(subcategory, "product.sold", "DESC", page, limit);
   }
 
-  async getTopWishlistedProducts(subcategory: string) {
-    return await this.getProducts(subcategory, "product.wishlisted", "DESC");
+  async getTopWishlistedProducts(subcategory: string, page: number, limit: number) {
+    return await this.getProducts(subcategory, "product.wishlisted", "DESC", page, limit);
   }
 }

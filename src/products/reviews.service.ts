@@ -41,9 +41,7 @@ export class ReviewsService {
     );
 
     if (!hasOrderedProduct) {
-      return new BadRequestException(
-        "You cannot review a product you have not purchased",
-      );
+      return false;
     }
 
     const reviews = await this.reviewsRepo.find({
@@ -54,9 +52,7 @@ export class ReviewsService {
     });
 
     if (reviews.length > 0) {
-      throw new BadRequestException(
-        "You cannot review a product you have already reviewed",
-      );
+      return false;
     } else {
       return true;
     }
@@ -73,12 +69,10 @@ export class ReviewsService {
       relations: ["reviews"],
     });
     const user = await this.usersRepo.findOneByOrFail({ id: userId });
-    console.log("aloo1");
     await this.canCurrentUserReview(productId, userId);
     const review = new Review();
     review.product = product;
     review.user = user;
-    console.log("aloo");
     review.rating = rating;
     review.comment = comment;
     await this.productsRepo.save(product);

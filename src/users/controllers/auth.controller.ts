@@ -25,13 +25,12 @@ import {
   GetCurrentUser,
   GetCurrentUserIdFromCookies,
 } from "../../common/decorators";
-import { Tokens } from "../types";
 import { AtGuard, RtGuard } from "src/common/guards";
 
 @Controller("auth")
 @UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
   @Public()
   @Post("signup")
@@ -50,14 +49,20 @@ export class AuthController {
     const user = await this.authService.signinLocal(dto, res);
     return user;
   }
-  
 
   @Public()
-  @UseGuards(RtGuard)
-  @Post("logout")
+  @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@GetCurrentUserIdFromCookies() userId: number): Promise<boolean> {
-    return this.authService.logout(userId);
+  async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
+    const refreshToken = req.cookies?.refresh_token;
+    try {
+      const result = await this.authService.logout(refreshToken, res);
+
+      res.cookie('refresh_token', '', { httpOnly: true, expires: new Date(0) });
+      res.send({ success: result });
+    } catch (error) {
+      res.status(HttpStatus.BAD_REQUEST).send({ success: false, message: error.message });
+    }
   }
 
   @UseGuards(AtGuard)
@@ -88,12 +93,12 @@ export class AuthController {
     if (!refreshToken) {
       throw new BadRequestException("Refresh token missing in cookie.");
     }
-  
+
     const tokens = await this.authService.refreshTokens(userId, refreshToken, res);
-  
+
     res.json({
       access_token: tokens.access_token,
     });
   }
-  
+
 }

@@ -17,6 +17,7 @@ import { ConfigService } from "@nestjs/config";
 import { SignUserDto } from "../dtos/sign-user.dto";
 import { Response } from "express";
 import { Cart } from "src/entities/Cart.entity";
+import * as jwt from "jsonwebtoken";
 
 @Injectable()
 export class AuthService {
@@ -141,15 +142,33 @@ export class AuthService {
     };
   }
 
-  async logout(userId: number): Promise<boolean> {
-    try {
-      await this.usersRepo.update({ id: userId }, { hashedRt: null });
-      return true;
-    } catch (error: unknown) {
-      console.log(error);
-      throw new BadRequestException("There was an error trying to log out");
-    }
+// AuthService
+async logout(refreshToken: string, res: Response): Promise<boolean> {
+  const userId = this.extractUserIdFromToken(refreshToken);
+  if (!userId) {
+    throw new BadRequestException("Invalid token");
   }
+
+  try {
+    await this.usersRepo.update({ id: userId }, { hashedRt: null });
+    
+    // Set the cookie to an expired date to remove it in the controller
+    return true;
+  } catch (error: unknown) {
+    console.log(error);
+    throw new BadRequestException("There was an error trying to log out");
+  }
+}
+
+private extractUserIdFromToken(token: string): any {
+  try {
+    const decoded = jwt.decode(token);
+    return decoded?.sub;
+  } catch (error) {
+    return null;
+  }
+}
+
 
   async refreshTokens(
     userId: number,
