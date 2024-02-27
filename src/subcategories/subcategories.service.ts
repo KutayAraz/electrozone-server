@@ -9,8 +9,17 @@ export class SubcategoriesService {
     @InjectRepository(Product) private productsRepo: Repository<Product>,
   ) { }
 
-  async getProducts(subcategory: string, orderByField: string, orderDirection: 'ASC' | 'DESC', skip: number, take: number) {
-    const rawProducts = await this.productsRepo
+  async getProducts(subcategory: string,
+    orderByField: string,
+    orderDirection: 'ASC' | 'DESC',
+    skip: number,
+    take: number,
+    stockStatus?: string, // "in_stock" or "out_of_stock"
+    priceRange?: { min: number; max: number },
+    brands?: string[]) {
+
+    // Base query
+    let query = this.productsRepo
       .createQueryBuilder("product")
       .select([
         "product.id",
@@ -27,10 +36,46 @@ export class SubcategoriesService {
       .addSelect("category.category", "category")
       .leftJoin("subcategory.category", "category")
       .where("subcategory.subcategory = :subcategory", { subcategory })
-      .orderBy(orderByField, orderDirection)
-      .offset(skip) // Skip the previous pages
-      .limit(take) // Take the next 'limit' number of items
-      .getRawMany();
+
+    // Filter by stock status
+    if (stockStatus) {
+        if (stockStatus === "in_stock") {
+        query = query.andWhere("product.stock > 0");
+      }
+    }
+
+    // Filter by price range
+    if (priceRange) {
+      var minPrice = priceRange.min
+      var maxPrice = priceRange.max
+      query = query.andWhere("product.price BETWEEN :min AND :max", {
+        min: minPrice,
+        max: maxPrice,
+      });
+    }
+
+    // If minPrice is provided, add a condition for it
+    if (minPrice) {
+      query = query.andWhere("product.price >= :minPrice", { minPrice });
+    }
+
+    // If maxPrice is provided, add a condition for it
+    if (maxPrice) {
+      query = query.andWhere("product.price <= :maxPrice", { maxPrice });
+    }
+
+
+    // Filter by brands
+    if (brands && brands.length) {
+      query = query.andWhere("product.brand IN (:...brands)", { brands });
+    }
+
+    // Sorting, pagination
+    query = query.orderBy(orderByField, orderDirection)
+      .offset(skip)
+      .limit(take);
+
+    const rawProducts = await query.getRawMany();
 
     return rawProducts.map((rawProduct) => ({
       id: rawProduct.product_id,
@@ -45,27 +90,58 @@ export class SubcategoriesService {
     }));
   }
 
-  async getFeaturedProducts(subcategory: string, skip: number, limit: number) {
-    return await this.getProducts(subcategory, "product.sold", "DESC", skip, limit);
+  async getAllBrands(subcategory: string): Promise<string[]> {
+    const brands = await this.productsRepo
+      .createQueryBuilder("product")
+      .select("DISTINCT(product.brand)", "brand")
+      .leftJoin("product.subcategory", "subcategory")
+      .where("subcategory.subcategory = :subcategory", { subcategory })
+      .orderBy("product.brand", "ASC")
+      .getRawMany();
+
+    return brands.map(brand => brand.brand);
   }
 
-  async getProductsBasedOnRating(subcategory: string, skip: number, limit: number) {
-    return await this.getProducts(subcategory, "product.averageRating", "DESC", skip, limit);
+  async getPriceRange(subcategory: string, brand?: string): Promise<{ min: number; max: number }> {
+    let query = this.productsRepo
+      .createQueryBuilder("product")
+      .select("MIN(product.price)", "min")
+      .addSelect("MAX(product.price)", "max")
+      .leftJoin("product.subcategory", "subcategory")
+      .where("subcategory.subcategory = :subcategory", { subcategory });
+
+    if (brand) {
+      query = query.andWhere("product.brand = :brand", { brand });
+    }
+
+    const result = await query.getRawOne();
+    return {
+      min: result.min,
+      max: result.max,
+    };
   }
 
-  async getProductsByPriceAsc(subcategory: string, skip: number, limit: number) {
-    return await this.getProducts(subcategory, "product.price", "ASC", skip, limit);
+  async getFeaturedProducts(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
+    return await this.getProducts(subcategory, "product.sold", "DESC", skip, limit, stockStatus, priceRange, brands);
   }
 
-  async getProductsByPriceDesc(subcategory: string, skip: number, limit: number) {
-    return await this.getProducts(subcategory, "product.price", "DESC", skip, limit);
+  async getProductsBasedOnRating(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
+    return await this.getProducts(subcategory, "product.averageRating", "DESC", skip, limit, stockStatus, priceRange, brands);
   }
 
-  async getTopSelling(subcategory: string, skip: number, limit: number) {
-    return await this.getProducts(subcategory, "product.sold", "DESC", skip, limit);
+  async getProductsByPriceAsc(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
+    return await this.getProducts(subcategory, "product.price", "ASC", skip, limit, stockStatus, priceRange, brands);
   }
 
-  async getTopWishlistedProducts(subcategory: string, skip: number, limit: number) {
-    return await this.getProducts(subcategory, "product.wishlisted", "DESC", skip, limit);
+  async getProductsByPriceDesc(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
+    return await this.getProducts(subcategory, "product.price", "DESC", skip, limit, stockStatus, priceRange, brands);
+  }
+
+  async getTopSelling(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
+    return await this.getProducts(subcategory, "product.sold", "DESC", skip, limit, stockStatus, priceRange, brands);
+  }
+
+  async getTopWishlistedProducts(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
+    return await this.getProducts(subcategory, "product.wishlisted", "DESC", skip, limit, stockStatus, priceRange, brands);
   }
 }
