@@ -22,8 +22,8 @@ export class CategoriesService {
     const subcategories = await this.getSubcategories(category);
   
     const topProductsPromise = subcategories.map(async (subcategory) => {
-      const topSelling = await this.subcategoriesService.getTopSelling(subcategory, 1, 10);
-      const topWishlisted = await this.subcategoriesService.getTopWishlistedProducts(subcategory, 1, 10);
+      const topSelling = await this.subcategoriesService.getTopSelling(subcategory, 0, 12);
+      const topWishlisted = await this.subcategoriesService.getTopWishlistedProducts(subcategory, 0, 12);
   
       return {
         subcategory,

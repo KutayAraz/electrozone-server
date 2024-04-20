@@ -11,6 +11,7 @@ import { OrderItem } from "src/entities/OrderItem.detail";
 import { Subcategory } from "src/entities/Subcategory.entity";
 import { ReviewsController } from "./reviews.controller";
 import { ReviewsService } from "./reviews.service";
+import { SubcategoriesService } from "src/subcategories/subcategories.service";
 
 @Module({
   imports: [
@@ -25,6 +26,6 @@ import { ReviewsService } from "./reviews.service";
     ]),
   ],
   controllers: [ProductsController, ReviewsController],
-  providers: [ProductsService, ReviewsService],
+  providers: [ProductsService, ReviewsService, SubcategoriesService],
 })
 export class ProductsModule {}

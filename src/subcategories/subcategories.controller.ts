@@ -94,7 +94,6 @@ export class SubcategoriesController {
     const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
     const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
 
-
     return await this.subcategoriesService.getProductsByPriceAsc(name, skip, take,
       stockStatus,
       priceRange,

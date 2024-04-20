@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist";
+import { SubcategoriesService } from "src/subcategories/subcategories.service";
 import { Brackets, Repository } from "typeorm";
 
 @Injectable()
@@ -12,7 +13,8 @@ export class ProductsService {
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Wishlist)
     private wishlistRepo: Repository<Wishlist>,
-  ) {}
+    private readonly subcategoriesService: SubcategoriesService
+  ) { }
 
   async findProduct(id: number) {
     const product = await this.productsRepo.findOne({
@@ -187,41 +189,113 @@ export class ProductsService {
     }));
   }
 
-  async findBySearch(search: string) {
+  async findBySearch(
+    search: string,
+    skip: number,
+    take: number,
+    sort: string,
+    stockStatus?: string,
+    priceRange?: { min: number; max: number },
+    brands?: string[],
+    subcategories?: string[]) {
     const searchWords = search.split(" ");
 
-    const query = this.productsRepo.createQueryBuilder("product");
+    const baseQuery = this.productsRepo.createQueryBuilder("product")
+      .leftJoinAndSelect("product.subcategory", "subcategory")
+      .leftJoinAndSelect("subcategory.category", "category");
 
-    query.leftJoinAndSelect("product.subcategory", "subcategory");
-    query.leftJoinAndSelect("subcategory.category", "category");
+    // Apply the same base search criteria as your main query
+    // This is necessary to ensure consistency between the datasets
+    // (Notice we're cloning the baseQuery to avoid altering it directly)
+    const brandsQuery = baseQuery.clone();
+    const subcategoriesQuery = baseQuery.clone();
+    const priceRangeQuery = baseQuery.clone();
 
-    query.where(
-      new Brackets((qb) => {
-        searchWords.forEach((word, index) => {
-          const fragment = word.length > 2 ? word.substring(0, 3) : word;
-          if (index === 0) {
-            qb.where(`product.productName LIKE :likeSearch${index}`, {
-              [`likeSearch${index}`]: `%${fragment}%`,
-            });
-          } else {
-            qb.orWhere(`product.productName LIKE :likeSearch${index}`, {
-              [`likeSearch${index}`]: `%${fragment}%`,
-            });
-          }
-        });
-      }),
-    );
+    // Common where clause logic
+    const applyCommonWhere = (query) => {
+      query.where(
+        new Brackets(qb => {
+          searchWords.forEach((word, index) => {
+            const likeKey = `likeSearch${index}`;
+            const fragment = word.length > 2 ? word.substring(0, 3) : word;
+            qb.orWhere(`product.productName LIKE :${likeKey}`, { [likeKey]: `%${fragment}%` });
+            qb.orWhere("product.brand LIKE :brandSearch", { brandSearch: `%${search}%` });
+            qb.orWhere("product.description LIKE :descriptionSearch", { descriptionSearch: `%${search}%` });
+          });
+        })
+      );
+    };
 
-    query.orWhere(`product.brand LIKE :brandSearch`, {
-      brandSearch: `%${search}%`,
-    });
+    applyCommonWhere(brandsQuery);
+    applyCommonWhere(subcategoriesQuery);
+    applyCommonWhere(priceRangeQuery);
 
-    query.orWhere(`product.description LIKE :descriptionSearch`, {
-      descriptionSearch: `%${search}%`,
-    });
+    const priceRangeResult = await priceRangeQuery
+      .select("MIN(product.price)", "min")
+      .addSelect("MAX(product.price)", "max")
+      .getRawOne();
 
-    query.orderBy("product.productName", "ASC");
+    // Select distinct brands
+    const uniqueBrands = await brandsQuery
+      .select("DISTINCT product.brand", "brand")
+      .orderBy("product.brand", "ASC") // Optional, for ordered results
+      .getRawMany();
 
-    return await query.getMany();
+    // Select distinct subcategories
+    const uniqueSubcategories = await subcategoriesQuery
+      .select("DISTINCT subcategory.subcategory", "subcategory")
+      .orderBy("subcategory.subcategory", "ASC") // Optional, for ordered results
+      .getRawMany();
+
+    // Now, apply filters and pagination to the main query
+    applyCommonWhere(baseQuery);
+
+    // Apply additional filters outside of the initial search brackets to ensure they are always applied
+    if (priceRange) {
+      baseQuery.andWhere("product.price BETWEEN :min AND :max", { min: priceRange.min, max: priceRange.max });
+    }
+
+    if (brands && brands.length > 0) {
+      baseQuery.andWhere("product.brand IN (:...brands)", { brands });
+    }
+
+    if (subcategories && subcategories.length > 0) {
+      baseQuery.andWhere("subcategory.subcategory IN (:...subcategories)", { subcategories });
+    }
+
+    if (stockStatus) {
+      if (stockStatus === "in_stock") {
+        baseQuery.andWhere("product.stock > 0");
+      }
+      // Extend this logic for other stockStatus values if necessary
+    }
+
+    if (sort) {
+      switch (sort) {
+        case "price_ascending":
+          baseQuery.orderBy("product.price", "ASC");
+          break;
+        case "price_descending":
+          baseQuery.orderBy("product.price", "DESC");
+          break;
+        case "top_rated":
+          baseQuery.orderBy("product.avgRating", "DESC");
+          break;
+      }
+    }
+
+    // Get the count of filtered products
+    const count = await baseQuery.getCount();
+
+    // pagination
+    const products = await baseQuery.offset(skip).limit(take).getMany();
+
+    return {
+      products,
+      productQuantity: count,
+      availableBrands: uniqueBrands.map(brand => brand.brand),
+      availableSubcategories: uniqueSubcategories.map(subcat => subcat.subcategory),
+      priceRange: priceRangeResult
+    };
   }
 }

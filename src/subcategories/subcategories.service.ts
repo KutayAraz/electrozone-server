@@ -39,7 +39,7 @@ export class SubcategoriesService {
 
     // Filter by stock status
     if (stockStatus) {
-        if (stockStatus === "in_stock") {
+      if (stockStatus === "in_stock") {
         query = query.andWhere("product.stock > 0");
       }
     }
@@ -70,6 +70,8 @@ export class SubcategoriesService {
       query = query.andWhere("product.brand IN (:...brands)", { brands });
     }
 
+    const count = await query.getCount();
+
     // Sorting, pagination
     query = query.orderBy(orderByField, orderDirection)
       .offset(skip)
@@ -77,7 +79,7 @@ export class SubcategoriesService {
 
     const rawProducts = await query.getRawMany();
 
-    return rawProducts.map((rawProduct) => ({
+    const formattedProducts = rawProducts.map((rawProduct) => ({
       id: rawProduct.product_id,
       productName: rawProduct.product_productName,
       brand: rawProduct.product_brand,
@@ -88,6 +90,8 @@ export class SubcategoriesService {
       subcategory: rawProduct.subcategory,
       category: rawProduct.category,
     }));
+
+    return { products: formattedProducts, productQuantity: count }
   }
 
   async getAllBrands(subcategory: string): Promise<string[]> {

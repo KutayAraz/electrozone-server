@@ -13,7 +13,7 @@ import { AtGuard } from "src/common/guards";
 
 @Controller("products")
 export class ProductsController {
-  constructor(private productsService: ProductsService) {}
+  constructor(private productsService: ProductsService) { }
 
   @Public()
   @Get("/most-wishlisted")
@@ -65,8 +65,30 @@ export class ProductsController {
 
   @Public()
   @Get()
-  async getProductsBySearch(@Query("search") encodedSearchQuery: string) {
+  async getProductsBySearch(
+    @Query("query") encodedSearchQuery: string,
+    @Query("skip") skip: number = 0,
+    @Query("limit") take: number = 10,
+    @Query("sort") sort: string = "relevance",
+    @Query("stock_status") stockStatus?: string,
+    @Query("min_price") minPrice: number = 0,
+    @Query("max_price") maxPrice?: number,
+    @Query("brands") brandString?: string,
+    @Query("subcategories") subcategoriesString?: string,
+  ) {
     const searchQuery = decodeURIComponent(encodedSearchQuery);
-    return this.productsService.findBySearch(searchQuery);
+    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
+    const subcategories = subcategoriesString ? subcategoriesString.split(' ').map(decodeURIComponent) : undefined;
+    
+    const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
+    return this.productsService.findBySearch(
+      searchQuery,
+      skip,
+      take,
+      sort,
+      stockStatus,
+      priceRange,
+      brands,
+      subcategories);
   }
 }
