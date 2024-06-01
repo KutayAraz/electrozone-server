@@ -13,20 +13,61 @@ export class ReviewsService {
     @InjectRepository(Review) private reviewsRepo: Repository<Review>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Order) private ordersRepo: Repository<Order>,
-  ) {}
+  ) { }
 
   async getReviewsByProductId(
     productId: number,
-    take: number = 3,
-  ): Promise<Review[]> {
-    const reviews = await this.reviewsRepo.find({
-      where: { product: { id: productId } },
-      order: { reviewDate: "DESC" },
-      take,
-    });
-
-    return reviews;
-  }
+  ): Promise<any> {
+    let query = this.reviewsRepo
+      .createQueryBuilder('review')
+      .select([
+        'review.id',
+        'review.reviewDate',
+        'review.rating',
+        'review.comment',
+        'user.firstName',
+        'user.lastName'
+      ])
+      .innerJoin('review.user', 'user')
+      .orderBy('review.reviewDate', 'DESC')
+      .where("review.productId = :productId", { productId });
+  
+    const reviews = await query.getMany();
+  
+    // Get count of all ratings from 1 to 5 for the specified product
+    const ratingsCountRaw = await this.reviewsRepo
+      .createQueryBuilder('review')
+      .select('review.rating', 'rating')
+      .addSelect('COUNT(*)', 'count')
+      .where("review.productId = :productId", { productId })
+      .groupBy('review.rating')
+      .getRawMany();
+  
+    const ratingsCount = [];
+    for (let i = 5; i >= 1; i--) {
+      const ratingEntry = ratingsCountRaw.find(rc => parseInt(rc.rating) === i);
+      ratingsCount.push({
+        review_rating: i,
+        count: ratingEntry ? ratingEntry.count : '0' // Default to '0' if no entries found
+      });
+    }
+  
+    const transformedReviews = reviews.map(review => ({
+      id: review.id,
+      reviewDate: review.reviewDate,
+      rating: review.rating,
+      comment: review.comment,
+      user: {
+        firstName: `${review.user.firstName.charAt(0)}.`,
+        lastName: `${review.user.lastName.charAt(0)}.`
+      }
+    }));
+  
+    return {
+      reviews: transformedReviews,
+      ratingsDistribution: ratingsCount
+    };
+  }  
 
   async canCurrentUserReview(selectedProductId: number, userId: number) {
     const orders = await this.ordersRepo

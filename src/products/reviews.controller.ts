@@ -7,6 +7,7 @@ import {
   Post,
   Res,
   UseGuards,
+  Query
 } from "@nestjs/common";
 import { ReviewsService } from "./reviews.service";
 import { Public, GetCurrentUserId } from "src/common/decorators";
@@ -16,11 +17,13 @@ import { Response } from "express";
 
 @Controller("reviews")
 export class ReviewsController {
-  constructor(private reviewsService: ReviewsService) {}
+  constructor(private reviewsService: ReviewsService) { }
 
   @Public()
   @Get(":productId/reviews")
-  async getProductReviews(@Param("productId") productId: string) {
+  async getProductReviews(
+    @Param("productId") productId: string,
+  ) {
     return await this.reviewsService.getReviewsByProductId(parseInt(productId));
   }
 
