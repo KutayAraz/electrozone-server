@@ -20,7 +20,7 @@ export class OrdersService {
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Product) private productsRepo: Repository<Product>,
     private readonly cartsService: CartsService,
-  ) {}
+  ) { }
 
   async createOrder(userId: number, orderItems: CreateOrderItemDTO[]) {
     const user = await this.usersRepo.findOneBy({ id: userId });
@@ -176,7 +176,7 @@ export class OrdersService {
     };
   }
 
-  async getOrdersForUser(userId: number) {
+  async getOrdersForUser(userId: number, skip: number, take: number) {
     const orders = await this.ordersRepo.find({
       where: { user: { id: userId } },
       relations: [
@@ -189,6 +189,8 @@ export class OrdersService {
       order: {
         orderDate: "DESC",
       },
+      skip, // Offset: Number of rows to skip
+      take  // Limit: Maximum number of rows to return
     });
 
     return orders.map((order) => {
@@ -217,5 +219,6 @@ export class OrdersService {
         orderItems: transformedOrderItems,
       };
     });
-  }
+}
+
 }
