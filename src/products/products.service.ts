@@ -36,6 +36,27 @@ export class ProductsService {
     };
   }
 
+  async getFrequentlyBoughtTogether(productId: number): Promise<Product[]> {
+    const result = await this.productsRepo
+      .query(`
+        SELECT oi2.productId, COUNT(*) as frequency
+        FROM order_items oi1
+        JOIN order_items oi2 ON oi1.orderId = oi2.orderId AND oi1.productId != oi2.productId
+        JOIN orders o ON oi1.orderId = o.id
+        WHERE oi1.productId = ?
+        GROUP BY oi2.productId
+        ORDER BY frequency DESC
+        LIMIT 5;
+      `, [productId]);
+
+    if (!result.length) {
+      throw new Error('No related products found.');
+    }
+
+    const recommendedProductIds = result.map(item => item.productId);
+    return this.productsRepo.findByIds(recommendedProductIds);
+  }
+
   async checkWishlist(productId: number, userId: number) {
     const isWishlisted = await this.wishlistRepo.find({
       where: {

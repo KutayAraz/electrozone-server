@@ -1,10 +1,13 @@
 import {
   Controller,
   Get,
+  HttpException,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import { ProductsService } from "./products.service";
@@ -64,6 +67,17 @@ export class ProductsController {
   }
 
   @Public()
+  @Get(':id/frequently-bought-together')
+  async getFrequentlyBoughtTogether(@Param('id') id: string) {
+    try {
+      const productId = parseInt(id);
+      return await this.productsService.getFrequentlyBoughtTogether(productId);
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.NOT_FOUND);
+    }
+  }
+
+  @Public()
   @Get()
   async getProductsBySearch(
     @Query("query") encodedSearchQuery: string,
@@ -79,7 +93,7 @@ export class ProductsController {
     const searchQuery = decodeURIComponent(encodedSearchQuery);
     const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
     const subcategories = subcategoriesString ? subcategoriesString.split(' ').map(decodeURIComponent) : undefined;
-    
+
     const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
     return this.productsService.findBySearch(
       searchQuery,
