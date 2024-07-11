@@ -4,7 +4,7 @@ import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist";
 import { SubcategoriesService } from "src/subcategories/subcategories.service";
-import { Brackets, Repository } from "typeorm";
+import { Brackets, In, Not, Repository } from "typeorm";
 
 @Injectable()
 export class ProductsService {
@@ -36,7 +36,16 @@ export class ProductsService {
     };
   }
 
-  async getFrequentlyBoughtTogether(productId: number): Promise<Product[]> {
+  async getSimilarProductsRandomly(productId: number, subcategoryId: number): Promise<Product[]> {
+    const similarProducts = await this.productsRepo.query(
+      `SELECT * FROM products WHERE subcategoryId = ? AND id != ? ORDER BY RAND() LIMIT 8`,
+      [subcategoryId, productId]
+    );
+    return similarProducts;
+  }
+
+  async getSuggestedProducts(productId: number): Promise<{ suggestionType: string, products: Promise<Product[]> | Product[] }> {
+    // Attempt to find frequently bought together products
     const result = await this.productsRepo
       .query(`
         SELECT oi2.productId, COUNT(*) as frequency
@@ -46,15 +55,32 @@ export class ProductsService {
         WHERE oi1.productId = ?
         GROUP BY oi2.productId
         ORDER BY frequency DESC
-        LIMIT 5;
+        LIMIT 8;
       `, [productId]);
 
-    if (!result.length) {
-      throw new Error('No related products found.');
-    }
+    if (result.length >= 5) {
+      const recommendedProductIds = result.map(item => item.productId);
+      return {
+        suggestionType: "Frequently Bought Together", products: await this.productsRepo.find({
+          where: {
+            id: In(recommendedProductIds)
+          }
+        })
+      };
+    } else {
+      // If not enough frequently bought together products, fetch similar products from the same subcategory
+      const product = await this.productsRepo.findOne({
+        where: { id: productId },
+        relations: ['subcategory']
+      });
+      if (!product) {
+        throw new Error('Product not found.');
+      }
 
-    const recommendedProductIds = result.map(item => item.productId);
-    return this.productsRepo.findByIds(recommendedProductIds);
+      const similarProducts = await this.getSimilarProductsRandomly(productId, product.subcategory.id)
+
+      return { suggestionType: "Similar Products", products: similarProducts };
+    }
   }
 
   async checkWishlist(productId: number, userId: number) {

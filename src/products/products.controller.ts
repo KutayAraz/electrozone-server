@@ -67,11 +67,11 @@ export class ProductsController {
   }
 
   @Public()
-  @Get(':id/frequently-bought-together')
+  @Get(':id/suggested-products')
   async getFrequentlyBoughtTogether(@Param('id') id: string) {
     try {
       const productId = parseInt(id);
-      return await this.productsService.getFrequentlyBoughtTogether(productId);
+      return await this.productsService.getSuggestedProducts(productId);
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.NOT_FOUND);
     }
