@@ -4,7 +4,7 @@ import { ProductsService } from "./products.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
-import { Wishlist } from "src/entities/Wishlist";
+import { Wishlist } from "src/entities/Wishlist.entity";
 import { Review } from "src/entities/Review.entity";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";

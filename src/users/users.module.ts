@@ -7,7 +7,7 @@ import { AuthController } from "./controllers/auth.controller";
 import { AuthService } from "./services/auth.service";
 import { JwtModule } from "@nestjs/jwt";
 import { AtStrategy, RtStrategy } from "./strategies";
-import { Wishlist } from "src/entities/Wishlist";
+import { Wishlist } from "src/entities/Wishlist.entity";
 import { Cart } from "src/entities/Cart.entity";
 
 @Module({

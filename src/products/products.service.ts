@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
-import { Wishlist } from "src/entities/Wishlist";
+import { Wishlist } from "src/entities/Wishlist.entity";
 import { SubcategoriesService } from "src/subcategories/subcategories.service";
 import { Brackets, In, Not, Repository } from "typeorm";
 

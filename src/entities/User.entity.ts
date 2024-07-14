@@ -7,7 +7,7 @@ import {
 import { Order } from "./Order.entity";
 import { Exclude } from "class-transformer";
 import { Review } from "./Review.entity";
-import { Wishlist } from "./Wishlist";
+import { Wishlist } from "./Wishlist.entity";
 
 @Entity({ name: "users" })
 export class User {

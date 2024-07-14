@@ -9,7 +9,7 @@ import { Review } from "./Review.entity";
 import { Subcategory } from "./Subcategory.entity";
 import { ProductImage } from "./ProductImage.entity";
 import { OrderItem } from "./OrderItem.detail";
-import { Wishlist } from "./Wishlist";
+import { Wishlist } from "./Wishlist.entity";
 import { CartItem } from "./CartItem.entity";
 
 @Entity({ name: "products" })

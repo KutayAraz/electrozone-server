@@ -7,7 +7,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { User } from "src/entities/User.entity";
 import { Repository } from "typeorm";
 import { UpdateUserDto } from "../dtos/update-user.dto";
-import { Wishlist } from "src/entities/Wishlist";
+import { Wishlist } from "src/entities/Wishlist.entity";
 
 @Injectable()
 export class UsersService {
