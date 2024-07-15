@@ -13,6 +13,7 @@ import {
 import { ProductsService } from "./products.service";
 import { GetCurrentUserId, Public } from "src/common/decorators";
 import { AtGuard } from "src/common/guards";
+import { SkipThrottle } from "@nestjs/throttler";
 
 @Controller("products")
 export class ProductsController {
@@ -43,6 +44,7 @@ export class ProductsController {
   }
 
   @UseGuards(AtGuard)
+  @SkipThrottle()
   @Get(":productId/wishlist")
   async checkWishlist(
     @Param("productId") productId: string,

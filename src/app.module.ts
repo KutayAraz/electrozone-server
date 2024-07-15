@@ -10,6 +10,7 @@ import { SubcategoriesModule } from "./subcategories/subcategories.module";
 import { AtGuard } from "./common/guards";
 import { CartsModule } from "./carts/carts.module";
 import databaseConfig from "./config/database.config";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 
 @Module({
   imports: [
@@ -18,10 +19,14 @@ import databaseConfig from "./config/database.config";
       envFilePath: `.env.${process.env.NODE_ENV}`,
     }),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule], // Ensure ConfigModule is imported
-      inject: [ConfigService], // Inject ConfigService to use in your database config
-      useFactory: databaseConfig, // Use the imported function directly
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: databaseConfig,
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,  // Time to live for the records in miliseconds
+      limit: 10,  // Maximum number of requests within the TTL
+    }]),
     UsersModule,
     CategoriesModule,
     ProductsModule,
@@ -40,6 +45,10 @@ import databaseConfig from "./config/database.config";
       provide: APP_GUARD,
       useClass: AtGuard,
     },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard
+    }
   ],
 })
 export class AppModule { }

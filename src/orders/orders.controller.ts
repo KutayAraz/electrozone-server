@@ -16,6 +16,7 @@ import { AtGuard } from "src/common/guards";
 import {
   GetCurrentUserId,
 } from "src/common/decorators";
+import { SkipThrottle } from "@nestjs/throttler";
 
 @Controller("orders")
 export class OrdersController {
@@ -32,6 +33,7 @@ export class OrdersController {
 
   @UseGuards(AtGuard)
   @UseInterceptors(ClassSerializerInterceptor)
+  @SkipThrottle()
   @Get("user")
   async getOrdersForUser(
     @GetCurrentUserId() id: number,

@@ -26,6 +26,7 @@ import {
   GetCurrentUserIdFromCookies,
 } from "../../common/decorators";
 import { AtGuard, RtGuard } from "src/common/guards";
+import { Throttle } from "@nestjs/throttler";
 
 @Controller("auth")
 @UseInterceptors(ClassSerializerInterceptor)
@@ -33,6 +34,7 @@ export class AuthController {
   constructor(private authService: AuthService) { }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post("signup")
   @HttpCode(HttpStatus.CREATED)
   signupLocal(@Body() dto: CreateUserDto) {
@@ -40,6 +42,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 15, ttl: 3600000 } })
   @Post("signin")
   @HttpCode(HttpStatus.OK)
   async signinLocal(
@@ -51,6 +54,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 15, ttl: 3600000 } })
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
@@ -66,6 +70,7 @@ export class AuthController {
   }
 
   @UseGuards(AtGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Patch("/update-password")
   async updateUserPassword(
     @GetCurrentUserId() id: number,
@@ -75,12 +80,14 @@ export class AuthController {
   }
 
   @UseGuards(AtGuard)
+  @Throttle({ default: { limit: 1, ttl: 3600000 } })
   @Delete("/profile")
   removeUser(@GetCurrentUser() user: UserDto) {
     return this.authService.remove(user.id);
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 3600000 } })
   @UseGuards(RtGuard)
   @Post("refresh")
   @HttpCode(HttpStatus.OK)

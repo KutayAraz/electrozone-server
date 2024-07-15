@@ -11,12 +11,14 @@ import { CartsService } from "./carts.service";
 import { AtGuard } from "src/common/guards";
 import { GetCurrentUserId, Public } from "src/common/decorators";
 import { CartItemDto } from "./dtos/cart-item.dto";
+import { SkipThrottle } from "@nestjs/throttler";
 
 @Controller("carts")
 export class CartsController {
   constructor(private readonly cartsService: CartsService) {}
 
   @Public()
+  @SkipThrottle()
   @Post("local-cart")
   async getLocalCartInformation(@Body() localCartDto: CartItemDto[]) {
     return await this.cartsService.getLocalCartInformation(localCartDto);
@@ -47,6 +49,7 @@ export class CartsController {
   }
 
   @UseGuards(AtGuard)
+  @SkipThrottle()
   @Patch("user-cart")
   async updateItemQuantity(
     @GetCurrentUserId() userId: number,
@@ -60,6 +63,7 @@ export class CartsController {
   }
 
   @UseGuards(AtGuard)
+  @SkipThrottle()
   @Post("user-cart")
   async addItemToCart(
     @GetCurrentUserId() userId: number,
@@ -73,6 +77,7 @@ export class CartsController {
   }
 
   @UseGuards(AtGuard)
+  @SkipThrottle()
   @Delete("user-cart")
   async removeItemFromCart(
     @GetCurrentUserId() userId: number,

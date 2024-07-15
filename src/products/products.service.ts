@@ -152,6 +152,7 @@ export class ProductsService {
         "product.sold",
         "product.averageRating",
         "product.price",
+        "product.stock",
       ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
@@ -168,6 +169,7 @@ export class ProductsService {
       thumbnail: row.thumbnail,
       averageRating: row.averageRating,
       price: row.price,
+      stock: row.stock,
       subcategory: row.subcategory.subcategory,
       category: row.subcategory.category.category,
     }));
@@ -184,6 +186,7 @@ export class ProductsService {
         "product.wishlisted",
         "product.averageRating",
         "product.price",
+        "product.stock",
       ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
@@ -200,6 +203,7 @@ export class ProductsService {
       thumbnail: row.thumbnail,
       averageRating: row.averageRating,
       price: row.price,
+      stock: row.stock,
       subcategory: row.subcategory.subcategory,
       category: row.subcategory.category.category,
     }));
@@ -215,6 +219,7 @@ export class ProductsService {
         "product.thumbnail",
         "product.averageRating",
         "product.price",
+        "product.stock",
       ])
       .leftJoin("product.subcategory", "subcategory")
       .addSelect(["subcategory.subcategory"])
@@ -231,6 +236,7 @@ export class ProductsService {
       thumbnail: row.thumbnail,
       averageRating: row.averageRating,
       price: row.price,
+      stock: row.stock,
       subcategory: row.subcategory.subcategory,
       category: row.subcategory.category.category,
     }));

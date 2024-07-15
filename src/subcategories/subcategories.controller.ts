@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
 import { SubcategoriesService } from "./subcategories.service";
 import { Public } from "src/common/decorators";
+import { SkipThrottle } from "@nestjs/throttler";
 
 @Controller("subcategories")
 export class SubcategoriesController {
@@ -19,6 +20,7 @@ export class SubcategoriesController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get(":name/featured")
   async getAllProducts(
     @Param("name") name: string,
@@ -42,6 +44,7 @@ export class SubcategoriesController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get(":name/rating")
   async getProductsSortedByRating(@Param("name") name: string,
     @Query("skip") skip: number = 0,
@@ -62,6 +65,7 @@ export class SubcategoriesController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get(":name/price_descending")
   async getProductsSortedByPriceDescending(@Param("name") name: string,
     @Query("skip") skip: number = 0,
@@ -80,6 +84,7 @@ export class SubcategoriesController {
   }
 
   @Public()
+  @SkipThrottle()
   @Get(":name/price_ascending")
   async getProductsSortedByPriceAscending(@Param("name") name: string,
     @Query("skip") skip: number = 0,
