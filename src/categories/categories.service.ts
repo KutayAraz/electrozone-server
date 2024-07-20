@@ -12,7 +12,7 @@ export class CategoriesService {
     @InjectRepository(Subcategory)
     private subcategoriesRepo: Repository<Subcategory>,
     private readonly subcategoriesService: SubcategoriesService,
-  ) {}
+  ) { }
 
   async getAllCategories(): Promise<Category[]> {
     return this.categoriesRepo.find();
@@ -20,26 +20,23 @@ export class CategoriesService {
 
   async getCategoryInformation(category: string) {
     const subcategories = await this.getSubcategories(category);
-  
-    const topProductsPromise = subcategories.map(async (subcategory) => {
-      const topSelling = await this.subcategoriesService.getTopSelling(subcategory, 0, 12);
-      const topWishlisted = await this.subcategoriesService.getTopWishlistedProducts(subcategory, 0, 12);
-  
-      return {
-        subcategory,
-        topSelling,
-        topWishlisted,
-      };
-    });
-  
-    return Promise.all(topProductsPromise);
+
+    const topProducts = await Promise.all(
+      subcategories.map(async (subcategory: string) => {
+        const [topSelling, topWishlisted] = await Promise.all([
+          this.subcategoriesService.getTopSelling(subcategory, 0, 12),
+          this.subcategoriesService.getTopWishlistedProducts(subcategory, 0, 12),
+        ]);
+        return { subcategory, topSelling, topWishlisted };
+      })
+    );
+    return topProducts;
   }
 
   async getSubcategories(category: string) {
     const subcategories = await this.subcategoriesRepo
       .createQueryBuilder("subcategory")
-      .innerJoinAndSelect("subcategory.category", "category")
-      .where("category.category = :category", { category })
+      .innerJoin("subcategory.category", "category", "category.category = :category", { category })
       .select("subcategory.subcategory")
       .getMany();
 
