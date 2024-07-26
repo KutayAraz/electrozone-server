@@ -24,8 +24,8 @@ export class CategoriesService {
     const topProducts = await Promise.all(
       subcategories.map(async (subcategory: string) => {
         const [topSelling, topWishlisted] = await Promise.all([
-          this.subcategoriesService.getTopSelling(subcategory, 0, 12),
-          this.subcategoriesService.getTopWishlistedProducts(subcategory, 0, 12),
+          this.subcategoriesService.getTopSelling({subcategory, skip: 0, limit: 12}),
+          this.subcategoriesService.getTopWishlistedProducts({subcategory, skip: 0, limit: 12}),
         ]);
         return { subcategory, topSelling, topWishlisted };
       })

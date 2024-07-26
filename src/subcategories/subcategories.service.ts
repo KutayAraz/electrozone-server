@@ -2,6 +2,14 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { Repository } from "typeorm";
+import { ProductQueryParams } from "./types/product-query.interface";
+
+enum ProductOrderBy {
+  SOLD = "product.sold",
+  RATING = "product.averageRating",
+  PRICE = "product.price",
+  WISHLISTED = "product.wishlisted"
+}
 
 @Injectable()
 export class SubcategoriesService {
@@ -9,15 +17,9 @@ export class SubcategoriesService {
     @InjectRepository(Product) private productsRepo: Repository<Product>,
   ) { }
 
-  async getProducts(subcategory: string,
-    orderByField: string,
-    orderDirection: 'ASC' | 'DESC',
-    skip: number,
-    take: number,
-    stockStatus?: string, // "in_stock" or "out_of_stock"
-    priceRange?: { min: number; max: number },
-    brands?: string[]) {
-
+  async getProducts(params: ProductQueryParams, orderByField: string, orderDirection: 'ASC' | 'DESC') {
+    const { subcategory, skip, limit, stockStatus, priceRange, brands } = params;
+    
     // Base query
     let query = this.productsRepo
       .createQueryBuilder("product")
@@ -44,26 +46,14 @@ export class SubcategoriesService {
       }
     }
 
-    // Filter by price range
     if (priceRange) {
-      var minPrice = priceRange.min
-      var maxPrice = priceRange.max
-      query = query.andWhere("product.price BETWEEN :min AND :max", {
-        min: minPrice,
-        max: maxPrice,
-      });
+      if (priceRange.min !== undefined) {
+        query = query.andWhere("product.price >= :minPrice", { minPrice: priceRange.min });
+      }
+      if (priceRange.max !== undefined) {
+        query = query.andWhere("product.price <= :maxPrice", { maxPrice: priceRange.max });
+      }
     }
-
-    // If minPrice is provided, add a condition for it
-    if (minPrice) {
-      query = query.andWhere("product.price >= :minPrice", { minPrice });
-    }
-
-    // If maxPrice is provided, add a condition for it
-    if (maxPrice) {
-      query = query.andWhere("product.price <= :maxPrice", { maxPrice });
-    }
-
 
     // Filter by brands
     if (brands && brands.length) {
@@ -75,7 +65,7 @@ export class SubcategoriesService {
     // Sorting, pagination
     query = query.orderBy(orderByField, orderDirection)
       .offset(skip)
-      .limit(take);
+      .limit(limit);
 
     const rawProducts = await query.getRawMany();
 
@@ -125,27 +115,31 @@ export class SubcategoriesService {
     };
   }
 
-  async getFeaturedProducts(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
-    return await this.getProducts(subcategory, "product.sold", "DESC", skip, limit, stockStatus, priceRange, brands);
+  async getProductsWithOrder(params: ProductQueryParams, orderBy: ProductOrderBy, orderDirection: 'ASC' | 'DESC') {
+    return await this.getProducts(params, orderBy, orderDirection);
   }
 
-  async getProductsBasedOnRating(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
-    return await this.getProducts(subcategory, "product.averageRating", "DESC", skip, limit, stockStatus, priceRange, brands);
+  async getFeaturedProducts(params: ProductQueryParams) {
+    return await this.getProductsWithOrder(params, ProductOrderBy.SOLD, 'DESC');
   }
 
-  async getProductsByPriceAsc(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
-    return await this.getProducts(subcategory, "product.price", "ASC", skip, limit, stockStatus, priceRange, brands);
+  async getProductsBasedOnRating(params: ProductQueryParams) {
+    return this.getProductsWithOrder(params, ProductOrderBy.RATING, 'DESC');
   }
 
-  async getProductsByPriceDesc(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
-    return await this.getProducts(subcategory, "product.price", "DESC", skip, limit, stockStatus, priceRange, brands);
+  async getProductsByPriceAsc(params: ProductQueryParams) {
+    return this.getProductsWithOrder(params, ProductOrderBy.PRICE, 'ASC');
   }
 
-  async getTopSelling(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
-    return await this.getProducts(subcategory, "product.sold", "DESC", skip, limit, stockStatus, priceRange, brands);
+  async getProductsByPriceDesc(params: ProductQueryParams) {
+    return this.getProductsWithOrder(params, ProductOrderBy.PRICE, 'DESC');
   }
 
-  async getTopWishlistedProducts(subcategory: string, skip: number, limit: number, stockStatus?: string, priceRange?: { min: number; max: number }, brands?: string[]) {
-    return await this.getProducts(subcategory, "product.wishlisted", "DESC", skip, limit, stockStatus, priceRange, brands);
+  async getTopSelling(params: ProductQueryParams) {
+    return this.getProductsWithOrder(params, ProductOrderBy.SOLD, 'DESC');
+  }
+
+  async getTopWishlistedProducts(params: ProductQueryParams) {
+    return this.getProductsWithOrder(params, ProductOrderBy.WISHLISTED, 'DESC');
   }
 }

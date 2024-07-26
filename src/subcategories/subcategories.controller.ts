@@ -1,143 +1,90 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
-import { SubcategoriesService } from "./subcategories.service";
-import { Public } from "src/common/decorators";
-import { SkipThrottle } from "@nestjs/throttler";
+import { Controller, Get, Param, Query, } from '@nestjs/common';
+import { SubcategoriesService } from './subcategories.service';
+import { Public } from 'src/common/decorators';
+import { SkipThrottle } from '@nestjs/throttler';
+import { CommonQueryParams, ProcessedQueryParams, ProductQueryParams } from './types/product-query.interface';
+
 
 @Controller("subcategories")
 export class SubcategoriesController {
   constructor(private subcategoriesService: SubcategoriesService) { }
 
+  private parseCommonParams(queryParams: CommonQueryParams): ProcessedQueryParams {
+    const { skip, limit, stockStatus, minPriceQuery, maxPriceQuery, brandString } = queryParams;
+    const parsedSkip = skip ? parseInt(skip, 10) : 0;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    let priceRange: { min?: number; max?: number } | undefined;
+
+    if (minPriceQuery || maxPriceQuery) {
+      priceRange = {};
+      if (minPriceQuery) priceRange.min = parseFloat(minPriceQuery);
+      if (maxPriceQuery) priceRange.max = parseFloat(maxPriceQuery);
+    }
+
+    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
+
+    return { skip: parsedSkip, limit: parsedLimit, stockStatus, priceRange, brands };
+  }
+
+  private prepareProductQueryParams(name: string, queryParams: CommonQueryParams): ProductQueryParams {
+    const processedParams = this.parseCommonParams(queryParams);
+    return { subcategory: name, ...processedParams };
+  }
+
   @Public()
   @Get(':name/brands')
-  getAllBrands(@Param("name") name: string,) {
-    return this.subcategoriesService.getAllBrands(name);
+  async getAllBrands(@Param("name") name: string) {
+    return await this.subcategoriesService.getAllBrands(name);
   }
 
   @Public()
   @Get(':name/price-range')
-  getPriceRange(@Param("name") name: string, @Query('brand') brand?: string) {
-    return this.subcategoriesService.getPriceRange(name, brand);
+  async getPriceRange(@Param("name") name: string, @Query('brand') brand?: string) {
+    return await this.subcategoriesService.getPriceRange(name, brand);
   }
 
   @Public()
-  @SkipThrottle()
   @Get(":name/featured")
-  async getAllProducts(
-    @Param("name") name: string,
-    @Query("skip") skip: number = 0,
-    @Query("limit") take: number = 10,
-    @Query("stock_status") stockStatus?: string,
-    @Query("min_price") minPrice: number = 0,
-    @Query("max_price") maxPrice?: number,
-    @Query("brands") brandString?: string // This can be a single brand or an array of brands
-  ) {
-    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
-    const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
-    return await this.subcategoriesService.getFeaturedProducts(
-      name,
-      skip,
-      take,
-      stockStatus,
-      priceRange,
-      brands
-    );
+  async getFeaturedProducts(@Param("name") name: string, @Query() queryParams: CommonQueryParams) {
+    const params = this.prepareProductQueryParams(name, queryParams);
+    return await this.subcategoriesService.getFeaturedProducts(params);
   }
 
   @Public()
   @SkipThrottle()
   @Get(":name/rating")
-  async getProductsSortedByRating(@Param("name") name: string,
-    @Query("skip") skip: number = 0,
-    @Query("limit") take: number = 10,
-    @Query("stock_status") stockStatus?: string,
-    @Query("min_price") minPrice: number = 0,
-    @Query("max_price") maxPrice?: number,
-    @Query("brands") brandString?: string // This can be a single brand or an array of brands
-  ) {
-    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
-    const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
-    return await this.subcategoriesService.getProductsBasedOnRating(name,
-      skip,
-      take,
-      stockStatus,
-      priceRange,
-      brands);
+  async getProductsSortedByRating(@Param("name") name: string, @Query() queryParams: CommonQueryParams) {
+    const params = this.prepareProductQueryParams(name, queryParams);
+    return await this.subcategoriesService.getProductsBasedOnRating(params);
   }
 
   @Public()
   @SkipThrottle()
   @Get(":name/price_descending")
-  async getProductsSortedByPriceDescending(@Param("name") name: string,
-    @Query("skip") skip: number = 0,
-    @Query("limit") take: number = 10,
-    @Query("stock_status") stockStatus?: string,
-    @Query("min_price") minPrice: number = 0,
-    @Query("max_price") maxPrice?: number,
-    @Query("brands") brandString?: string // This can be a single brand or an array of brands
-  ) {
-    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
-    const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
-    return await this.subcategoriesService.getProductsByPriceDesc(name, skip, take,
-      stockStatus,
-      priceRange,
-      brands);
+  async getProductsSortedByPriceDescending(@Param("name") name: string, @Query() queryParams: CommonQueryParams) {
+    const params = this.prepareProductQueryParams(name, queryParams);
+    return await this.subcategoriesService.getProductsByPriceDesc(params);
   }
 
   @Public()
   @SkipThrottle()
   @Get(":name/price_ascending")
-  async getProductsSortedByPriceAscending(@Param("name") name: string,
-    @Query("skip") skip: number = 0,
-    @Query("limit") take: number = 10,
-    @Query("stock_status") stockStatus?: string,
-    @Query("min_price") minPriceQuery?: string,
-    @Query("max_price") maxPriceQuery?: string,
-    @Query("brands") brandString?: string // This can be a single brand or an array of brands
-  ) {
-    const minPrice = minPriceQuery ? parseFloat(minPriceQuery) : 0;
-    const maxPrice = maxPriceQuery ? parseFloat(maxPriceQuery) : undefined;
-    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
-    const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
-
-    return await this.subcategoriesService.getProductsByPriceAsc(name, skip, take,
-      stockStatus,
-      priceRange,
-      brands);
+  async getProductsSortedByPriceAscending(@Param("name") name: string, @Query() queryParams: CommonQueryParams) {
+    const params = this.prepareProductQueryParams(name, queryParams);
+    return await this.subcategoriesService.getProductsByPriceAsc(params);
   }
 
   @Public()
   @Get(":name/most_wishlisted")
-  async getMostWishlisted(@Param("name") name: string,
-    @Query("skip") skip: number = 0,
-    @Query("limit") take: number = 10,
-    @Query("stock_status") stockStatus?: string,
-    @Query("min_price") minPrice: number = 0,
-    @Query("max_price") maxPrice?: number,
-    @Query("brands") brandString?: string // This can be a single brand or an array of brands
-  ) {
-    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
-    const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
-    return await this.subcategoriesService.getTopWishlistedProducts(name, skip, take,
-      stockStatus,
-      priceRange,
-      brands);
+  async getMostWishlisted(@Param("name") name: string, @Query() queryParams: CommonQueryParams) {
+    const params = this.prepareProductQueryParams(name, queryParams);
+    return await this.subcategoriesService.getTopWishlistedProducts(params);
   }
 
   @Public()
   @Get(":name/most_sold")
-  async getMostSold(@Param("name") name: string,
-    @Query("skip") skip: number = 0,
-    @Query("limit") take: number = 10,
-    @Query("stock_status") stockStatus?: string,
-    @Query("min_price") minPrice: number = 0,
-    @Query("max_price") maxPrice?: number,
-    @Query("brands") brandString?: string // This can be a single brand or an array of brands
-  ) {
-    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
-    const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
-    return await this.subcategoriesService.getTopWishlistedProducts(name, skip, take,
-      stockStatus,
-      priceRange,
-      brands);
+  async getMostSold(@Param("name") name: string, @Query() queryParams: CommonQueryParams) {
+    const params = this.prepareProductQueryParams(name, queryParams);
+    return await this.subcategoriesService.getTopSelling(params);
   }
 }
