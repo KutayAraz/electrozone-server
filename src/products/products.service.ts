@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist.entity";
 import { SubcategoriesService } from "src/subcategories/subcategories.service";
 import { Brackets, In, Not, Repository } from "typeorm";
+import TopProductDto from "./dtos/top-product.dto";
 
 @Injectable()
 export class ProductsService {
@@ -17,18 +18,26 @@ export class ProductsService {
   ) { }
 
   async findProduct(id: number) {
-    const product = await this.productsRepo.findOne({
-      where: { id },
-      relations: [
-        "productImages",
-        "subcategory",
-        "subcategory.category",
-        "reviews",
-      ],
-    });
+    const product = await this.productsRepo.createQueryBuilder('product')
+      .leftJoinAndSelect('product.productImages', 'productImages')
+      .leftJoinAndSelect('product.subcategory', 'subcategory')
+      .leftJoinAndSelect('subcategory.category', 'category')
+      .leftJoinAndSelect('product.reviews', 'reviews')
+      .select([
+        'product',
+        'productImages',
+        'subcategory.subcategory',
+        'category.category',
+        'reviews'
+      ])
+      .where('product.id = :id', { id })
+      .getOne();
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
 
     const { sold, wishlisted, subcategory, ...returnedProduct } = product;
-
     return {
       ...returnedProduct,
       subcategory: subcategory.subcategory,
@@ -37,128 +46,73 @@ export class ProductsService {
   }
 
   async getSimilarProductsRandomly(productId: number, subcategoryId: number): Promise<Product[]> {
-    const similarProducts = await this.productsRepo.query(
-      `SELECT * FROM products WHERE subcategoryId = ? AND id != ? ORDER BY RAND() LIMIT 8`,
-      [subcategoryId, productId]
-    );
-    return similarProducts;
+    return this.productsRepo.createQueryBuilder('product')
+      .where('product.subcategoryId = :subcategoryId', { subcategoryId })
+      .andWhere('product.id != :productId', { productId })
+      .orderBy('RAND()')
+      .limit(8)
+      .getMany();
   }
 
   async getSuggestedProducts(productId: number): Promise<{ suggestionType: string, products: Promise<Product[]> | Product[] }> {
     // Attempt to find frequently bought together products
-    const result = await this.productsRepo
-      .query(`
-        SELECT oi2.productId, COUNT(*) as frequency
-        FROM order_items oi1
-        JOIN order_items oi2 ON oi1.orderId = oi2.orderId AND oi1.productId != oi2.productId
-        JOIN orders o ON oi1.orderId = o.id
-        WHERE oi1.productId = ?
-        GROUP BY oi2.productId
-        ORDER BY frequency DESC
-        LIMIT 8;
-      `, [productId]);
+    const frequentlyBoughtTogether = await this.productsRepo
+      .createQueryBuilder('product')
+      .select('product.id', 'productId')
+      .addSelect('COUNT(*)', 'frequency')
+      .innerJoin('order_items', 'oi1', 'oi1.productId = :productId', { productId })
+      .innerJoin('order_items', 'oi2', 'oi1.orderId = oi2.orderId AND oi1.productId != oi2.productId')
+      .innerJoin('orders', 'o', 'oi1.orderId = o.id')
+      .where('oi2.productId = product.id')
+      .groupBy('product.id')
+      .orderBy('frequency', 'DESC')
+      .limit(8)
+      .getRawMany();
 
-    if (result.length >= 5) {
-      const recommendedProductIds = result.map(item => item.productId);
-      return {
-        suggestionType: "Frequently Bought Together", products: await this.productsRepo.find({
-          where: {
-            id: In(recommendedProductIds)
-          }
-        })
-      };
+    if (frequentlyBoughtTogether.length >= 5) {
+      const recommendedProductIds = frequentlyBoughtTogether.map(item => item.productId);
+      const products = await this.productsRepo.findByIds(recommendedProductIds);
+      return { suggestionType: "Frequently Bought Together", products };
     } else {
-      // If not enough frequently bought together products, fetch similar products from the same subcategory
       const product = await this.productsRepo.findOne({
         where: { id: productId },
         relations: ['subcategory']
       });
       if (!product) {
-        throw new Error('Product not found.');
+        throw new NotFoundException('Product not found.');
       }
 
-      const similarProducts = await this.getSimilarProductsRandomly(productId, product.subcategory.id)
-
-      return { suggestionType: "Similar Products", products: similarProducts };
+      const products = await this.getSimilarProductsRandomly(productId, product.subcategory.id);
+      return { suggestionType: "Similar Products", products };
     }
   }
 
-  async checkWishlist(productId: number, userId: number) {
-    const isWishlisted = await this.wishlistRepo.find({
-      where: {
-        product: { id: productId },
-        user: { id: userId },
-      },
-    });
+  async getTopProducts(
+    orderBy: 'sold' | 'wishlisted' | 'averageRating',
+    take: number = 10
+  ): Promise<TopProductDto[]> {
+    const selectFields = [
+      'product.id',
+      'product.productName',
+      'product.brand',
+      'product.thumbnail',
+      'product.averageRating',
+      'product.price',
+      'product.stock',
+    ];
 
-    return isWishlisted.length > 0;
-  }
-
-  async toggleWishlist(productId: number, userId: number) {
-    const user = await this.usersRepo.findOne({
-      where: { id: userId },
-      select: ["id"],
-      relations: ["wishlists"],
-    });
-
-    if (!user) {
-      throw new BadRequestException("No such user found");
+    if (orderBy !== 'averageRating') {
+      selectFields.push(`product.${orderBy}`);
     }
 
-    const product = await this.productsRepo.findOneBy({ id: productId });
-
-    if (!product) {
-      throw new BadRequestException("No such product found");
-    }
-
-    const isWishlisted = await this.wishlistRepo.find({
-      where: {
-        product: { id: productId },
-        user: { id: userId },
-      },
-    });
-
-    let action: string;
-
-    if (isWishlisted.length > 0) {
-      product.wishlisted--;
-      await this.productsRepo.save(product);
-      await this.wishlistRepo.remove(isWishlisted);
-      action = "removed";
-    } else {
-      product.wishlisted++;
-      await this.productsRepo.save(product);
-      const item = new Wishlist();
-      item.product = product;
-      item.user = user;
-      await this.wishlistRepo.save(item);
-      action = "added";
-    }
-    return {
-      status: "success",
-      action: action,
-      productId: productId,
-    };
-  }
-
-  async getTopSelling(take: number = 10): Promise<any[]> {
     const rawData = await this.productsRepo
-      .createQueryBuilder("product")
-      .select([
-        "product.id",
-        "product.productName",
-        "product.brand",
-        "product.thumbnail",
-        "product.sold",
-        "product.averageRating",
-        "product.price",
-        "product.stock",
-      ])
-      .leftJoin("product.subcategory", "subcategory")
-      .addSelect(["subcategory.subcategory"])
-      .leftJoin("subcategory.category", "category")
-      .addSelect(["category.category"])
-      .orderBy("product.sold", "DESC")
+      .createQueryBuilder('product')
+      .select(selectFields)
+      .leftJoin('product.subcategory', 'subcategory')
+      .addSelect(['subcategory.subcategory'])
+      .leftJoin('subcategory.category', 'category')
+      .addSelect(['category.category'])
+      .orderBy(`product.${orderBy}`, 'DESC')
       .take(take)
       .getMany();
 
@@ -172,74 +126,20 @@ export class ProductsService {
       stock: row.stock,
       subcategory: row.subcategory.subcategory,
       category: row.subcategory.category.category,
+      [orderBy]: row[orderBy],
     }));
   }
 
-  async getTopWishlisted(take: number = 10): Promise<any[]> {
-    const rawData = await this.productsRepo
-      .createQueryBuilder("product")
-      .select([
-        "product.id",
-        "product.productName",
-        "product.brand",
-        "product.thumbnail",
-        "product.wishlisted",
-        "product.averageRating",
-        "product.price",
-        "product.stock",
-      ])
-      .leftJoin("product.subcategory", "subcategory")
-      .addSelect(["subcategory.subcategory"])
-      .leftJoin("subcategory.category", "category")
-      .addSelect(["category.category"])
-      .orderBy("product.wishlisted", "DESC")
-      .take(take)
-      .getMany();
-
-    return rawData.map((row) => ({
-      id: row.id,
-      productName: row.productName,
-      brand: row.brand,
-      thumbnail: row.thumbnail,
-      averageRating: row.averageRating,
-      price: row.price,
-      stock: row.stock,
-      subcategory: row.subcategory.subcategory,
-      category: row.subcategory.category.category,
-    }));
+  async getTopSelling(take: number = 10): Promise<TopProductDto[]> {
+    return this.getTopProducts('sold', take);
   }
 
-  async getBestRated(take: number = 10): Promise<any[]> {
-    const rawData = await this.productsRepo
-      .createQueryBuilder("product")
-      .select([
-        "product.id",
-        "product.productName",
-        "product.brand",
-        "product.thumbnail",
-        "product.averageRating",
-        "product.price",
-        "product.stock",
-      ])
-      .leftJoin("product.subcategory", "subcategory")
-      .addSelect(["subcategory.subcategory"])
-      .leftJoin("subcategory.category", "category")
-      .addSelect(["category.category"])
-      .orderBy("product.averageRating", "DESC")
-      .take(take)
-      .getMany();
+  async getTopWishlisted(take: number = 10): Promise<TopProductDto[]> {
+    return this.getTopProducts('wishlisted', take);
+  }
 
-    return rawData.map((row) => ({
-      id: row.id,
-      productName: row.productName,
-      brand: row.brand,
-      thumbnail: row.thumbnail,
-      averageRating: row.averageRating,
-      price: row.price,
-      stock: row.stock,
-      subcategory: row.subcategory.subcategory,
-      category: row.subcategory.category.category,
-    }));
+  async getBestRated(take: number = 10): Promise<TopProductDto[]> {
+    return this.getTopProducts('averageRating', take);
   }
 
   async findBySearch(

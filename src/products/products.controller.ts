@@ -14,10 +14,11 @@ import { ProductsService } from "./products.service";
 import { GetCurrentUserId, Public } from "src/common/decorators";
 import { AtGuard } from "src/common/guards";
 import { SkipThrottle } from "@nestjs/throttler";
+import { WishlistService } from "./wishlist.service";
 
 @Controller("products")
 export class ProductsController {
-  constructor(private productsService: ProductsService) { }
+  constructor(private productsService: ProductsService, private wishlistService: WishlistService) { }
 
   @Public()
   @Get("/most-wishlisted")
@@ -47,11 +48,11 @@ export class ProductsController {
   @SkipThrottle()
   @Get(":productId/wishlist")
   async checkWishlist(
-    @Param("productId") productId: string,
+    @Param("productId", ParseIntPipe) productId: number,
     @GetCurrentUserId() userId: number,
   ) {
-    return await this.productsService.checkWishlist(
-      parseInt(productId),
+    return await this.wishlistService.checkWishlist(
+      productId,
       userId,
     );
   }
@@ -59,11 +60,11 @@ export class ProductsController {
   @UseGuards(AtGuard)
   @Patch(":productId/wishlist")
   async toggleWishlist(
-    @Param("productId") productId: string,
+    @Param("productId", ParseIntPipe) productId: number,
     @GetCurrentUserId() userId: number,
   ) {
-    return await this.productsService.toggleWishlist(
-      parseInt(productId),
+    return await this.wishlistService.toggleWishlist(
+      productId,
       userId,
     );
   }
