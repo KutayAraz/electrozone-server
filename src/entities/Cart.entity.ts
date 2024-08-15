@@ -27,5 +27,5 @@ export class Cart {
   @OneToMany(() => CartItem, (cartItem) => cartItem.cart, {
     nullable: true,
   })
-  products: CartItem[];
+  cartItems: CartItem[];
 }

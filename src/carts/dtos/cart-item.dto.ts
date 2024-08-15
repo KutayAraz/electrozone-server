@@ -2,8 +2,10 @@ import { IsNumber, Min } from "class-validator";
 
 export class CartItemDto {
   @IsNumber()
-  quantity: number;
+  @Min(1)
+  productId: number;
 
   @IsNumber()
-  productId: number;
+  @Min(1)
+  quantity: number;
 }
