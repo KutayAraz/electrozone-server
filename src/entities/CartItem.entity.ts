@@ -18,6 +18,9 @@ export class CartItem {
   @Column("decimal", { precision: 10, scale: 2 })
   amount: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  addedPrice: number;
+
   @ManyToOne(() => Product, (product) => product.cartItems)
   product: Product;
 
