@@ -1,4 +1,4 @@
-import { IsNumber, Min } from "class-validator";
+import { IsNumber, Max, Min } from "class-validator";
 
 export class CartItemDto {
   @IsNumber()
@@ -7,5 +7,6 @@ export class CartItemDto {
 
   @IsNumber()
   @Min(1)
+  @Max(20, { message: 'Quantity cannot exceed 20' })
   quantity: number;
 }
