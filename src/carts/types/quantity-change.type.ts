@@ -1,6 +1,8 @@
+import { ErrorType } from "src/common/errors/error-type";
+
 export default interface QuantityChange {
     productName: string;
     oldQuantity: number;
     newQuantity: number;
-    reason: 'QUANTITY_LIMIT_EXCEEDED' | 'STOCK_LIMIT_EXCEEDED';
+    reason: ErrorType.QUANTITY_LIMIT_EXCEEDED | ErrorType.STOCK_LIMIT_EXCEEDED;
 }
