@@ -7,21 +7,27 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { CartsService } from "./carts.service";
 import { AtGuard } from "src/common/guards";
 import { GetCurrentUserId, Public } from "src/common/decorators";
 import { CartItemDto } from "./dtos/cart-item.dto";
 import { SkipThrottle } from "@nestjs/throttler";
+import { CartOperationsService } from "./services/cart-operations.service";
+import { CartService } from "./services/carts.service";
+import { LocalCartService } from "./services/local-cart.service";
 
 @Controller("carts")
-export class CartsController {
-  constructor(private readonly cartsService: CartsService) {}
+export class CartController {
+  constructor(
+    private readonly cartOperationsService: CartOperationsService,
+    private readonly cartsService: CartService,
+    private readonly localCartService: LocalCartService
+  ) { }
 
   @Public()
   @SkipThrottle()
   @Post("local-cart")
   async getLocalCartInformation(@Body() localCartDto: CartItemDto[]) {
-    return await this.cartsService.getLocalCartInformation(localCartDto);
+    return await this.localCartService.getLocalCartInformation(localCartDto);
   }
 
   @UseGuards(AtGuard)
@@ -33,7 +39,7 @@ export class CartsController {
   @UseGuards(AtGuard)
   @Post("buynow-cart")
   async getBuyNowCartInfo(@Body() cartItem: CartItemDto) {
-    return await this.cartsService.getBuyNowCartInfo(
+    return await this.localCartService.getBuyNowCartInfo(
       cartItem.productId,
       cartItem.quantity,
     );
@@ -45,7 +51,7 @@ export class CartsController {
     @GetCurrentUserId() userId: number,
     @Body() cartItems: CartItemDto[],
   ) {
-    return await this.cartsService.mergeLocalWithBackendCart(userId, cartItems);
+    return await this.localCartService.mergeLocalWithBackendCart(userId, cartItems);
   }
 
   @UseGuards(AtGuard)
@@ -55,7 +61,7 @@ export class CartsController {
     @GetCurrentUserId() userId: number,
     @Body() cartItem: CartItemDto,
   ) {
-    return await this.cartsService.updateCartItemQuantity(
+    return await this.cartOperationsService.updateCartItemQuantity(
       userId,
       cartItem.productId,
       cartItem.quantity,
@@ -69,7 +75,7 @@ export class CartsController {
     @GetCurrentUserId() userId: number,
     @Body() cartItem: CartItemDto,
   ) {
-    return await this.cartsService.addProductToCart(
+    return await this.cartOperationsService.addProductToCart(
       userId,
       cartItem.productId,
       cartItem.quantity,

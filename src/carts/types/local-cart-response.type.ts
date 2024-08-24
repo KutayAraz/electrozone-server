@@ -1,5 +1,5 @@
 import { FormattedCartProduct } from "./formatted-cart-product.type";
-import QuantityChange from "./quantity-change.type";
+import { QuantityChange } from "./quantity-change.type";
 
 export interface LocalCartResponse {
     cartTotal: number;
