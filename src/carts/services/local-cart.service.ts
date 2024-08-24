@@ -1,67 +1,28 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
-import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
-import { Repository, DataSource, EntityManager, In } from "typeorm";
+import { Repository, In, DataSource } from "typeorm";
 import { CartItemDto } from "../dtos/cart-item.dto";
-import CartResponse from "../types/cart-response.type";
 import { LocalCartResponse } from "../types/local-cart-response.type";
-import QuantityChange from "../types/quantity-change.type";
+import { CartService } from "./carts.service";
+import { CartHelperService } from "./cart-helper.service";
 import { CartOperationsService } from "./cart-operations.service";
+import { CartValidationService } from "./cart-validation.service";
+import { QuantityChange } from "../types/quantity-change.type";
 
 @Injectable()
-export class CartQueriesService {
+export class LocalCartService {
     constructor(
         @InjectRepository(Product) private productsRepo: Repository<Product>,
         private readonly cartOperationsService: CartOperationsService,
-        private dataSource: DataSource,
+        private readonly cartHelperService: CartHelperService,
+        private readonly cartValidationService: CartValidationService,
+        private readonly cartsService: CartService,
+        private readonly dataSource: DataSource
     ) { }
-
-    async getUserCart(userId: number, transactionalEntityManager?: EntityManager): Promise<CartResponse> {
-        const manager = transactionalEntityManager || this.dataSource.manager;
-
-        return manager.transaction(async (transactionManager) => {
-
-            let cart = await this.cartOperationsService.findOrCreateCart(userId, transactionManager);
-
-            const { products, removedItems, priceChanges, quantityChanges } = await this.cartOperationsService.fetchAndUpdateCartProducts(cart.id, transactionManager);
-
-            // Recalculate cart total and quantity
-            const cartTotal = products.reduce((total, product) => total + product.amount, 0);
-            const totalQuantity = products.reduce((total, product) => total + product.quantity, 0);
-
-            // Update cart in database
-            await transactionManager.update(Cart, cart.id, { cartTotal, totalQuantity });
-
-            return {
-                cartTotal,
-                totalQuantity,
-                products,
-                removedItems,
-                priceChanges,
-                quantityChanges,
-            };
-        });
-    }
-
-    async getCartItemsWithProducts(cartId: number, transactionManager: EntityManager) {
-        return transactionManager
-            .createQueryBuilder(CartItem, "cartItem")
-            .select([
-                "cartItem.id", "cartItem.quantity", "cartItem.amount", "cartItem.addedPrice",
-                "product.productName", "product.averageRating", "product.thumbnail",
-                "product.price", "product.id", "product.stock",
-                "subcategory.subcategory", "category.category",
-            ])
-            .innerJoin("cartItem.product", "product")
-            .innerJoin("product.subcategory", "subcategory")
-            .innerJoin("subcategory.category", "category")
-            .where("cartItem.cartId = :cartId", { cartId })
-            .getMany();
-    }
 
     async getLocalCartInformation(products: CartItemDto[]): Promise<LocalCartResponse> {
         if (!Array.isArray(products)) {
@@ -124,22 +85,15 @@ export class CartQueriesService {
     }
 
     async getBuyNowCartInfo(productId: number, quantity: number) {
-        if (quantity > 10) {
-            throw new AppError(ErrorType.QUANTITY_LIMIT_EXCEEDED);
-        }
+        this.cartValidationService.validateQuantity(quantity)
 
         const foundProduct = await this.productsRepo.findOne({
             where: { id: productId },
             relations: ["subcategory", "subcategory.category"],
         });
 
-        if (!foundProduct) {
-            throw new AppError(ErrorType.PRODUCT_NOT_FOUND, productId, foundProduct.productName);
-        }
-
-        if (foundProduct.stock < quantity) {
-            throw new AppError(ErrorType.STOCK_LIMIT_EXCEEDED, productId, foundProduct.productName);
-        }
+        this.cartValidationService.validateProduct(foundProduct)
+        this.cartValidationService.validateStockAvailability(foundProduct, quantity)
 
         const amount = Number((foundProduct.price * quantity).toFixed(2));
         const cartTotal = amount;
@@ -159,5 +113,39 @@ export class CartQueriesService {
         };
 
         return { cartTotal, totalQuantity, products: [product] };
+    }
+
+    async mergeLocalWithBackendCart(userId: number, localCartItems: CartItemDto[]) {
+        return this.dataSource.transaction(async transactionalEntityManager => {
+            const cart = await this.cartHelperService.findOrCreateCart(userId, transactionalEntityManager);
+
+            const existingItemsMap = new Map<number, CartItem>();
+            cart.cartItems.forEach((item) => {
+                existingItemsMap.set(item.product.id, item);
+            });
+
+            for (const localItem of localCartItems) {
+                const existingProduct = existingItemsMap.get(localItem.productId);
+
+                if (existingProduct) {
+                    const newQuantity = localItem.quantity + existingProduct.quantity;
+                    await this.cartOperationsService.updateCartItemQuantity(
+                        userId,
+                        localItem.productId,
+                        newQuantity,
+                        transactionalEntityManager
+                    );
+                } else {
+                    await this.cartOperationsService.addProductToCart(
+                        userId,
+                        localItem.productId,
+                        localItem.quantity,
+                        transactionalEntityManager
+                    );
+                }
+            }
+
+            return await this.cartsService.getUserCart(userId, transactionalEntityManager);
+        });
     }
 }

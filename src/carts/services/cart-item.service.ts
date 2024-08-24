@@ -1,13 +1,47 @@
 import { Injectable } from "@nestjs/common";
-import { ErrorType } from "src/common/errors/error-type";
-import { CartItem } from "src/entities/CartItem.entity";
 import { EntityManager } from "typeorm";
 import { FormattedCartProduct } from "../types/formatted-cart-product.type";
 import { PriceChange } from "../types/price-change.type";
-import QuantityChange from "../types/quantity-change.type";
+import { ErrorType } from "src/common/errors/error-type";
+import { CartItem } from "src/entities/CartItem.entity";
+import { CartHelperService } from "./cart-helper.service";
+import { QuantityChange } from "../types/quantity-change.type";
 
 @Injectable()
-export class CartCalculationsService {
+export class CartItemService {
+
+    constructor(private readonly cartHelperService: CartHelperService) { }
+
+    async fetchAndUpdateCartProducts(cartId: number, transactionManager: EntityManager): Promise<{
+        products: FormattedCartProduct[],
+        removedItems: string[],
+        priceChanges: PriceChange[],
+        quantityChanges: QuantityChange[]
+    }> {
+        const cartItems = await this.cartHelperService.getCartItemsWithProducts(cartId, transactionManager);
+
+        const formattedProducts: FormattedCartProduct[] = [];
+        const removedItems: string[] = [];
+        const priceChanges: PriceChange[] = [];
+        const quantityChanges: QuantityChange[] = [];
+
+        await Promise.all(cartItems.map(async (item) => {
+            if (item.product.stock > 0) {
+                const { updatedItem, quantityChange, priceChange } =
+                    await this.updateCartItem(item, transactionManager);
+
+                formattedProducts.push(this.formatCartProduct(updatedItem));
+                if (quantityChange) quantityChanges.push(quantityChange);
+                if (priceChange) priceChanges.push(priceChange);
+            } else {
+                await transactionManager.delete(CartItem, item.id);
+                removedItems.push(item.product.productName);
+            }
+        }));
+
+        return { products: formattedProducts, removedItems, priceChanges, quantityChanges };
+    }
+
     async updateCartItem(item: CartItem, transactionManager: EntityManager) {
         const currentPrice = item.product.price;
         const addedPrice = item.addedPrice;

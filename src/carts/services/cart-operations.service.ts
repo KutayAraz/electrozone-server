@@ -1,61 +1,38 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { AppError } from "src/common/errors/app-error";
+import { Injectable } from "@nestjs/common";
 import { ErrorType } from "src/common/errors/error-type";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { DataSource, EntityManager } from "typeorm";
-import { Cart } from "src/entities/Cart.entity";
 import { User } from "src/entities/User.entity";
-import { CartItemDto } from "../dtos/cart-item.dto";
-import QuantityChange from "../types/quantity-change.type";
-import { FormattedCartProduct } from "../types/formatted-cart-product.type";
-import { PriceChange } from "../types/price-change.type";
-import { CartCalculationsService } from "./cart-calculations.service";
-import { CartQueriesService } from "./cart-queries.service";
+import { CartHelperService } from "./cart-helper.service";
+import { CartService } from "./carts.service";
+import { CartValidationService } from "./cart-validation.service";
+import { QuantityChange } from "../types/quantity-change.type";
 
 @Injectable()
 export class CartOperationsService {
     constructor(
-        private readonly cartCalculationsService: CartCalculationsService,
-        private readonly cartQueriesService: CartQueriesService,
-        private dataSource: DataSource,
+        private readonly cartHelperService: CartHelperService,
+        private readonly cartValidationService: CartValidationService,
+        private readonly cartService: CartService,
+        private readonly dataSource: DataSource,
     ) { }
 
-    async findOrCreateCart(userId: number, transactionManager: EntityManager): Promise<Cart> {
-        const cart = await transactionManager.findOne(Cart, {
-            where: { user: { id: userId } },
-            relations: ['user'],
-        });
-
-        if (cart) return cart;
-
-        const user = await transactionManager.findOne(User, { where: { id: userId } });
-        if (!user) throw new AppError(ErrorType.USER_NOT_FOUND, userId, 'User');
-
-        const newCart = transactionManager.create(Cart, {
-            user,
-            cartTotal: 0,
-            totalQuantity: 0,
-        });
-        return await transactionManager.save(newCart);
-    }
-
     async addProductToCart(userId: number, productId: number, quantity: number, transactionalEntityManager?: EntityManager) {
-        if (quantity > 10) {
-            throw new AppError(ErrorType.QUANTITY_LIMIT_EXCEEDED);
-        }
+        this.cartValidationService.validateQuantity(quantity)
+
         const manager = transactionalEntityManager || this.dataSource.manager;
 
         return manager.transaction(async transactionalEntityManager => {
             const [user, cart, foundProduct] = await Promise.all([
                 transactionalEntityManager.findOne(User, { where: { id: userId } }),
-                this.findOrCreateCart(userId, transactionalEntityManager),
+                this.cartHelperService.findOrCreateCart(userId, transactionalEntityManager),
                 transactionalEntityManager.findOne(Product, { where: { id: productId } })
             ]);
 
-            if (!user) throw new AppError(ErrorType.USER_NOT_FOUND);
-            if (!foundProduct) throw new AppError(ErrorType.PRODUCT_NOT_FOUND);
-            if (foundProduct.stock <= 0) throw new AppError(ErrorType.OUT_OF_STOCK);
+            this.cartValidationService.validateUser(user)
+            this.cartValidationService.validateProduct(foundProduct)
+            this.cartValidationService.validateStock(foundProduct)
 
             let cartItem = await transactionalEntityManager.findOne(CartItem, {
                 where: { cart: cart, product: { id: productId } },
@@ -97,7 +74,7 @@ export class CartOperationsService {
             await transactionalEntityManager.save(cartItem);
             await transactionalEntityManager.save(cart);
 
-            const updatedCart = await this.cartQueriesService.getUserCart(userId, transactionalEntityManager);
+            const updatedCart = await this.cartService.getUserCart(userId, transactionalEntityManager);
 
             return {
                 ...updatedCart,
@@ -106,51 +83,19 @@ export class CartOperationsService {
         });
     }
 
-    async fetchAndUpdateCartProducts(cartId: number, transactionManager: EntityManager): Promise<{
-        products: FormattedCartProduct[],
-        removedItems: string[],
-        priceChanges: PriceChange[],
-        quantityChanges: QuantityChange[]
-    }> {
-        const cartItems = await this.cartQueriesService.getCartItemsWithProducts(cartId, transactionManager);
-
-        const formattedProducts: FormattedCartProduct[] = [];
-        const removedItems: string[] = [];
-        const priceChanges: PriceChange[] = [];
-        const quantityChanges: QuantityChange[] = [];
-
-        await Promise.all(cartItems.map(async (item) => {
-            if (item.product.stock > 0) {
-                const { updatedItem, quantityChange, priceChange } =
-                    await this.cartCalculationsService.updateCartItem(item, transactionManager);
-
-                formattedProducts.push(this.cartCalculationsService.formatCartProduct(updatedItem));
-                if (quantityChange) quantityChanges.push(quantityChange);
-                if (priceChange) priceChanges.push(priceChange);
-            } else {
-                await transactionManager.delete(CartItem, item.id);
-                removedItems.push(item.product.productName);
-            }
-        }));
-
-        return { products: formattedProducts, removedItems, priceChanges, quantityChanges };
-    }
-
     async updateCartItemQuantity(
         userId: number,
         productId: number,
         quantity: number,
         transactionalEntityManager?: EntityManager
     ) {
-        if (quantity > 10) {
-            throw new AppError(ErrorType.QUANTITY_LIMIT_EXCEEDED);
-        }
+        this.cartValidationService.validateQuantity(quantity)
 
         const manager = transactionalEntityManager || this.dataSource.manager;
 
         return manager.transaction(async (transactionManager) => {
             const [cart, cartItem] = await Promise.all([
-                this.findOrCreateCart(userId, transactionManager),
+                this.cartHelperService.findOrCreateCart(userId, transactionManager),
                 transactionManager.findOne(CartItem, {
                     where: { cart: { user: { id: userId } }, product: { id: productId } },
                     relations: ["product"],
@@ -158,9 +103,7 @@ export class CartOperationsService {
             ]);
 
             if (cartItem) {
-                if (quantity > cartItem.product.stock) {
-                    throw new AppError(ErrorType.STOCK_LIMIT_EXCEEDED, productId, cartItem.product.productName);
-                }
+                this.cartValidationService.validateStockAvailability(cartItem.product, quantity)
 
                 const oldQuantity = cartItem.quantity;
                 const oldAmount = oldQuantity * cartItem.product.price;
@@ -175,79 +118,10 @@ export class CartOperationsService {
                 await transactionManager.save(cartItem);
                 await transactionManager.save(cart);
 
-                return await this.cartQueriesService.getUserCart(userId, transactionManager);
+                return await this.cartService.getUserCart(userId, transactionManager);
             } else {
                 return await this.addProductToCart(userId, productId, quantity, transactionManager);
             }
-        });
-    }
-
-    async mergeLocalWithBackendCart(userId: number, localCartItems: CartItemDto[]) {
-        return this.dataSource.transaction(async transactionalEntityManager => {
-            const cart = await this.findOrCreateCart(userId, transactionalEntityManager);
-
-            const existingItemsMap = new Map<number, CartItem>();
-            cart.cartItems.forEach((item) => {
-                existingItemsMap.set(item.product.id, item);
-            });
-
-            for (const localItem of localCartItems) {
-                const existingProduct = existingItemsMap.get(localItem.productId);
-
-                if (existingProduct) {
-                    const newQuantity = localItem.quantity + existingProduct.quantity;
-                    await this.updateCartItemQuantity(
-                        userId,
-                        localItem.productId,
-                        newQuantity,
-                        transactionalEntityManager
-                    );
-                } else {
-                    await this.addProductToCart(
-                        userId,
-                        localItem.productId,
-                        localItem.quantity,
-                        transactionalEntityManager
-                    );
-                }
-            }
-
-            return await this.cartQueriesService.getUserCart(userId, transactionalEntityManager);
-        });
-    }
-
-    async removeItemFromCart(userId: number, productId: number) {
-        return this.dataSource.transaction(async transactionalEntityManager => {
-            const [cart, productToRemove] = await Promise.all([
-                this.findOrCreateCart(userId, transactionalEntityManager),
-                transactionalEntityManager.findOne(CartItem, {
-                    where: { cart: { user: { id: userId } }, product: { id: productId } },
-                }),
-            ]);
-
-            if (!productToRemove) {
-                throw new AppError(ErrorType.PRODUCT_NOT_FOUND);
-            }
-
-            cart.totalQuantity -= productToRemove.quantity;
-            cart.cartTotal = Number(cart.cartTotal) - Number(productToRemove.amount);
-
-            await transactionalEntityManager.save(cart);
-            await transactionalEntityManager.remove(productToRemove);
-
-            return this.cartQueriesService.getUserCart(userId, transactionalEntityManager);
-        });
-    }
-
-    async clearCart(userId: number) {
-        return this.dataSource.transaction(async transactionalEntityManager => {
-            const cart = await this.findOrCreateCart(userId, transactionalEntityManager);
-
-            cart.cartTotal = 0;
-            cart.totalQuantity = 0;
-            cart.cartItems = [];
-
-            await transactionalEntityManager.save(cart);
         });
     }
 }

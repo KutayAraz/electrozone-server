@@ -13,6 +13,7 @@ import { CreateOrderItemDTO } from "./dtos/create-order-item.dto";
 import { Product } from "src/entities/Product.entity";
 import { ErrorType } from "src/common/errors/error-type";
 import { CartOperationsService } from "src/carts/services/cart-operations.service";
+import { CartService } from "src/carts/services/carts.service";
 
 @Injectable()
 export class OrdersService {
@@ -21,7 +22,7 @@ export class OrdersService {
     @InjectRepository(OrderItem) private orderItemsRepo: Repository<OrderItem>,
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Product) private productsRepo: Repository<Product>,
-    private readonly cartsService: CartsService,
+    private readonly cartsService: CartService,
     private dataSource: DataSource,
   ) { }
 

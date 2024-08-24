@@ -8,7 +8,7 @@ import { OrdersModule } from "./orders/orders.module";
 import { APP_GUARD, APP_PIPE } from "@nestjs/core";
 import { SubcategoriesModule } from "./subcategories/subcategories.module";
 import { AtGuard } from "./common/guards";
-import { CartsModule } from "./carts/carts.module";
+import { CartModule } from "./carts/cart.module";
 import databaseConfig from "./config/database.config";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 
@@ -32,7 +32,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
     ProductsModule,
     // OrdersModule,
     SubcategoriesModule,
-    CartsModule,
+    CartModule,
   ],
   providers: [
     {

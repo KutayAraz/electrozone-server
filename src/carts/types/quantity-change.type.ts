@@ -1,6 +1,6 @@
 import { ErrorType } from "src/common/errors/error-type";
 
-export default interface QuantityChange {
+export interface QuantityChange {
     productName: string;
     oldQuantity: number;
     newQuantity: number;
