@@ -1,64 +1,64 @@
 import { Injectable } from "@nestjs/common";
 import { EntityManager } from "typeorm";
-import { FormattedCartProduct } from "../types/formatted-cart-product.type";
 import { PriceChange } from "../types/price-change.type";
 import { ErrorType } from "src/common/errors/error-type";
 import { CartItem } from "src/entities/CartItem.entity";
 import { CartHelperService } from "./cart-helper.service";
 import { QuantityChange } from "../types/quantity-change.type";
+import { FormattedCartItem } from "../types/formatted-cart-product.type";
 
 @Injectable()
 export class CartItemService {
 
     constructor(private readonly cartHelperService: CartHelperService) { }
 
-    async fetchAndUpdateCartProducts(cartId: number, transactionManager: EntityManager): Promise<{
-        products: FormattedCartProduct[],
-        removedItems: string[],
+    async fetchAndUpdateCartItems(cartId: number, transactionManager: EntityManager): Promise<{
+        cartItems: FormattedCartItem[],
+        removedCartItems: string[],
         priceChanges: PriceChange[],
         quantityChanges: QuantityChange[]
     }> {
-        const cartItems = await this.cartHelperService.getCartItemsWithProducts(cartId, transactionManager);
+        const cartItems = await this.cartHelperService.getCartItems(cartId, transactionManager);
 
-        const formattedProducts: FormattedCartProduct[] = [];
-        const removedItems: string[] = [];
+        const formattedCartItems: FormattedCartItem[] = [];
+        const removedCartItems: string[] = [];
         const priceChanges: PriceChange[] = [];
         const quantityChanges: QuantityChange[] = [];
 
-        await Promise.all(cartItems.map(async (item) => {
-            if (item.product.stock > 0) {
-                const { updatedItem, quantityChange, priceChange } =
-                    await this.updateCartItem(item, transactionManager);
+        await Promise.all(cartItems.map(async (cartItem) => {
+            if (cartItem.product.stock > 0) {
+                const { updatedCartItem, quantityChange, priceChange } =
+                    await this.updateCartItem(cartItem, transactionManager);
 
-                formattedProducts.push(this.formatCartProduct(updatedItem));
+                    formattedCartItems.push(this.formatCartProduct(updatedCartItem));
                 if (quantityChange) quantityChanges.push(quantityChange);
                 if (priceChange) priceChanges.push(priceChange);
             } else {
-                await transactionManager.delete(CartItem, item.id);
-                removedItems.push(item.product.productName);
+                await transactionManager.delete(CartItem, cartItem.id);
+                removedCartItems.push(cartItem.product.productName);
             }
         }));
 
-        return { products: formattedProducts, removedItems, priceChanges, quantityChanges };
+        return { cartItems: formattedCartItems, removedCartItems, priceChanges, quantityChanges };
     }
 
-    async updateCartItem(item: CartItem, transactionManager: EntityManager) {
-        const currentPrice = item.product.price;
-        const addedPrice = item.addedPrice;
-        let quantity = item.quantity;
+    async updateCartItem(cartItem: CartItem, transactionManager: EntityManager) {
+        const currentPrice = cartItem.product.price;
+        const addedPrice = cartItem.addedPrice;
+        let quantity = cartItem.quantity;
         let quantityChange: QuantityChange | null = null;
         let priceChange: PriceChange | null = null;
 
-        if (quantity > item.product.stock || quantity > 10) {
+        if (quantity > cartItem.product.stock || quantity > 10) {
             const oldQuantity = quantity;
-            quantity = Math.min(item.product.stock, 10);
+            quantity = Math.min(cartItem.product.stock, 10);
             quantityChange = {
-                productName: item.product.productName,
+                productName: cartItem.product.productName,
                 oldQuantity,
                 newQuantity: quantity,
                 reason: quantity === 10 ? ErrorType.QUANTITY_LIMIT_EXCEEDED : ErrorType.STOCK_LIMIT_EXCEEDED
             };
-            await transactionManager.update(CartItem, item.id, {
+            await transactionManager.update(CartItem, cartItem.id, {
                 quantity,
                 amount: currentPrice * quantity
             });
@@ -66,20 +66,20 @@ export class CartItemService {
 
         if (addedPrice !== null && addedPrice !== undefined && currentPrice !== addedPrice) {
             priceChange = {
-                productName: item.product.productName,
+                productName: cartItem.product.productName,
                 oldPrice: addedPrice,
                 newPrice: currentPrice,
             };
-            await transactionManager.update(CartItem, item.id, {
+            await transactionManager.update(CartItem, cartItem.id, {
                 addedPrice: currentPrice,
                 amount: currentPrice * quantity
             });
         }
 
-        return { updatedItem: { ...item, quantity, addedPrice: currentPrice }, quantityChange, priceChange };
+        return { updatedCartItem: { ...cartItem, quantity, addedPrice: currentPrice }, quantityChange, priceChange };
     }
 
-    formatCartProduct(item: CartItem): FormattedCartProduct {
+    formatCartProduct(item: CartItem): FormattedCartItem {
         return {
             cartItemId: item.id,
             quantity: item.quantity,

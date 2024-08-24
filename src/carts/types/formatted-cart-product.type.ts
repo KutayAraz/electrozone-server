@@ -1,4 +1,4 @@
-export interface FormattedCartProduct {
+export interface FormattedCartItem {
     cartItemId: number;
     quantity: number;
     amount: number;

@@ -24,12 +24,12 @@ export class LocalCartService {
         private readonly dataSource: DataSource
     ) { }
 
-    async getLocalCartInformation(products: CartItemDto[]): Promise<LocalCartResponse> {
-        if (!Array.isArray(products)) {
+    async getLocalCartInformation(cartItems: CartItemDto[]): Promise<LocalCartResponse> {
+        if (!Array.isArray(cartItems)) {
             throw new AppError(ErrorType.INVALID_INPUT, undefined, "Expected an array of products");
         }
 
-        const productIds = products.map(product => product.productId);
+        const productIds = cartItems.map(cartItem => cartItem.productId);
         const foundProducts = await this.productsRepo.find({
             where: { id: In(productIds) },
             select: ['id', 'productName', 'thumbnail', 'price', 'brand', 'stock'],
@@ -37,27 +37,27 @@ export class LocalCartService {
         });
 
         const productMap = new Map(foundProducts.map(product => [product.id, product]));
-        const localCartProducts = [];
-        const removedItems: string[] = [];
+        const localCartItems = [];
+        const removedCartItems: string[] = [];
         const quantityAdjustments: QuantityChange[] = [];
         let cartTotal = 0;
         let totalQuantity = 0;
 
-        for (const product of products) {
-            const foundProduct = productMap.get(product.productId);
+        for (const cartItem of cartItems) {
+            const foundProduct = productMap.get(cartItem.productId);
             if (!foundProduct) continue;
 
             if (foundProduct.stock <= 0) {
-                removedItems.push(foundProduct.productName);
+                removedCartItems.push(foundProduct.productName);
                 continue;
             }
 
-            let quantity = Math.min(product.quantity, foundProduct.stock, 10);
+            let quantity = Math.min(cartItem.quantity, foundProduct.stock, 10);
 
-            if (quantity !== product.quantity) {
+            if (quantity !== cartItem.quantity) {
                 quantityAdjustments.push({
                     productName: foundProduct.productName,
-                    oldQuantity: product.quantity,
+                    oldQuantity: cartItem.quantity,
                     newQuantity: quantity,
                     reason: quantity === 10 ? ErrorType.QUANTITY_LIMIT_EXCEEDED : ErrorType.STOCK_LIMIT_EXCEEDED
                 });
@@ -67,8 +67,8 @@ export class LocalCartService {
             cartTotal += amount;
             totalQuantity += quantity;
 
-            localCartProducts.push({
-                id: product.productId,
+            localCartItems.push({
+                id: cartItem.productId,
                 quantity,
                 amount,
                 productName: foundProduct.productName,
@@ -81,7 +81,7 @@ export class LocalCartService {
             });
         }
 
-        return { cartTotal, totalQuantity, products: localCartProducts, removedItems, quantityAdjustments };
+        return { cartTotal, totalQuantity, products: localCartItems, removedCartItems, quantityAdjustments };
     }
 
     async getBuyNowCartInfo(productId: number, quantity: number) {

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   Patch,
   Post,
   UseGuards,
@@ -25,19 +26,19 @@ export class CartController {
 
   @Public()
   @SkipThrottle()
-  @Post("local-cart")
+  @Post("local")
   async getLocalCartInformation(@Body() localCartDto: CartItemDto[]) {
     return await this.localCartService.getLocalCartInformation(localCartDto);
   }
 
   @UseGuards(AtGuard)
-  @Get("user-cart")
+  @Get("user")
   async getUserCart(@GetCurrentUserId() id: number) {
     return await this.cartsService.getUserCart(id);
   }
 
   @UseGuards(AtGuard)
-  @Post("buynow-cart")
+  @Post("buy-now")
   async getBuyNowCartInfo(@Body() cartItem: CartItemDto) {
     return await this.localCartService.getBuyNowCartInfo(
       cartItem.productId,
@@ -56,7 +57,7 @@ export class CartController {
 
   @UseGuards(AtGuard)
   @SkipThrottle()
-  @Patch("user-cart")
+  @Patch("user/item")
   async updateItemQuantity(
     @GetCurrentUserId() userId: number,
     @Body() cartItem: CartItemDto,
@@ -70,8 +71,8 @@ export class CartController {
 
   @UseGuards(AtGuard)
   @SkipThrottle()
-  @Post("user-cart")
-  async addItemToCart(
+  @Post("user/item")
+  async addProductToCart(
     @GetCurrentUserId() userId: number,
     @Body() cartItem: CartItemDto,
   ) {
@@ -84,12 +85,12 @@ export class CartController {
 
   @UseGuards(AtGuard)
   @SkipThrottle()
-  @Delete("user-cart")
-  async removeItemFromCart(
+  @Delete("user/item/:productId")
+  async removeCartItem(
     @GetCurrentUserId() userId: number,
-    @Body("productId") productId: number,
+    @Param("productId") productId: number,
   ) {
-    return await this.cartsService.removeItemFromCart(userId, productId);
+    return await this.cartsService.removeCartItem(userId, productId);
   }
 
   @UseGuards(AtGuard)

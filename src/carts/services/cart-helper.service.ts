@@ -28,7 +28,7 @@ export class CartHelperService {
         });
         return await transactionManager.save(newCart);
     }
-    async getCartItemsWithProducts(cartId: number, transactionManager: EntityManager) {
+    async getCartItems(cartId: number, transactionManager: EntityManager) {
         return transactionManager
             .createQueryBuilder(CartItem, "cartItem")
             .select([

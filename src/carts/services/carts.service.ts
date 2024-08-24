@@ -23,11 +23,11 @@ export class CartService {
 
             let cart = await this.cartHelperService.findOrCreateCart(userId, transactionManager);
 
-            const { products, removedItems, priceChanges, quantityChanges } = await this.cartItemService.fetchAndUpdateCartProducts(cart.id, transactionManager);
+            const { cartItems, removedCartItems, priceChanges, quantityChanges } = await this.cartItemService.fetchAndUpdateCartItems(cart.id, transactionManager);
 
             // Recalculate cart total and quantity
-            const cartTotal = products.reduce((total, product) => total + product.amount, 0);
-            const totalQuantity = products.reduce((total, product) => total + product.quantity, 0);
+            const cartTotal = cartItems.reduce((total, product) => total + product.amount, 0);
+            const totalQuantity = cartItems.reduce((total, product) => total + product.quantity, 0);
 
             // Update cart in database
             await transactionManager.update(Cart, cart.id, { cartTotal, totalQuantity });
@@ -35,15 +35,15 @@ export class CartService {
             return {
                 cartTotal,
                 totalQuantity,
-                products,
-                removedItems,
+                cartItems,
+                removedCartItems,
                 priceChanges,
                 quantityChanges,
             };
         });
     }
 
-    async removeItemFromCart(userId: number, productId: number) {
+    async removeCartItem(userId: number, productId: number) {
         return this.dataSource.transaction(async transactionalEntityManager => {
             const [cart, cartItemToRemove] = await Promise.all([
                 this.cartHelperService.findOrCreateCart(userId, transactionalEntityManager),
