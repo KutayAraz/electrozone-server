@@ -30,7 +30,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
     UsersModule,
     CategoriesModule,
     ProductsModule,
-    OrdersModule,
+    // OrdersModule,
     SubcategoriesModule,
     CartsModule,
   ],

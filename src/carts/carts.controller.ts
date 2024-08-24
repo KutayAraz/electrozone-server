@@ -7,33 +7,37 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { CartsService } from "./carts.service";
 import { AtGuard } from "src/common/guards";
 import { GetCurrentUserId, Public } from "src/common/decorators";
 import { CartItemDto } from "./dtos/cart-item.dto";
 import { SkipThrottle } from "@nestjs/throttler";
+import { CartOperationsService } from "./services/cart-operations.service";
+import { CartQueriesService } from "./services/cart-queries.service";
 
 @Controller("carts")
 export class CartsController {
-  constructor(private readonly cartsService: CartsService) {}
+  constructor(
+    private readonly cartOperationsService: CartOperationsService,
+    private readonly cartQueriesService: CartQueriesService
+  ) { }
 
   @Public()
   @SkipThrottle()
   @Post("local-cart")
   async getLocalCartInformation(@Body() localCartDto: CartItemDto[]) {
-    return await this.cartsService.getLocalCartInformation(localCartDto);
+    return await this.cartQueriesService.getLocalCartInformation(localCartDto);
   }
 
   @UseGuards(AtGuard)
   @Get("user-cart")
   async getUserCart(@GetCurrentUserId() id: number) {
-    return await this.cartsService.getUserCart(id);
+    return await this.cartQueriesService.getUserCart(id);
   }
 
   @UseGuards(AtGuard)
   @Post("buynow-cart")
   async getBuyNowCartInfo(@Body() cartItem: CartItemDto) {
-    return await this.cartsService.getBuyNowCartInfo(
+    return await this.cartQueriesService.getBuyNowCartInfo(
       cartItem.productId,
       cartItem.quantity,
     );
@@ -45,7 +49,7 @@ export class CartsController {
     @GetCurrentUserId() userId: number,
     @Body() cartItems: CartItemDto[],
   ) {
-    return await this.cartsService.mergeLocalWithBackendCart(userId, cartItems);
+    return await this.cartOperationsService.mergeLocalWithBackendCart(userId, cartItems);
   }
 
   @UseGuards(AtGuard)
@@ -55,7 +59,7 @@ export class CartsController {
     @GetCurrentUserId() userId: number,
     @Body() cartItem: CartItemDto,
   ) {
-    return await this.cartsService.updateCartItemQuantity(
+    return await this.cartOperationsService.updateCartItemQuantity(
       userId,
       cartItem.productId,
       cartItem.quantity,
@@ -69,7 +73,7 @@ export class CartsController {
     @GetCurrentUserId() userId: number,
     @Body() cartItem: CartItemDto,
   ) {
-    return await this.cartsService.addProductToCart(
+    return await this.cartOperationsService.addProductToCart(
       userId,
       cartItem.productId,
       cartItem.quantity,
@@ -83,12 +87,12 @@ export class CartsController {
     @GetCurrentUserId() userId: number,
     @Body("productId") productId: number,
   ) {
-    return await this.cartsService.removeItemFromCart(userId, productId);
+    return await this.cartOperationsService.removeItemFromCart(userId, productId);
   }
 
   @UseGuards(AtGuard)
   @Delete("clear-cart")
   async clearCart(@GetCurrentUserId() userId: number) {
-    return await this.cartsService.clearCart(userId);
+    return await this.cartOperationsService.clearCart(userId);
   }
 }
