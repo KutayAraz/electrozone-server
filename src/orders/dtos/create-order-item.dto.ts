@@ -3,8 +3,13 @@ import { IsNumber, Min } from "class-validator";
 export class CreateOrderItemDTO {
   @IsNumber()
   @Min(1)
-  quantity: number;
+  productId: number;
 
   @IsNumber()
-  productId: number;
+  @Min(0.01)
+  price: number;
+
+  @IsNumber()
+  @Min(1)
+  quantity: number;
 }

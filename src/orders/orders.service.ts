@@ -1,16 +1,18 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { User } from "src/entities/User.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
 import { CreateOrderItemDTO } from "./dtos/create-order-item.dto";
 import { Product } from "src/entities/Product.entity";
-import { CartsService } from "src/carts/carts.service";
+import { ErrorType } from "src/common/errors/error-type";
+import { CartOperationsService } from "src/carts/services/cart-operations.service";
 
 @Injectable()
 export class OrdersService {
@@ -20,49 +22,74 @@ export class OrdersService {
     @InjectRepository(User) private usersRepo: Repository<User>,
     @InjectRepository(Product) private productsRepo: Repository<Product>,
     private readonly cartsService: CartsService,
+    private dataSource: DataSource,
   ) { }
 
   async createOrder(userId: number, orderItems: CreateOrderItemDTO[]) {
-    const user = await this.usersRepo.findOneBy({ id: userId });
+    return this.dataSource.transaction(async (transactionManager) => {
+      const user = await transactionManager.findOneBy(User, { id: userId });
 
-    const order = new Order();
-    order.user = user;
+      const order = new Order();
+      order.user = user;
 
-    let total = 0;
-    await Promise.all(
-      orderItems.map(async (item) => {
-        const product = await this.productsRepo.findOneBy({
-          id: item.productId,
-        });
+      let total = 0;
+      for (const item of orderItems) {
+        const product = await transactionManager.findOneBy(Product, { id: item.productId });
+
+        if (!product) {
+          throw new NotFoundException(ErrorType.PRODUCT_NOT_FOUND);
+        }
+
+        // Check if the product's price has changed since the frontend request
+        if (product.price !== item.price) {
+          throw new BadRequestException(
+            ErrorType.PRODUCT_PRICE_CHANGED,
+          );
+        }
+
+        // Check if the order quantity exceeds the maximum allowed
+        if (item.quantity > 10) {
+          throw new BadRequestException(
+            ErrorType.QUANTITY_LIMIT_EXCEEDED,
+          );
+        }
+
+        // Check if there's enough stock
+        if (product.stock < item.quantity) {
+          throw new BadRequestException(
+            ErrorType.STOCK_LIMIT_EXCEEDED,
+          );
+        }
+
         total += product.price * item.quantity;
-      }),
-    );
+      }
 
-    order.orderTotal = total;
+      order.orderTotal = total;
+      const savedOrder = await transactionManager.save(Order, order);
 
-    const savedOrder = await this.ordersRepo.save(order);
+      const orderItemsEntities = await Promise.all(orderItems.map(async (item) => {
+        const product = await transactionManager.findOneBy(Product, { id: item.productId });
 
-    const orderItemsEntities = await Promise.all(
-      orderItems.map(async (item) => {
         const orderItem = new OrderItem();
         orderItem.order = savedOrder;
         orderItem.quantity = item.quantity;
-        const product = await this.productsRepo.findOneBy({
-          id: item.productId,
-        });
-        product.sold += orderItem.quantity;
-        product.stock -= orderItem.quantity;
-        await this.productsRepo.save(product);
         orderItem.product = product;
         orderItem.price = product.price;
+
+        // Update product stock and sold quantity
+        product.stock -= item.quantity;
+        product.sold += item.quantity;
+        await transactionManager.save(Product, product);
+
         return orderItem;
-      }),
-    );
+      }));
 
-    await this.orderItemsRepo.save(orderItemsEntities);
-    await this.cartsService.clearCart(userId);
+      await transactionManager.save(OrderItem, orderItemsEntities);
+      await this.cartsService.clearCart(userId);
 
-    return savedOrder.id;
+      return savedOrder.id;
+    })
+
   }
 
   async isOrderCancellable(userId: number, orderId: number) {
@@ -219,6 +246,6 @@ export class OrdersService {
         orderItems: transformedOrderItems,
       };
     });
-}
+  }
 
 }
