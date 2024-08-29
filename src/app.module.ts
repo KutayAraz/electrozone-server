@@ -1,16 +1,16 @@
 import { Module, ValidationPipe } from "@nestjs/common";
 import { UsersModule } from "./users/users.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { CategoriesModule } from "./categories/categories.module";
+import { CategoriesModule } from "./categories/category.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { ProductsModule } from "./products/products.module";
-import { OrdersModule } from "./orders/orders.module";
+import { OrdersModule } from "./orders/order.module";
 import { APP_GUARD, APP_PIPE } from "@nestjs/core";
-import { SubcategoriesModule } from "./subcategories/subcategories.module";
 import { AtGuard } from "./common/guards";
 import { CartModule } from "./carts/cart.module";
 import databaseConfig from "./config/database.config";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { SubcategoryModule } from "./subcategories/subcategory.module";
 
 @Module({
   imports: [
@@ -31,7 +31,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
     CategoriesModule,
     ProductsModule,
     // OrdersModule,
-    SubcategoriesModule,
+    SubcategoryModule,
     CartModule,
   ],
   providers: [
