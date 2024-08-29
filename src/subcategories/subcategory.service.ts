@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { Repository } from "typeorm";
@@ -21,6 +21,8 @@ enum OrderDirection {
 
 @Injectable()
 export class SubcategoryService {
+  private readonly logger = new Logger(SubcategoryService.name);
+
   constructor(
     @InjectRepository(Product) private productsRepo: Repository<Product>,
   ) { }
@@ -92,6 +94,7 @@ export class SubcategoryService {
 
       return { products: formattedProducts, productQuantity: count };
     } catch (error) {
+      this.logger.error(`Error executing query: ${error.message}`, error.stack);
       throw new AppError(ErrorType.DATABASE_ERROR)
     }
   }
@@ -113,6 +116,7 @@ export class SubcategoryService {
 
       return brands.map(brand => brand.brand);
     } catch (error) {
+      this.logger.error(`Error getting all brands for subcategory ${subcategory}: ${error.message}`, error.stack);
       throw new AppError(ErrorType.DATABASE_ERROR)
     }
   }
@@ -136,6 +140,7 @@ export class SubcategoryService {
         max: result.max,
       };
     } catch (error) {
+      this.logger.error(`Error getting price range for subcategory ${subcategory}: ${error.message}`, error.stack);
       throw new AppError(ErrorType.DATABASE_ERROR)
     }
   }
@@ -143,11 +148,11 @@ export class SubcategoryService {
   // Base method for retrieving products with custom ordering
   // Used by other methods to implement specific product listing features
   async getProductsWithOrder(params: ProductQueryParams, orderBy: ProductOrderBy, orderDirection: 'ASC' | 'DESC') {
-    return await this.getProducts(params, orderBy, orderDirection);
+    return this.getProducts(params, orderBy, orderDirection);
   }
 
   async getFeaturedProducts(params: ProductQueryParams) {
-    return await this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
+    return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
   }
 
   async getProductsBasedOnRating(params: ProductQueryParams) {
