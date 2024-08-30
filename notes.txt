@@ -1,4 +1,0 @@
-check if try catch is required
-redis
-helmet headers
-error handling

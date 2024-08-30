@@ -1,5 +1,5 @@
 export interface RawProduct {
-    product_id: number | string;
+    product_id: number;
     product_productName: string;
     product_brand: string;
     product_thumbnail: string;

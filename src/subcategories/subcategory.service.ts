@@ -1,11 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
-import { Repository } from "typeorm";
+import { Repository, SelectQueryBuilder } from "typeorm";
 import { ProductQueryParams } from "./types/product-query.interface";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { RawProduct } from "./types/raw-product.type";
+import { ProductQueryResult } from "./types/product-query-result.type";
 
 enum ProductOrderBy {
   SOLD = "product.sold",
@@ -28,7 +29,7 @@ export class SubcategoryService {
   ) { }
 
   // Builds the base query for product retrieval, applying filters based on the provided parameters
-  private createBaseQuery(params: ProductQueryParams) {
+  private createBaseQuery(params: ProductQueryParams): SelectQueryBuilder<Product> {
     const { subcategory, stockStatus, priceRange, brands } = params;
 
     let query = this.productsRepo
@@ -70,7 +71,13 @@ export class SubcategoryService {
     return query;
   }
 
-  private async executeQuery(query: any, skip: number, limit: number, orderByField: string, orderDirection: 'ASC' | 'DESC') {
+  private async executeQuery(
+    query: SelectQueryBuilder<Product>,
+    skip: number,
+    limit: number,
+    orderByField: string,
+    orderDirection: 'ASC' | 'DESC'
+  ): Promise<ProductQueryResult> {
     try {
       const count = await query.getCount();
 
@@ -99,7 +106,11 @@ export class SubcategoryService {
     }
   }
 
-  async getProducts(params: ProductQueryParams, orderByField: string, orderDirection: 'ASC' | 'DESC') {
+  async getProducts(
+    params: ProductQueryParams,
+    orderByField: string,
+    orderDirection: 'ASC' | 'DESC'
+  ): Promise<ProductQueryResult> {
     const query = this.createBaseQuery(params);
     return this.executeQuery(query, params.skip, params.limit, orderByField, orderDirection);
   }
@@ -147,31 +158,35 @@ export class SubcategoryService {
 
   // Base method for retrieving products with custom ordering
   // Used by other methods to implement specific product listing features
-  async getProductsWithOrder(params: ProductQueryParams, orderBy: ProductOrderBy, orderDirection: 'ASC' | 'DESC') {
+  async getProductsWithOrder(
+    params: ProductQueryParams,
+    orderBy: ProductOrderBy,
+    orderDirection: 'ASC' | 'DESC'
+  ): Promise<ProductQueryResult> {
     return this.getProducts(params, orderBy, orderDirection);
   }
 
-  async getFeaturedProducts(params: ProductQueryParams) {
+  async getFeaturedProducts(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
   }
 
-  async getProductsBasedOnRating(params: ProductQueryParams) {
+  async getProductsBasedOnRating(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.RATING, OrderDirection.DESC);
   }
 
-  async getProductsByPriceAsc(params: ProductQueryParams) {
+  async getProductsByPriceAsc(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.PRICE, OrderDirection.ASC);
   }
 
-  async getProductsByPriceDesc(params: ProductQueryParams) {
+  async getProductsByPriceDesc(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.PRICE, OrderDirection.DESC);
   }
 
-  async getTopSelling(params: ProductQueryParams) {
+  async getTopSelling(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
   }
 
-  async getTopWishlistedProducts(params: ProductQueryParams) {
+  async getTopWishlistedProducts(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.WISHLISTED, OrderDirection.DESC);
   }
 }
