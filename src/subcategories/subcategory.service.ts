@@ -78,32 +78,27 @@ export class SubcategoryService {
     orderByField: string,
     orderDirection: 'ASC' | 'DESC'
   ): Promise<ProductQueryResult> {
-    try {
-      const count = await query.getCount();
+    const count = await query.getCount();
 
-      const rawProducts = await query
-        .orderBy(orderByField, orderDirection)
-        .offset(skip)
-        .limit(limit)
-        .getRawMany();
+    const rawProducts = await query
+      .orderBy(orderByField, orderDirection)
+      .offset(skip)
+      .limit(limit)
+      .getRawMany();
 
-      const formattedProducts = rawProducts.map((rawProduct: RawProduct) => ({
-        id: rawProduct.product_id,
-        productName: rawProduct.product_productName,
-        brand: rawProduct.product_brand,
-        thumbnail: rawProduct.product_thumbnail,
-        averageRating: rawProduct.product_averageRating,
-        price: rawProduct.product_price,
-        stock: rawProduct.product_stock,
-        subcategory: rawProduct.subcategory,
-        category: rawProduct.category,
-      }));
+    const formattedProducts = rawProducts.map((rawProduct: RawProduct) => ({
+      id: rawProduct.product_id,
+      productName: rawProduct.product_productName,
+      brand: rawProduct.product_brand,
+      thumbnail: rawProduct.product_thumbnail,
+      averageRating: rawProduct.product_averageRating,
+      price: rawProduct.product_price,
+      stock: rawProduct.product_stock,
+      subcategory: rawProduct.subcategory,
+      category: rawProduct.category,
+    }));
 
-      return { products: formattedProducts, productQuantity: count };
-    } catch (error) {
-      this.logger.error(`Error executing query: ${error.message}`, error.stack);
-      throw new AppError(ErrorType.DATABASE_ERROR)
-    }
+    return { products: formattedProducts, productQuantity: count };
   }
 
   async getProducts(
@@ -116,44 +111,34 @@ export class SubcategoryService {
   }
 
   async getAllBrands(subcategory: string): Promise<string[]> {
-    try {
-      const brands = await this.productsRepo
-        .createQueryBuilder("product")
-        .select("DISTINCT(product.brand)", "brand")
-        .leftJoin("product.subcategory", "subcategory")
-        .where("subcategory.subcategory = :subcategory", { subcategory })
-        .orderBy("product.brand", "ASC")
-        .getRawMany();
+    const brands = await this.productsRepo
+      .createQueryBuilder("product")
+      .select("DISTINCT(product.brand)", "brand")
+      .leftJoin("product.subcategory", "subcategory")
+      .where("subcategory.subcategory = :subcategory", { subcategory })
+      .orderBy("product.brand", "ASC")
+      .getRawMany();
 
-      return brands.map(brand => brand.brand);
-    } catch (error) {
-      this.logger.error(`Error getting all brands for subcategory ${subcategory}: ${error.message}`, error.stack);
-      throw new AppError(ErrorType.DATABASE_ERROR)
-    }
+    return brands.map(brand => brand.brand);
   }
 
   async getPriceRange(subcategory: string, brand?: string): Promise<{ min: number; max: number }> {
-    try {
-      let query = this.productsRepo
-        .createQueryBuilder("product")
-        .select("MIN(product.price)", "min")
-        .addSelect("MAX(product.price)", "max")
-        .leftJoin("product.subcategory", "subcategory")
-        .where("subcategory.subcategory = :subcategory", { subcategory });
+    let query = this.productsRepo
+      .createQueryBuilder("product")
+      .select("MIN(product.price)", "min")
+      .addSelect("MAX(product.price)", "max")
+      .leftJoin("product.subcategory", "subcategory")
+      .where("subcategory.subcategory = :subcategory", { subcategory });
 
-      if (brand) {
-        query = query.andWhere("product.brand = :brand", { brand });
-      }
-
-      const result = await query.getRawOne();
-      return {
-        min: result.min,
-        max: result.max,
-      };
-    } catch (error) {
-      this.logger.error(`Error getting price range for subcategory ${subcategory}: ${error.message}`, error.stack);
-      throw new AppError(ErrorType.DATABASE_ERROR)
+    if (brand) {
+      query = query.andWhere("product.brand = :brand", { brand });
     }
+
+    const result = await query.getRawOne();
+    return {
+      min: result.min,
+      max: result.max,
+    };
   }
 
   // Base method for retrieving products with custom ordering
