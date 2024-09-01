@@ -45,10 +45,10 @@ export class SubcategoryController {
 
   @Public()
   @SkipThrottle()
-  @Get(":name")
+  @Get(':name')
   async getProducts(
     @Param("name") name: string,
-    @Query('sort_by') sortBy: string,
+    @Query('sort_by') sortBy: string = 'featured',
     @Query() queryParams: CommonQueryParams
   ): Promise<ProductQueryResult> {
     const params = this.prepareProductQueryParams(name, queryParams);
@@ -66,7 +66,7 @@ export class SubcategoryController {
       case "most_sold":
         return await this.subcategoryService.getTopSelling(params);
       default:
-        throw new Error("Invalid sort type");
+        return await this.subcategoryService.getFeaturedProducts(params);
     }
   }
 }
