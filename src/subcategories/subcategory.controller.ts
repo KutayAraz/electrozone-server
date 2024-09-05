@@ -1,9 +1,9 @@
 import { Controller, Get, Param, Query, } from '@nestjs/common';
 import { SubcategoryService } from './subcategory.service';
-import { Public } from 'src/common/decorators';
 import { SkipThrottle } from '@nestjs/throttler';
 import { CommonQueryParams, ProcessedQueryParams, ProductQueryParams } from './types/product-query.interface';
 import { ProductQueryResult } from './types/product-query-result.type';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @Controller("subcategories")
 export class SubcategoryController {
