@@ -1,6 +1,8 @@
 import {
+  BeforeInsert,
   Column,
   Entity,
+  Index,
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
@@ -8,11 +10,16 @@ import { Order } from "./Order.entity";
 import { Exclude } from "class-transformer";
 import { Review } from "./Review.entity";
 import { Wishlist } from "./Wishlist.entity";
+import { v4 as uuidv4 } from 'uuid';
 
 @Entity({ name: "users" })
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Index("IDX_user_uuid", { unique: true })
+  @Column({ type: 'char', length: 36, unique: true })
+  uuid: string;
 
   @Column({ unique: true })
   email: string;
@@ -44,4 +51,11 @@ export class User {
 
   @OneToMany(() => Review, (review) => review.user)
   reviews: Review[];
+
+  @BeforeInsert()
+  generateUuid() {
+    if (!this.uuid) {
+      this.uuid = uuidv4();
+    }
+  }
 }
