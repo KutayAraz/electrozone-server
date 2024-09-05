@@ -1,6 +1,6 @@
 import { Length, IsString } from "class-validator";
 
-export class UpdatePasswordDto {
+export class ChangePasswordDto {
   @Length(6, 15)
   oldPassword: string;
 

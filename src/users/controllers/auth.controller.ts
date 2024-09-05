@@ -2,7 +2,6 @@ import {
   Body,
   ClassSerializerInterceptor,
   Controller,
-  Delete,
   Patch,
   Post,
   UseGuards,
@@ -11,22 +10,18 @@ import {
   HttpStatus,
   Res,
   Req,
-  BadRequestException,
 } from "@nestjs/common";
 import { Response, Request } from "express";
 import { CreateUserDto } from "../dtos/create-user.dto";
-import { UpdatePasswordDto } from "../dtos/update-password.dto";
-import { UserDto } from "../dtos/user.dto";
+import { ChangePasswordDto } from "../dtos/update-password.dto";
 import { AuthService } from "../services/auth.service";
 import { SignUserDto } from "../dtos/sign-user.dto";
-import {
-  Public,
-  GetCurrentUserId,
-  GetCurrentUser,
-  GetCurrentUserIdFromCookies,
-} from "../../common/decorators";
-import { AtGuard, RtGuard } from "src/common/guards";
 import { Throttle } from "@nestjs/throttler";
+import { Public } from "src/common/decorators/public.decorator";
+import { AtGuard } from "src/common/guards/at.guard";
+import { RtGuard } from "src/common/guards/rt.guard";
+import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { RefreshTokenUserUuid } from "src/common/decorators/user-uuid-from-cookie.decorator";
 
 @Controller("auth")
 @UseInterceptors(ClassSerializerInterceptor)
@@ -37,19 +32,19 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post("signup")
   @HttpCode(HttpStatus.CREATED)
-  signupLocal(@Body() dto: CreateUserDto) {
-    return this.authService.signupLocal(dto);
+  signUp(@Body() dto: CreateUserDto) {
+    return this.authService.signUp(dto);
   }
 
   @Public()
   @Throttle({ default: { limit: 15, ttl: 3600000 } })
   @Post("signin")
   @HttpCode(HttpStatus.OK)
-  async signinLocal(
+  async signIn(
     @Body() dto: SignUserDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user = await this.authService.signinLocal(dto, res);
+    const user = await this.authService.signIn(dto, res);
     return user;
   }
 
@@ -59,32 +54,22 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
     const refreshToken = req.cookies?.refresh_token;
-    try {
-      const result = await this.authService.logout(refreshToken, res);
 
-      res.cookie('refresh_token', '', { httpOnly: true, expires: new Date(0) });
-      res.send({ success: result });
-    } catch (error) {
-      res.status(HttpStatus.BAD_REQUEST).send({ success: false, message: error.message });
-    }
+    const result = await this.authService.logout(refreshToken, res);
+
+    res.cookie('refresh_token', '', { httpOnly: true, expires: new Date(0) });
+    res.send({ success: result });
   }
 
   @UseGuards(AtGuard)
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Patch("/update-password")
   async updateUserPassword(
-    @GetCurrentUserId() id: number,
-    @Body() input: UpdatePasswordDto,
+    @UserUuid() uuid: string,
+    @Body() input: ChangePasswordDto,
   ) {
-    return await this.authService.updatePassword(id, input);
-  }
-
-  @UseGuards(AtGuard)
-  @Throttle({ default: { limit: 1, ttl: 3600000 } })
-  @Delete("/profile")
-  removeUser(@GetCurrentUser() user: UserDto) {
-    return this.authService.remove(user.id);
-  }
+    return await this.authService.changePassword(uuid, input);
+  }  
 
   @Public()
   @Throttle({ default: { limit: 20, ttl: 3600000 } })
@@ -92,20 +77,16 @@ export class AuthController {
   @Post("refresh")
   @HttpCode(HttpStatus.OK)
   async refreshTokens(
-    @GetCurrentUserIdFromCookies() userId: number,
+    @RefreshTokenUserUuid() uuid: string,
     @Req() request: Request,
     @Res() res: Response,
   ) {
     const refreshToken = request.cookies?.refresh_token;
-    if (!refreshToken) {
-      throw new BadRequestException("Refresh token missing in cookie.");
-    }
 
-    const tokens = await this.authService.refreshTokens(userId, refreshToken, res);
+    const tokens = await this.authService.refreshTokens(uuid, refreshToken, res);
 
     res.json({
       access_token: tokens.access_token,
     });
   }
-
 }
