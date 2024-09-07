@@ -38,9 +38,9 @@ export class AuthUtilityService {
         });
     }
 
-    async updateRtHash(uuid: string, rt: string, manager: EntityManager): Promise<void> {
+    async updateRtHash(userUuid: string, rt: string, manager: EntityManager): Promise<void> {
         const hashedRt = await this.hashPassword(rt);
-        await manager.update(User, { uuid }, { hashedRt });
+        await manager.update(User, { uuid: userUuid }, { hashedRt });
     }
 
     async hashPassword(password: string): Promise<string> {

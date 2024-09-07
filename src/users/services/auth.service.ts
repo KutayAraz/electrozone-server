@@ -22,9 +22,9 @@ export class AuthService {
     @InjectRepository(User) private usersRepo: Repository<User>,
   ) { }
 
-  async changePassword(uuid: string, updatedPasswordData: ChangePasswordDto): Promise<User> {
+  async changePassword(userUuid: string, updatedPasswordData: ChangePasswordDto): Promise<User> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
-      const user = await this.userService.findByUuid(uuid);
+      const user = await this.userService.findByUuid(userUuid);
 
       if (await bcrypt.compare(updatedPasswordData.oldPassword, user.password)) {
         throw new AppError(ErrorType.INVALID_CURRENT_PASSWORD, 'Current password is incorrect', HttpStatus.UNAUTHORIZED);
@@ -111,17 +111,17 @@ export class AuthService {
     });
   }
 
-  async logout(uuid: string, res: Response): Promise<boolean> {
+  async logout(userUuid: string, res: Response): Promise<boolean> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
-      await transactionalEntityManager.update(User, { uuid }, { hashedRt: null });
+      await transactionalEntityManager.update(User, { uuid: userUuid }, { hashedRt: null });
       res.clearCookie('refresh_token');
       return true;
     });
   }
 
-  async refreshTokens(uuid: string, rt: string, res: Response): Promise<Tokens> {
+  async refreshTokens(userUuid: string, rt: string, res: Response): Promise<Tokens> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
-      const user = await transactionalEntityManager.findOne(User, { where: { uuid } });
+      const user = await transactionalEntityManager.findOne(User, { where: { uuid: userUuid } });
 
       if (!user || !user.hashedRt) throw new AppError(ErrorType.ACCESS_DENIED, 'Access denied', HttpStatus.UNAUTHORIZED);
 

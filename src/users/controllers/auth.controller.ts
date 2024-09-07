@@ -65,10 +65,10 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Patch("/update-password")
   async updateUserPassword(
-    @UserUuid() uuid: string,
+    @UserUuid() userUuid: string,
     @Body() input: ChangePasswordDto,
   ) {
-    return await this.authService.changePassword(uuid, input);
+    return await this.authService.changePassword(userUuid, input);
   }  
 
   @Public()
@@ -77,13 +77,13 @@ export class AuthController {
   @Post("refresh")
   @HttpCode(HttpStatus.OK)
   async refreshTokens(
-    @RefreshTokenUserUuid() uuid: string,
+    @RefreshTokenUserUuid() userUuid: string,
     @Req() request: Request,
     @Res() res: Response,
   ) {
     const refreshToken = request.cookies?.refresh_token;
 
-    const tokens = await this.authService.refreshTokens(uuid, refreshToken, res);
+    const tokens = await this.authService.refreshTokens(userUuid, refreshToken, res);
 
     res.json({
       access_token: tokens.access_token,

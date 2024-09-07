@@ -18,7 +18,7 @@ import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 
 @Controller("user")
 export class UserController {
-  constructor(private userService: UserService) {}
+  constructor(private userService: UserService) { }
 
   @UseInterceptors(ClassSerializerInterceptor)
   @UseGuards(AtGuard)
@@ -31,22 +31,16 @@ export class UserController {
   @Patch("/profile")
   @UseInterceptors(ClassSerializerInterceptor)
   async updateUser(
-    @UserUuid() uuid: string,
+    @UserUuid() userUuid: string,
     @Body() input: UpdateUserDto,
   ) {
-    return await this.userService.updateUserProfile(uuid, input);
+    return await this.userService.updateUserProfile(userUuid, input);
   }
 
   @UseGuards(AtGuard)
   @Throttle({ default: { limit: 1, ttl: 3600000 } })
   @Delete("/profile")
-  deleteUser(@UserUuid() uuid: string) {
-    return this.userService.deleteUser(uuid);
-  }
-
-  @UseGuards(AtGuard)
-  @Get("/wishlist")
-  async getUserWishlist(@UserUuid() uuid: string) {
-    return await this.userService.getUserWishlist(uuid);
+  deleteUser(@UserUuid() userUuid: string) {
+    return this.userService.deleteUser(userUuid);
   }
 }

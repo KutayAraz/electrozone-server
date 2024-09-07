@@ -14,11 +14,11 @@ export class UserService {
     @InjectRepository(Wishlist) private readonly wishlistsRepo: Repository<Wishlist>,
   ) { }
 
-  async findByUuid(uuid: string): Promise<User> {
-    if (!uuid) {
+  async findByUuid(userUuid: string): Promise<User> {
+    if (!userUuid) {
       throw new AppError(ErrorType.ACCESS_DENIED, 'Access Denied', HttpStatus.FORBIDDEN);
     }
-    const user = await this.usersRepo.findOne({ where: { uuid } });
+    const user = await this.usersRepo.findOne({ where: { uuid: userUuid } });
 
     if (!user) {
       throw new AppError(ErrorType.USER_NOT_FOUND, 'User not found', HttpStatus.NOT_FOUND);
@@ -40,8 +40,8 @@ export class UserService {
     return result;
   }
 
-  async updateUserProfile(uuid: string, updatedUserData: UpdateUserDto): Promise<Partial<User>> {
-    const user = await this.findByUuid(uuid);
+  async updateUserProfile(userUuid: string, updatedUserData: UpdateUserDto): Promise<Partial<User>> {
+    const user = await this.findByUuid(userUuid);
 
     const { password, ...otherFields } = updatedUserData;
     Object.assign(user, otherFields);
@@ -55,44 +55,9 @@ export class UserService {
     };
   }
 
-  async getUserWishlist(uuid: string): Promise<Array<{
-    id: number;
-    productName: string;
-    brand: string;
-    thumbnail: string;
-    price: number;
-    stock: number;
-    subcategory: string;
-    category: string;
-  }>> {
-    const user = await this.findByUuid(uuid);
-    const wishlists = await this.wishlistsRepo.find({
-      where: { user: { id: user.id } },
-      relations: [
-        "product",
-        "product.subcategory",
-        "product.subcategory.category",
-      ],
-    });
-
-    return wishlists.map((wishlist) => {
-      const product = wishlist.product;
-      return {
-        id: product.id,
-        productName: product.productName,
-        brand: product.brand,
-        thumbnail: product.thumbnail,
-        price: product.price,
-        stock: product.stock,
-        subcategory: product.subcategory.subcategory,
-        category: product.subcategory.category.category,
-      };
-    });
-  }
-
-  async deleteUser(uuid: string): Promise<User> {
+  async deleteUser(userUuid: string): Promise<User> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
-      const user = await this.findByUuid(uuid);
+      const user = await this.findByUuid(userUuid);
       return await transactionalEntityManager.remove(User, user);
     });
   }
