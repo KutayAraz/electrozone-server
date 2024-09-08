@@ -3,6 +3,7 @@ import { AppError } from "./app-error";
 import { Response } from "express";
 import { QueryFailedError } from "typeorm";
 import { StandardErrorResponse } from "./error-response.type";
+import { ErrorType } from "./error-type";
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -21,6 +22,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   private createErrorResponse(exception: unknown): StandardErrorResponse {
     if (exception instanceof AppError) {
+      console.log("apperror");
       return {
         statusCode: exception.statusCode,
         error: exception.type,
@@ -29,8 +31,26 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       };
     }
 
+    // if (exception instanceof UnauthorizedException) {
+    //   const message = exception.message;
+    //   let error = 'Access denied';
+
+    //   if (message === 'Token expired') {
+    //     error = 'Session Expired';
+    //   } else if (message === 'No token provided') {
+    //     error = 'Authentication Required';
+    //   }
+
+    //   return {
+    //     statusCode: HttpStatus.UNAUTHORIZED,
+    //     error,
+    //     message
+    //   };
+    // }
+
     if (exception instanceof HttpException) {
       const response = exception.getResponse() as string | object;
+      console.log("httpexception");
       return {
         statusCode: exception.getStatus(),
         error: exception.name,

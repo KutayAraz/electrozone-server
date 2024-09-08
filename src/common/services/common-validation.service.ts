@@ -18,12 +18,11 @@ export class CommonValidationService {
         }
     }
 
-    validateQuantity(quantity: number, product: Product): void {
-        this.validateProduct(product);
+    validateQuantity(quantity: number): void {
         if (quantity > 10) {
             throw new AppError(
                 ErrorType.QUANTITY_LIMIT_EXCEEDED,
-                `Quantity for ${product.productName} exceeds the allowed limit of 10.`
+                `Quantity exceeds the allowed limit of 10.`
             );
         }
     }
