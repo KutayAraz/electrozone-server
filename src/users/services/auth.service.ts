@@ -19,7 +19,7 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly authUtilityService: AuthUtilityService,
-    @InjectRepository(User) private usersRepo: Repository<User>,
+    @InjectRepository(User) private readonly usersRepo: Repository<User>,
   ) { }
 
   async changePassword(userUuid: string, updatedPasswordData: ChangePasswordDto): Promise<User> {
@@ -134,7 +134,6 @@ export class AuthService {
       this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);
 
       return tokens;
-
     });
   }
 }

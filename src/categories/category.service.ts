@@ -1,7 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { AppError } from "src/common/errors/app-error";
-import { ErrorType } from "src/common/errors/error-type";
 import { Category } from "src/entities/Category.entity";
 import { Subcategory } from "src/entities/Subcategory.entity";
 import { SubcategoryService } from "src/subcategories/subcategory.service";
@@ -10,8 +8,6 @@ import { SubcategoryTopProducts } from "./types/subcategory-top-products.type";
 
 @Injectable()
 export class CategoryService {
-  private readonly logger = new Logger(CategoryService.name);
-
   constructor(
     @InjectRepository(Category) private readonly categoriesRepo: Repository<Category>,
     @InjectRepository(Subcategory) private readonly subcategoriesRepo: Repository<Subcategory>,

@@ -1,51 +1,55 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
-import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist.entity";
-import { SubcategoriesService } from "src/subcategories/subcategories.service";
-import { Brackets, In, Not, Repository } from "typeorm";
-import TopProductDto from "./dtos/top-product.dto";
+import { Brackets, In, Repository } from "typeorm";
+import TopProductDto from "../dtos/top-product.dto";
+import { CommonValidationService } from "src/common/services/common-validation.service";
+import { ProductDetails } from "../types/product-details.type";
+import { SuggestedProducts } from "../types/suggested-products.type";
+import { TopProduct } from "../types/top-product.type";
+import { SearchResult } from "../types/search-result.type";
 
 @Injectable()
-export class ProductsService {
+export class ProductService {
   constructor(
-    @InjectRepository(Product) private productsRepo: Repository<Product>,
-    @InjectRepository(User) private usersRepo: Repository<User>,
-    @InjectRepository(Wishlist)
-    private wishlistRepo: Repository<Wishlist>,
-    private readonly subcategoriesService: SubcategoriesService
+    @InjectRepository(Product) private readonly productsRepo: Repository<Product>,
+    private readonly commonValidationService: CommonValidationService
   ) { }
 
-  async findProduct(id: number) {
+  async getProductDetails(id: number): Promise<ProductDetails> {
     const product = await this.productsRepo.createQueryBuilder('product')
       .leftJoinAndSelect('product.productImages', 'productImages')
       .leftJoinAndSelect('product.subcategory', 'subcategory')
       .leftJoinAndSelect('subcategory.category', 'category')
-      .leftJoinAndSelect('product.reviews', 'reviews')
       .select([
-        'product',
-        'productImages',
+        'product.id',
+        'product.productName',
+        'product.brand',
+        'product.description',
+        'product.price',
+        'product.stock',
+        'product.averageRating',
+        'product.thumbnail',
+        'productImages.id',
+        'productImages.productImage',
         'subcategory.subcategory',
         'category.category',
-        'reviews'
       ])
       .where('product.id = :id', { id })
       .getOne();
 
-    if (!product) {
-      throw new NotFoundException('Product not found');
-    }
+    this.commonValidationService.validateProduct(product);
 
-    const { sold, wishlisted, subcategory, ...returnedProduct } = product;
     return {
-      ...returnedProduct,
-      subcategory: subcategory.subcategory,
-      category: subcategory.category.category,
+      ...product,
+      subcategory: product.subcategory.subcategory,
+      category: product.subcategory.category.category,
+      productImages: product.productImages,
     };
   }
 
-  async getSimilarProductsRandomly(productId: number, subcategoryId: number): Promise<Product[]> {
+  async getRandomSimilarProducts(productId: number, subcategoryId: number): Promise<Product[]> {
     return this.productsRepo.createQueryBuilder('product')
       .where('product.subcategoryId = :subcategoryId', { subcategoryId })
       .andWhere('product.id != :productId', { productId })
@@ -54,7 +58,7 @@ export class ProductsService {
       .getMany();
   }
 
-  async getSuggestedProducts(productId: number): Promise<{ suggestionType: string, products: Promise<Product[]> | Product[] }> {
+  async getSuggestedProducts(productId: number): Promise<SuggestedProducts> {
     // Attempt to find frequently bought together products
     const frequentlyBoughtTogether = await this.productsRepo
       .createQueryBuilder('product')
@@ -69,28 +73,66 @@ export class ProductsService {
       .limit(8)
       .getRawMany();
 
+
+    let baseProductQuery = this.productsRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.subcategory', 'subcategory')
+      .leftJoinAndSelect('subcategory.category', 'category')
+      .select([
+        'product.id',
+        'product.productName',
+        'product.brand',
+        'product.thumbnail',
+        'product.averageRating',
+        'product.price',
+        'product.stock',
+        'subcategory.subcategory',
+        'category.category'
+      ]);
+
     if (frequentlyBoughtTogether.length >= 5) {
       const recommendedProductIds = frequentlyBoughtTogether.map(item => item.productId);
-      const products = await this.productsRepo.findByIds(recommendedProductIds);
-      return { suggestionType: "Frequently Bought Together", products };
+      const products = await baseProductQuery
+        .where('product.id IN (:...ids)', { ids: recommendedProductIds })
+        .getMany();
+
+      return {
+        suggestionType: "Frequently Bought Together",
+        products: products.map(p => ({
+          ...p,
+          category: p.subcategory.category.category,
+          subcategory: p.subcategory.subcategory
+        }))
+      };
     } else {
       const product = await this.productsRepo.findOne({
         where: { id: productId },
         relations: ['subcategory']
       });
-      if (!product) {
-        throw new NotFoundException('Product not found.');
-      }
 
-      const products = await this.getSimilarProductsRandomly(productId, product.subcategory.id);
-      return { suggestionType: "Similar Products", products };
+      this.commonValidationService.validateProduct(product);
+
+      const products = await baseProductQuery
+        .where('product.subcategoryId = :subcategoryId', { subcategoryId: product.subcategory.id })
+        .andWhere('product.id != :productId', { productId })
+        .orderBy('RAND()')
+        .limit(8)
+        .getMany();
+
+      return {
+        suggestionType: "Similar Products", products: products.map(p => ({
+          ...p,
+          category: p.subcategory.category.category,
+          subcategory: p.subcategory.subcategory
+        }))
+      };
     }
   }
 
   async getTopProducts(
     orderBy: 'sold' | 'wishlisted' | 'averageRating',
     take: number = 10
-  ): Promise<TopProductDto[]> {
+  ): Promise<TopProduct[]> {
     const selectFields = [
       'product.id',
       'product.productName',
@@ -130,15 +172,15 @@ export class ProductsService {
     }));
   }
 
-  async getTopSelling(take: number = 10): Promise<TopProductDto[]> {
+  async getBestSellers(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('sold', take);
   }
 
-  async getTopWishlisted(take: number = 10): Promise<TopProductDto[]> {
+  async getTopWishlisted(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('wishlisted', take);
   }
 
-  async getBestRated(take: number = 10): Promise<TopProductDto[]> {
+  async getBestRated(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('averageRating', take);
   }
 
@@ -150,7 +192,7 @@ export class ProductsService {
     stockStatus?: string,
     priceRange?: { min: number; max: number },
     brands?: string[],
-    subcategories?: string[]) {
+    subcategories?: string[]): Promise<SearchResult> {
     const searchWords = search.split(" ");
 
     const baseQuery = this.productsRepo.createQueryBuilder("product")
