@@ -1,8 +1,9 @@
-import { ExecutionContext, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { AppError } from '../errors/app-error';
 import { ErrorType } from '../errors/error-type';
+
 @Injectable()
 export class AtGuard extends AuthGuard('jwt') {
   constructor(private reflector: Reflector) {
@@ -20,14 +21,7 @@ export class AtGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any, info: any) {
-    if (info && info.message === 'jwt expired') {
-      throw new AppError(
-        ErrorType.SESSION_EXPIRED,
-        'Your session has expired, please login again.',
-        HttpStatus.UNAUTHORIZED
-      );
-    }
+  handleRequest(err: any, user: any) {
     if (err || !user) {
       throw new AppError(
         ErrorType.UNAUTHORIZED,
