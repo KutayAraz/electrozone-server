@@ -21,13 +21,11 @@ export class UserController {
   constructor(private userService: UserService) { }
 
   @UseInterceptors(ClassSerializerInterceptor)
-  @UseGuards(AtGuard)
   @Get("/profile")
   async getCurrentUserProfile(@User() user: UserDto) {
     return this.userService.findByEmail(user.email);
   }
 
-  @UseGuards(AtGuard)
   @Patch("/profile")
   @UseInterceptors(ClassSerializerInterceptor)
   async updateUser(
@@ -37,7 +35,6 @@ export class UserController {
     return await this.userService.updateUserProfile(userUuid, input);
   }
 
-  @UseGuards(AtGuard)
   @Throttle({ default: { limit: 1, ttl: 3600000 } })
   @Delete("/profile")
   deleteUser(@UserUuid() userUuid: string) {

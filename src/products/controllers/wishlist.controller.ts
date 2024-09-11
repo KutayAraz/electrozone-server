@@ -10,13 +10,11 @@ import { WishlistToggleResult } from "../types/wishlist-toggle-result.type";
 export class WishlistController {
     constructor(private wishlistService: WishlistService) { }
 
-    @UseGuards(AtGuard)
     @Get()
     async getUserWishlist(@UserUuid() uuid: string): Promise<WishlistItem[]> {
         return await this.wishlistService.getUserWishlist(uuid);
     }
 
-    @UseGuards(AtGuard)
     @SkipThrottle()
     @Get(":productId/check")
     async checkWishlist(
@@ -29,7 +27,6 @@ export class WishlistController {
         );
     }
 
-    @UseGuards(AtGuard)
     @Patch(":productId/wishlist")
     async toggleWishlist(
         @Param("productId", ParseIntPipe) productId: number,

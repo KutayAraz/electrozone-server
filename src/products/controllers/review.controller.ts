@@ -26,7 +26,6 @@ export class ReviewController {
   }
 
   @Get(":productId/eligibility")
-  @UseGuards(AtGuard)
   async checkReviewEligibility(
     @UserUuid() userUuid: string,
     @Param("productId") productId: string,
@@ -38,7 +37,6 @@ export class ReviewController {
   }
 
   @Post(":productId")
-  @UseGuards(AtGuard)
   async createReview(
     @Body() createReviewDto: CreateReviewDto,
     @UserUuid() userUuid: string,
