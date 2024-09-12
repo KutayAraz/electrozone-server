@@ -3,14 +3,13 @@ import { EntityManager } from "typeorm";
 import { PriceChange } from "../types/price-change.type";
 import { ErrorType } from "src/common/errors/error-type";
 import { CartItem } from "src/entities/CartItem.entity";
-import { CartHelperService } from "./cart-helper.service";
 import { QuantityChange } from "../types/quantity-change.type";
 import { FormattedCartItem } from "../types/formatted-cart-product.type";
+import { CartUtilityService } from "./cart-utility.service";
 
 @Injectable()
 export class CartItemService {
-
-    constructor(private readonly cartHelperService: CartHelperService) { }
+    constructor(private readonly cartUtilityService: CartUtilityService) { }
 
     async fetchAndUpdateCartItems(cartId: number, transactionManager: EntityManager): Promise<{
         cartItems: FormattedCartItem[],
@@ -18,7 +17,7 @@ export class CartItemService {
         priceChanges: PriceChange[],
         quantityChanges: QuantityChange[]
     }> {
-        const cartItems = await this.cartHelperService.getCartItems(cartId, transactionManager);
+        const cartItems = await this.cartUtilityService.getCartItems(cartId, transactionManager);
 
         const formattedCartItems: FormattedCartItem[] = [];
         const removedCartItems: string[] = [];

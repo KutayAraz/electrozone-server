@@ -3,23 +3,25 @@ import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
 import { User } from "src/entities/User.entity";
 import { EntityManager } from "typeorm";
-import { CartValidationService } from "./cart-validation.service";
+import { CommonValidationService } from "src/common/services/common-validation.service";
 
 @Injectable()
-export class CartHelperService {
-    constructor(private readonly cartValidationService: CartValidationService) { }
+export class CartUtilityService {
+    constructor(
+        private readonly commonValidationService: CommonValidationService
+    ) { }
 
-    async findOrCreateCart(userId: number, transactionManager: EntityManager): Promise<Cart> {
+    async findOrCreateCart(userUuid: string, transactionManager: EntityManager): Promise<Cart> {
         const cart = await transactionManager.findOne(Cart, {
-            where: { user: { id: userId } },
+            where: { user: { uuid: userUuid } },
             relations: ['user'],
         });
 
         if (cart) return cart;
 
-        const user = await transactionManager.findOne(User, { where: { id: userId } });
-        
-        this.cartValidationService.validateUser(user)
+        const user = await transactionManager.findOne(User, { where: { uuid: userUuid } });
+
+        this.commonValidationService.validateUser(user)
 
         const newCart = transactionManager.create(Cart, {
             user,
