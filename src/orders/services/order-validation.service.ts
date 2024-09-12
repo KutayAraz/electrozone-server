@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException, HttpStatus } from "@nestjs/common";
 import { ErrorType } from "src/common/errors/error-type";
 import { Order } from "src/entities/Order.entity";
 import { Product } from "src/entities/Product.entity";
@@ -33,8 +33,10 @@ export class OrderValidationService {
     this.validateOrder(order)
 
     if (order.user.uuid !== userUuid) {
-      throw new UnauthorizedException(
-        ErrorType.UNAUTHORIZED_ORDER_CANCELLATION
+      throw new AppError(
+        ErrorType.UNAUTHORIZED_ORDER_CANCELLATION,
+        `You are not authorized to cancel order with id of ${orderId}`,
+        HttpStatus.FORBIDDEN
       );
     }
 

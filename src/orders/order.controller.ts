@@ -28,7 +28,7 @@ export class OrderController {
     return this.orderService.createOrder(userUuid, createOrderDto.orderItems);
   }
 
-  @Get('user')
+  @Get()
   @SkipThrottle()
   getOrdersForUser(
     @UserUuid() userUuid: string,
@@ -38,7 +38,7 @@ export class OrderController {
     return this.orderService.getOrdersForUser(userUuid, skip, take);
   }
 
-  @Get('user/:orderId')
+  @Get(':orderId')
   getOrder(
     @UserUuid() userUuid: string,
     @Param('orderId', ParseIntPipe) orderId: number,
@@ -46,7 +46,7 @@ export class OrderController {
     return this.orderService.getOrderById(userUuid, orderId);
   }
 
-  @Delete('user/:orderId')
+  @Delete(':orderId')
   cancelOrder(
     @UserUuid() userUuid: string,
     @Param('orderId', ParseIntPipe) orderId: number,

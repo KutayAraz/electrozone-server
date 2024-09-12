@@ -10,6 +10,7 @@ import { OrderValidationService } from "./order-validation.service";
 import { ErrorType } from "src/common/errors/error-type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { CartService } from "src/carts/services/cart.service";
+import { AppError } from "src/common/errors/app-error";
 
 @Injectable()
 export class OrderService {
@@ -66,7 +67,7 @@ export class OrderService {
       const order = await this.orderValidationService.validateUserOrder(userUuid, orderId, this.ordersRepo);
 
       if (!this.orderValidationService.isOrderCancellable(order.orderDate)) {
-        throw new UnauthorizedException(ErrorType.CANCELLATION_PERIOD_ENDED);
+        throw new AppError(ErrorType.CANCELLATION_PERIOD_ENDED, "Cancellation period has ended for this order");
       }
 
       await Promise.all(
