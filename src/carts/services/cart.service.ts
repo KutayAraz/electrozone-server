@@ -3,7 +3,6 @@ import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
 import { DataSource, EntityManager } from "typeorm";
 import { CartItemService } from "./cart-item.service";
-import { CartValidationService } from "./cart-validation.service";
 import { CartResponse } from "../types/cart-response.type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { CartUtilityService } from "./cart-utility.service";
@@ -13,7 +12,6 @@ export class CartService {
     constructor(
         private readonly cartItemService: CartItemService,
         private readonly cartUtilityService: CartUtilityService,
-        private readonly cartValidationService: CartValidationService,
         private readonly commonValidationService: CommonValidationService,
         private readonly dataSource: DataSource
     ) { }
@@ -57,7 +55,7 @@ export class CartService {
 
             this.commonValidationService.validateProduct(cartItemToRemove.product)
 
-            this.cartValidationService.validateCartItem(cartItemToRemove)
+            this.commonValidationService.validateProduct(cartItemToRemove.product)
 
             cart.totalQuantity -= cartItemToRemove.quantity;
             cart.cartTotal = Number(cart.cartTotal) - Number(cartItemToRemove.amount);

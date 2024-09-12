@@ -7,7 +7,6 @@ import { User } from 'src/entities/User.entity';
 import { Product } from 'src/entities/Product.entity';
 import { CartOperationsService } from './services/cart-operations.service';
 import { CartService } from './services/cart.service';
-import { CartValidationService } from './services/cart-validation.service';
 import { CartUtilityService } from './services/cart-utility.service';
 import { CartItemService } from './services/cart-item.service';
 import { LocalCartService } from './services/local-cart.service';
@@ -18,7 +17,6 @@ import { CommonValidationService } from 'src/common/services/common-validation.s
   controllers: [CartController],
   providers: [
     CartService,
-    CartValidationService,
     CartUtilityService,
     CartItemService,
     CartOperationsService,
