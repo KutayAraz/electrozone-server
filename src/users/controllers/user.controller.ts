@@ -5,13 +5,11 @@ import {
   Delete,
   Get,
   Patch,
-  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { UpdateUserDto } from "../dtos/update-user.dto";
 import { UserDto } from "../dtos/user.dto";
 import { UserService } from "../services/user.service";
-import { AtGuard } from "src/common/guards/at.guard";
 import { Throttle } from "@nestjs/throttler";
 import { User } from "src/common/decorators/user.decorator";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
