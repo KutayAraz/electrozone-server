@@ -4,38 +4,40 @@ import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { DataSource, EntityManager } from "typeorm";
 import { User } from "src/entities/User.entity";
-import { CartHelperService } from "./cart-helper.service";
-import { CartService } from "./carts.service";
-import { CartValidationService } from "./cart-validation.service";
+import { CartService } from "./cart.service";
 import { QuantityChange } from "../types/quantity-change.type";
+import { CommonValidationService } from "src/common/services/common-validation.service";
+import { CartUtilityService } from "./cart-utility.service";
 
 @Injectable()
 export class CartOperationsService {
     constructor(
-        private readonly cartHelperService: CartHelperService,
-        private readonly cartValidationService: CartValidationService,
+        private readonly cartUtilityService: CartUtilityService,
+        private readonly commonValidationService: CommonValidationService,
         private readonly cartService: CartService,
         private readonly dataSource: DataSource,
     ) { }
 
-    async addProductToCart(userId: number, productId: number, quantity: number, transactionalEntityManager?: EntityManager) {
-        this.cartValidationService.validateQuantity(quantity)
+    async addProductToCart(userUuid: string, productId: number, quantity: number, transactionalEntityManager?: EntityManager) {
+        this.commonValidationService.validateQuantity(quantity)
 
         const manager = transactionalEntityManager || this.dataSource.manager;
 
         return manager.transaction(async transactionalEntityManager => {
             const [user, cart, foundProduct] = await Promise.all([
-                transactionalEntityManager.findOne(User, { where: { id: userId } }),
-                this.cartHelperService.findOrCreateCart(userId, transactionalEntityManager),
+                transactionalEntityManager.findOne(User, { where: { uuid: userUuid } }),
+                this.cartUtilityService.findOrCreateCart(userUuid, transactionalEntityManager),
                 transactionalEntityManager.findOne(Product, { where: { id: productId } })
             ]);
 
-            this.cartValidationService.validateUser(user)
-            this.cartValidationService.validateProduct(foundProduct)
-            this.cartValidationService.validateStock(foundProduct)
-
+            this.commonValidationService.validateStock(foundProduct)
+            this.commonValidationService.validateUser(user)
+            this.commonValidationService.validateProduct(foundProduct)
             let cartItem = await transactionalEntityManager.findOne(CartItem, {
-                where: { cart: cart, product: { id: productId } },
+                where: { 
+                    cart: { id: cart.id },
+                    product: { id: productId }
+                },
                 relations: ["product"],
             });
 
@@ -74,7 +76,7 @@ export class CartOperationsService {
             await transactionalEntityManager.save(cartItem);
             await transactionalEntityManager.save(cart);
 
-            const updatedCart = await this.cartService.getUserCart(userId, transactionalEntityManager);
+            const updatedCart = await this.cartService.getUserCart(userUuid, transactionalEntityManager);
 
             return {
                 ...updatedCart,
@@ -84,26 +86,26 @@ export class CartOperationsService {
     }
 
     async updateCartItemQuantity(
-        userId: number,
+        userUuid: string,
         productId: number,
         quantity: number,
         transactionalEntityManager?: EntityManager
     ) {
-        this.cartValidationService.validateQuantity(quantity)
+        this.commonValidationService.validateQuantity(quantity)
 
         const manager = transactionalEntityManager || this.dataSource.manager;
 
         return manager.transaction(async (transactionManager) => {
             const [cart, cartItem] = await Promise.all([
-                this.cartHelperService.findOrCreateCart(userId, transactionManager),
+                this.cartUtilityService.findOrCreateCart(userUuid, transactionManager),
                 transactionManager.findOne(CartItem, {
-                    where: { cart: { user: { id: userId } }, product: { id: productId } },
+                    where: { cart: { user: { uuid: userUuid } }, product: { id: productId } },
                     relations: ["product"],
                 })
             ]);
 
             if (cartItem) {
-                this.cartValidationService.validateStockAvailability(cartItem.product, quantity)
+                this.commonValidationService.validateStockAvailability(cartItem.product, quantity)
 
                 const oldQuantity = cartItem.quantity;
                 const oldAmount = oldQuantity * cartItem.product.price;
@@ -118,9 +120,9 @@ export class CartOperationsService {
                 await transactionManager.save(cartItem);
                 await transactionManager.save(cart);
 
-                return await this.cartService.getUserCart(userId, transactionManager);
+                return await this.cartService.getUserCart(userUuid, transactionManager);
             } else {
-                return await this.addProductToCart(userId, productId, quantity, transactionManager);
+                return await this.addProductToCart(userUuid, productId, quantity, transactionManager);
             }
         });
     }
