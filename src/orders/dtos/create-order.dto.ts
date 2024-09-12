@@ -1,5 +1,5 @@
 import { IsArray } from "class-validator";
-import { CreateOrderItemDTO } from "./create-order-item.dto";
+import { CreateOrderItemDTO } from "./order-item.dto";
 
 export class CreateOrderDto {
   @IsArray()

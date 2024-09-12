@@ -8,17 +8,14 @@ import {
   ParseIntPipe,
   Post,
   Query,
-  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { CreateOrderDto } from "./dtos/create-order.dto";
 import { SkipThrottle } from "@nestjs/throttler";
 import { OrderService } from "./services/order.service";
-import { AtGuard } from "src/common/guards/at.guard";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 
 @Controller('orders')
-@UseGuards(AtGuard)
 @UseInterceptors(ClassSerializerInterceptor)
 export class OrderController {
   constructor(private orderService: OrderService) { }
