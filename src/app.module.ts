@@ -1,4 +1,4 @@
-import { Module, ValidationPipe } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule, RequestMethod, ValidationPipe } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { CategoriesModule } from "./categories/category.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -11,6 +11,7 @@ import { SubcategoryModule } from "./subcategories/subcategory.module";
 import { AtGuard } from "./common/guards/at.guard";
 import { UserModule } from "./users/user.module";
 import { ProductModule } from "./products/product.module";
+import { SessionMiddleware } from "./common/middleware/session.middleware";
 
 @Module({
   imports: [
@@ -51,4 +52,13 @@ import { ProductModule } from "./products/product.module";
     }
   ],
 })
-export class AppModule { }
+
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(SessionMiddleware)
+      .forRoutes(
+        { path: 'cart/session', method: RequestMethod.ALL },
+      );
+  }
+}
