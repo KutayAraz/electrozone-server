@@ -29,7 +29,7 @@ export class CartItemService {
                 const { updatedCartItem, quantityChange, priceChange } =
                     await this.updateCartItem(cartItem, transactionManager);
 
-                    formattedCartItems.push(this.formatCartProduct(updatedCartItem));
+                formattedCartItems.push(this.formatCartItem(updatedCartItem));
                 if (quantityChange) quantityChanges.push(quantityChange);
                 if (priceChange) priceChanges.push(priceChange);
             } else {
@@ -78,7 +78,7 @@ export class CartItemService {
         return { updatedCartItem: { ...cartItem, quantity, addedPrice: currentPrice }, quantityChange, priceChange };
     }
 
-    formatCartProduct(item: CartItem): FormattedCartItem {
+    formatCartItem(item: CartItem): FormattedCartItem {
         return {
             cartItemId: item.id,
             quantity: item.quantity,

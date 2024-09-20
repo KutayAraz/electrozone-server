@@ -30,6 +30,7 @@ export class CartUtilityService {
         });
         return await transactionManager.save(newCart);
     }
+    
     async getCartItems(cartId: number, transactionManager: EntityManager) {
         return transactionManager
             .createQueryBuilder(CartItem, "cartItem")

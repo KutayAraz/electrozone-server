@@ -11,9 +11,11 @@ import { CartUtilityService } from './services/cart-utility.service';
 import { CartItemService } from './services/cart-item.service';
 import { LocalCartService } from './services/local-cart.service';
 import { CommonValidationService } from 'src/common/services/common-validation.service';
+import { SessionCartService } from './services/session-cart.service';
+import { SessionCart } from 'src/entities/SessionCart.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Cart, CartItem, User, Product])],
+  imports: [TypeOrmModule.forFeature([Cart, CartItem, User, Product, SessionCart])],
   controllers: [CartController],
   providers: [
     CartService,
@@ -21,7 +23,9 @@ import { CommonValidationService } from 'src/common/services/common-validation.s
     CartItemService,
     CartOperationsService,
     LocalCartService,
-    CommonValidationService],
+    CommonValidationService,
+    SessionCartService
+  ],
   exports: [
     CartService,
   ]

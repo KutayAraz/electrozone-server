@@ -5,13 +5,13 @@ import { ErrorType } from "src/common/errors/error-type";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { Repository, In, DataSource } from "typeorm";
-import { CartItemDto } from "../dtos/cart-item.dto";
 import { LocalCartResponse } from "../types/local-cart-response.type";
 import { CartService } from "./cart.service";
 import { CartOperationsService } from "./cart-operations.service";
 import { QuantityChange } from "../types/quantity-change.type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { CartUtilityService } from "./cart-utility.service";
+import { AddToCartDto } from "../dtos/add-to-cart";
 
 @Injectable()
 export class LocalCartService {
@@ -24,7 +24,7 @@ export class LocalCartService {
         private readonly dataSource: DataSource
     ) { }
 
-    async getLocalCartInformation(cartItems: CartItemDto[]): Promise<LocalCartResponse> {
+    async getLocalCartInformation(cartItems: AddToCartDto[]): Promise<LocalCartResponse> {
         if (!Array.isArray(cartItems)) {
             throw new AppError(ErrorType.INVALID_INPUT, "undefined, Expected an array of products");
         }
@@ -115,7 +115,7 @@ export class LocalCartService {
         return { cartTotal, totalQuantity, products: [product] };
     }
 
-    async mergeLocalWithBackendCart(userUuid: string, localCartItems: CartItemDto[]) {
+    async mergeLocalWithBackendCart(userUuid: string, localCartItems: AddToCartDto[]) {
         return this.dataSource.transaction(async transactionalEntityManager => {
             const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionalEntityManager);
 

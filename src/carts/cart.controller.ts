@@ -6,27 +6,30 @@ import {
   Param,
   Patch,
   Post,
+  Session,
 } from "@nestjs/common";
-import { CartItemDto } from "./dtos/cart-item.dto";
 import { SkipThrottle } from "@nestjs/throttler";
 import { CartOperationsService } from "./services/cart-operations.service";
 import { CartService } from "./services/cart.service";
 import { LocalCartService } from "./services/local-cart.service";
 import { Public } from "src/common/decorators/public.decorator";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { SessionCartService } from "./services/session-cart.service";
+import { AddToCartDto } from "./dtos/add-to-cart";
 
-@Controller("carts")
+@Controller("cart")
 export class CartController {
   constructor(
     private readonly cartOperationsService: CartOperationsService,
     private readonly cartsService: CartService,
-    private readonly localCartService: LocalCartService
+    private readonly localCartService: LocalCartService,
+    private readonly sessionCartService: SessionCartService
   ) { }
 
   @Public()
   @SkipThrottle()
   @Post("local")
-  async getLocalCartInformation(@Body() localCartDto: CartItemDto[]) {
+  async getLocalCartInformation(@Body() localCartDto: AddToCartDto[]) {
     return await this.localCartService.getLocalCartInformation(localCartDto);
   }
 
@@ -36,7 +39,7 @@ export class CartController {
   }
 
   @Post("buy-now")
-  async getBuyNowCartInfo(@Body() cartItem: CartItemDto) {
+  async getBuyNowCartInfo(@Body() cartItem: AddToCartDto) {
     return await this.localCartService.getBuyNowCartInfo(
       cartItem.productId,
       cartItem.quantity,
@@ -46,7 +49,7 @@ export class CartController {
   @Patch("merge-carts")
   async mergeCarts(
     @UserUuid() userUuid: string,
-    @Body() cartItems: CartItemDto[],
+    @Body() cartItems: AddToCartDto[],
   ) {
     return await this.localCartService.mergeLocalWithBackendCart(userUuid, cartItems);
   }
@@ -55,7 +58,7 @@ export class CartController {
   @Patch("user/item")
   async updateItemQuantity(
     @UserUuid() userUuid: string,
-    @Body() cartItem: CartItemDto,
+    @Body() cartItem: AddToCartDto,
   ) {
     return await this.cartOperationsService.updateCartItemQuantity(
       userUuid,
@@ -68,7 +71,7 @@ export class CartController {
   @Post("user/item")
   async addProductToCart(
     @UserUuid() userUuid: string,
-    @Body() cartItem: CartItemDto,
+    @Body() cartItem: AddToCartDto,
   ) {
     return await this.cartOperationsService.addProductToCart(
       userUuid,
@@ -89,5 +92,35 @@ export class CartController {
   @Delete("clear-cart")
   async clearCart(@UserUuid() userUuid: string) {
     return await this.cartsService.clearCart(userUuid);
+  }
+
+  @Public()
+  @Post('session/add')
+  async addToSessionCart(
+    @Session() session: Record<string, any>,
+    @Body('productId') productId: number,
+    @Body('quantity') quantity: number,
+  ) {
+    const sessionId = session.id;
+    await this.sessionCartService.addToSessionCart(sessionId, productId, quantity);
+    return { message: 'Product added to cart' };
+  }
+
+  @Public()
+  @Delete('session/remove/:productId')
+  async removeFromSessionCart(
+    @Session() session: Record<string, any>,
+    @Param('productId') productId: number,
+  ) {
+    const sessionId = session.id;
+    await this.sessionCartService.removeFromSessionCart(sessionId, productId);
+    return { message: 'Product removed from cart' };
+  }
+
+  @Public()
+  @Get('session')
+  async getSessionCart(@Session() session: Record<string, any>) {
+    const sessionId = session.id;
+    return this.sessionCartService.getSessionCart(sessionId);
   }
 }
