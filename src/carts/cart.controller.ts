@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Session,
+  Headers
 } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { CartOperationsService } from "./services/cart-operations.service";
@@ -26,14 +27,14 @@ export class CartController {
     private readonly sessionCartService: SessionCartService
   ) { }
 
-  @Public()
-  @SkipThrottle()
-  @Post("local")
-  async getLocalCartInformation(@Body() localCartDto: AddToCartDto[]) {
-    return await this.localCartService.getLocalCartInformation(localCartDto);
-  }
+  // @Public()
+  // @SkipThrottle()
+  // @Post("local")
+  // async getLocalCartInformation(@Body() localCartDto: AddToCartDto[]) {
+  //   return await this.localCartService.getLocalCartInformation(localCartDto);
+  // }
 
-  @Get("user")
+  @Get()
   async getUserCart(@UserUuid() userUuid: string) {
     return await this.cartsService.getUserCart(userUuid);
   }
@@ -95,15 +96,28 @@ export class CartController {
   }
 
   @Public()
-  @Post('session/add')
+  @Get('session')
+  async getSessionCart(@Session() session: Record<string, any>, @Headers() headers) {
+    // console.log('Session data:', session);
+    // console.log('Cookies:', headers.cookie);
+    const sessionId = session.id;
+    // console.log("Session ID:", sessionId);
+    return this.sessionCartService.getSessionCart(sessionId);
+  }
+
+  @Public()
+  @Post('session')
   async addToSessionCart(
     @Session() session: Record<string, any>,
     @Body('productId') productId: number,
     @Body('quantity') quantity: number,
+    @Headers() headers
   ) {
+    // console.log('Session data:', session);
+    // console.log('Cookies:', headers.cookie);
     const sessionId = session.id;
-    await this.sessionCartService.addToSessionCart(sessionId, productId, quantity);
-    return { message: 'Product added to cart' };
+    console.log("Session ID:", sessionId);
+    return await this.sessionCartService.addToSessionCart(sessionId, productId, quantity);
   }
 
   @Public()
@@ -115,12 +129,5 @@ export class CartController {
     const sessionId = session.id;
     await this.sessionCartService.removeFromSessionCart(sessionId, productId);
     return { message: 'Product removed from cart' };
-  }
-
-  @Public()
-  @Get('session')
-  async getSessionCart(@Session() session: Record<string, any>) {
-    const sessionId = session.id;
-    return this.sessionCartService.getSessionCart(sessionId);
   }
 }

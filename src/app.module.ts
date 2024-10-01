@@ -53,12 +53,12 @@ import { SessionMiddleware } from "./common/middleware/session.middleware";
   ],
 })
 
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(SessionMiddleware)
-      .forRoutes(
-        { path: 'cart/session', method: RequestMethod.ALL },
-      );
-  }
+export class AppModule {
+  // configure(consumer: MiddlewareConsumer) {
+  //   consumer
+  //     .apply(SessionMiddleware)
+  //     .forRoutes(
+  //       { path: 'cart/session', method: RequestMethod.ALL },
+  //     );
+  // }
 }
