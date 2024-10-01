@@ -14,7 +14,7 @@ import { TopProduct } from "../types/top-product.type";
 import { ProductDetails } from "../types/product-details.type";
 import { SuggestedProducts } from "../types/suggested-products.type";
 
-@Controller("products")
+@Controller("product")
 export class ProductController {
   constructor(private productService: ProductService) { }
 

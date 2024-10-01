@@ -7,13 +7,12 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { CreateReviewDto } from "../dtos/create-review.dto";
-import { AtGuard } from "src/common/guards/at.guard";
 import { Public } from "src/common/decorators/public.decorator";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { ReviewService } from "../services/review.service";
 import { ProductReviewsResponse } from "../types/product-reviews-response.type";
 
-@Controller("reviews")
+@Controller("review")
 export class ReviewController {
   constructor(private reviewService: ReviewService) { }
 

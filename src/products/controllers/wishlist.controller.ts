@@ -1,8 +1,7 @@
-import { Controller, Get, Param, ParseIntPipe, Patch, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, ParseIntPipe, Patch } from "@nestjs/common";
 import { WishlistService } from "../services/wishlist.service";
 import { SkipThrottle } from "@nestjs/throttler";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
-import { AtGuard } from "src/common/guards/at.guard";
 import { WishlistItem } from "../types/wishlist-product.type";
 import { WishlistToggleResult } from "../types/wishlist-toggle-result.type";
 
