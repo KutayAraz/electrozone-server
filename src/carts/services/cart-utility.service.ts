@@ -46,4 +46,21 @@ export class CartUtilityService {
             .where("cartItem.cartId = :cartId", { cartId })
             .getMany();
     }
+
+    async getSessionCartItems(sessionCartId: number, transactionManager: EntityManager) {
+        return transactionManager
+            .createQueryBuilder(CartItem, "cartItem")
+            .select([
+                "cartItem.id", "cartItem.quantity", "cartItem.amount", "cartItem.addedPrice",
+                "product.productName", "product.averageRating", "product.thumbnail",
+                "product.price", "product.id", "product.stock",
+                "subcategory.subcategory", "category.category",
+            ])
+            // .innerJoin("cartItem.sessionCart", "sessionCart")
+            .innerJoin("cartItem.product", "product")
+            .innerJoin("product.subcategory", "subcategory")
+            .innerJoin("subcategory.category", "category")
+            .where("cartItem.sessionCartId = :sessionCartId", { sessionCartId })
+            .getMany();
+    }
 }

@@ -6,18 +6,27 @@ import { CartItem } from "src/entities/CartItem.entity";
 import { QuantityChange } from "../types/quantity-change.type";
 import { FormattedCartItem } from "../types/formatted-cart-product.type";
 import { CartUtilityService } from "./cart-utility.service";
+import { CartIdentifier } from "../types/cart-identifier.type";
 
 @Injectable()
 export class CartItemService {
     constructor(private readonly cartUtilityService: CartUtilityService) { }
 
-    async fetchAndUpdateCartItems(cartId: number, transactionManager: EntityManager): Promise<{
+    async fetchAndUpdateCartItems(transactionManager: EntityManager, cartIdentifier: CartIdentifier): Promise<{
         cartItems: FormattedCartItem[],
         removedCartItems: string[],
         priceChanges: PriceChange[],
         quantityChanges: QuantityChange[]
     }> {
-        const cartItems = await this.cartUtilityService.getCartItems(cartId, transactionManager);
+        let cartItems: CartItem[];
+
+        if ('cartId' in cartIdentifier) {
+            cartItems = await this.cartUtilityService.getCartItems(cartIdentifier.cartId, transactionManager);
+        } else if ('sessionCartId' in cartIdentifier) {
+            cartItems = await this.cartUtilityService.getSessionCartItems(cartIdentifier.sessionCartId, transactionManager);
+        } else {
+            throw new Error('Invalid cart identifier provided');
+        }
 
         const formattedCartItems: FormattedCartItem[] = [];
         const removedCartItems: string[] = [];

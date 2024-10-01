@@ -4,9 +4,10 @@ import { CommonValidationService } from 'src/common/services/common-validation.s
 import { CartItem } from 'src/entities/CartItem.entity';
 import { Product } from 'src/entities/Product.entity';
 import { SessionCart } from 'src/entities/SessionCart.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { QuantityChange } from '../types/quantity-change.type';
 import { ErrorType } from 'src/common/errors/error-type';
+import { CartItemService } from './cart-item.service';
 
 @Injectable()
 export class SessionCartService {
@@ -18,15 +19,19 @@ export class SessionCartService {
         @InjectRepository(Product)
         private productRepository: Repository<Product>,
         private readonly commonValidationService: CommonValidationService,
-        private readonly dataSource: DataSource
+        private readonly cartItemService: CartItemService,
+        private readonly dataSource: DataSource,
     ) { }
 
-    async getOrCreateSessionCart(sessionId: string): Promise<SessionCart> {
+    async findOrCreateSessionCart(sessionId: string, transactionManager: EntityManager): Promise<SessionCart> {
         let sessionCart = await this.sessionCartRepository.findOne({ where: { sessionId } });
         if (!sessionCart) {
             sessionCart = this.sessionCartRepository.create({ sessionId });
+            console.log("no session cart found")
             await this.sessionCartRepository.save(sessionCart);
         }
+        console.log("sessioncart is ", sessionCart)
+
         return sessionCart;
     }
 
@@ -37,7 +42,7 @@ export class SessionCartService {
         this.commonValidationService.validateQuantity(quantity);
 
         return this.dataSource.transaction(async (transactionalEntityManager) => {
-            const sessionCart = await this.getOrCreateSessionCart(sessionId);
+            const sessionCart = await this.findOrCreateSessionCart(sessionId, transactionalEntityManager);
             const product = await this.productRepository.findOne({ where: { id: productId } });
 
             this.commonValidationService.validateProduct(product);
@@ -86,12 +91,14 @@ export class SessionCartService {
     }
 
     async removeFromSessionCart(sessionId: string, productId: number): Promise<void> {
-        const sessionCart = await this.getOrCreateSessionCart(sessionId);
-        await this.cartItemRepository.delete({
-            sessionCart: { id: sessionCart.id },
-            product: { id: productId },
-        });
-        await this.updateSessionCartTotals(sessionCart.id);
+        return this.dataSource.transaction(async (transactionalEntityManager) => {
+            const sessionCart = await this.findOrCreateSessionCart(sessionId, transactionalEntityManager);
+            await this.cartItemRepository.delete({
+                sessionCart: { id: sessionCart.id },
+                product: { id: productId },
+            });
+            await this.updateSessionCartTotals(sessionCart.id);
+        })
     }
 
     async updateSessionCartTotals(sessionCartId: number): Promise<void> {
@@ -107,10 +114,30 @@ export class SessionCartService {
         }
     }
 
-    async getSessionCart(sessionId: string): Promise<SessionCart | null> {
-        return this.sessionCartRepository.findOne({
-            where: { sessionId },
-            relations: ['cartItems', 'cartItems.product'],
+    async getSessionCart(sessionId: string, transactionalEntityManager?: EntityManager) {
+        const manager = transactionalEntityManager || this.dataSource.manager;
+
+        return manager.transaction(async (transactionManager) => {
+            let cart = await this.findOrCreateSessionCart(sessionId, transactionManager);
+            console.log("cart id is ", cart.id)
+            const { cartItems, removedCartItems, priceChanges, quantityChanges } =
+                await this.cartItemService.fetchAndUpdateCartItems(transactionManager, {sessionCartId: cart.id});
+
+            // Recalculate cart total and quantity
+            const cartTotal = cartItems.reduce((total, product) => total + product.amount, 0);
+            const totalQuantity = cartItems.reduce((total, product) => total + product.quantity, 0);
+
+            // Update cart in database
+            await transactionManager.update(SessionCart, cart.id, { cartTotal, totalQuantity });
+
+            return {
+                cartTotal,
+                totalQuantity,
+                cartItems,
+                removedCartItems,
+                priceChanges,
+                quantityChanges,
+            };
         });
     }
 }

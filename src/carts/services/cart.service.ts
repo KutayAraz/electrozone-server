@@ -24,7 +24,7 @@ export class CartService {
             let cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
 
             const { cartItems, removedCartItems, priceChanges, quantityChanges } =
-                await this.cartItemService.fetchAndUpdateCartItems(cart.id, transactionManager);
+                await this.cartItemService.fetchAndUpdateCartItems(transactionManager, { cartId: cart.id });
 
             // Recalculate cart total and quantity
             const cartTotal = cartItems.reduce((total, product) => total + product.amount, 0);
