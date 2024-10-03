@@ -8,6 +8,10 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { QuantityChange } from '../types/quantity-change.type';
 import { ErrorType } from 'src/common/errors/error-type';
 import { CartItemService } from './cart-item.service';
+import { AddToCartDto } from '../dtos/add-to-cart';
+import { CartUtilityService } from './cart-utility.service';
+import { CartOperationsService } from './cart-operations.service';
+import { CartService } from './cart.service';
 
 @Injectable()
 export class SessionCartService {
@@ -20,22 +24,66 @@ export class SessionCartService {
         private productRepository: Repository<Product>,
         private readonly commonValidationService: CommonValidationService,
         private readonly cartItemService: CartItemService,
+        private readonly cartUtilityService: CartUtilityService,
+        private readonly cartOperationsService: CartOperationsService,
+        private readonly cartService: CartService,
         private readonly dataSource: DataSource,
     ) { }
 
     async findOrCreateSessionCart(sessionId: string, transactionManager: EntityManager): Promise<SessionCart> {
-        let sessionCart = await this.sessionCartRepository.findOne({ where: { sessionId } });
-        if (!sessionCart) {
-            sessionCart = this.sessionCartRepository.create({ sessionId });
-            console.log("no session cart found")
-            await this.sessionCartRepository.save(sessionCart);
-        }
-        console.log("sessioncart is ", sessionCart)
+        const sessionCart = await transactionManager.findOne(SessionCart, { where: { sessionId } });
 
-        return sessionCart;
+        if (sessionCart) return sessionCart;
+
+        const newSessionCart = transactionManager.create(SessionCart, { sessionId });
+        await this.sessionCartRepository.save(newSessionCart);
+
+        return await transactionManager.save(newSessionCart)
     }
 
-    async addToSessionCart(sessionId: string, productId: number, quantity: number): Promise<{
+    async updateCartItemQuantity(
+        sessionId: string,
+        productId: number,
+        quantity: number,
+        transactionalEntityManager?: EntityManager
+    ) {
+        this.commonValidationService.validateQuantity(quantity)
+
+        const manager = transactionalEntityManager || this.dataSource.manager;
+
+        return manager.transaction(async (transactionManager) => {
+            const [cart, cartItem] = await Promise.all([
+                this.findOrCreateSessionCart(sessionId, transactionManager),
+                transactionManager.findOne(CartItem, {
+                    where: { sessionCart: { sessionId }, product: { id: productId } },
+                    relations: ["product"],
+                })
+            ]);
+
+            if (cartItem) {
+                this.commonValidationService.validateStockAvailability(cartItem.product, quantity)
+
+                const oldQuantity = cartItem.quantity;
+                const oldAmount = oldQuantity * cartItem.product.price;
+                const newAmount = quantity * cartItem.product.price;
+
+                cartItem.quantity = quantity;
+                cartItem.amount = newAmount;
+
+                cart.totalQuantity += quantity - oldQuantity;
+                cart.cartTotal = Number(cart.cartTotal) + Number(newAmount) - Number(oldAmount);
+
+                await transactionManager.save(cartItem);
+                await transactionManager.save(cart);
+
+                return await this.getSessionCart(sessionId, transactionManager);
+            } else {
+                return await this.addToSessionCart(sessionId, productId, quantity, transactionManager);
+            }
+        });
+    }
+
+    async addToSessionCart(sessionId: string, productId: number, quantity: number, transactionalEntityManager?: EntityManager): Promise<{
         cart: SessionCart,
         quantityChanges: QuantityChange[]
     }> {
@@ -121,7 +169,7 @@ export class SessionCartService {
             let cart = await this.findOrCreateSessionCart(sessionId, transactionManager);
             console.log("cart id is ", cart.id)
             const { cartItems, removedCartItems, priceChanges, quantityChanges } =
-                await this.cartItemService.fetchAndUpdateCartItems(transactionManager, {sessionCartId: cart.id});
+                await this.cartItemService.fetchAndUpdateCartItems(transactionManager, { sessionCartId: cart.id });
 
             // Recalculate cart total and quantity
             const cartTotal = cartItems.reduce((total, product) => total + product.amount, 0);
@@ -138,6 +186,41 @@ export class SessionCartService {
                 priceChanges,
                 quantityChanges,
             };
+        });
+    }
+
+    async mergeLocalWithBackendCart(sessionId: string, userUuid: string) {
+        return this.dataSource.transaction(async transactionalEntityManager => {
+            const sessionCart = await this.findOrCreateSessionCart(sessionId, transactionalEntityManager);
+            const userCart = await this.cartUtilityService.findOrCreateCart(sessionId, transactionalEntityManager);
+
+            const existingItemsMap = new Map<number, CartItem>();
+            userCart.cartItems.forEach((item) => {
+                existingItemsMap.set(item.product.id, item);
+            });
+
+            for (const sessionCartItem of sessionCart.cartItems) {
+                const existingProduct = existingItemsMap.get(sessionCartItem.id);
+
+                if (existingProduct) {
+                    const newQuantity = sessionCartItem.quantity + existingProduct.quantity;
+                    await this.cartOperationsService.updateCartItemQuantity(
+                        userUuid,
+                        sessionCartItem.id,
+                        newQuantity,
+                        transactionalEntityManager
+                    );
+                } else {
+                    await this.cartOperationsService.addProductToCart(
+                        userUuid,
+                        sessionCartItem.id,
+                        sessionCartItem.quantity,
+                        transactionalEntityManager
+                    );
+                }
+            }
+
+            return await this.cartService.getUserCart(userUuid, transactionalEntityManager);
         });
     }
 }

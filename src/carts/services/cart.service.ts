@@ -1,15 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
-import { DataSource, EntityManager } from "typeorm";
+import { DataSource, EntityManager, Repository } from "typeorm";
 import { CartItemService } from "./cart-item.service";
 import { CartResponse } from "../types/cart-response.type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { CartUtilityService } from "./cart-utility.service";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Product } from "src/entities/Product.entity";
 
 @Injectable()
 export class CartService {
     constructor(
+        @InjectRepository(Product)
+        private productRepository: Repository<Product>,
         private readonly cartItemService: CartItemService,
         private readonly cartUtilityService: CartUtilityService,
         private readonly commonValidationService: CommonValidationService,
@@ -66,6 +70,38 @@ export class CartService {
             return this.getUserCart(userUuid, transactionalEntityManager);
         });
     }
+
+    // async getBuyNowCartInfo(productId: number, quantity: number, addedPrice: number) {
+    //     this.commonValidationService.validateQuantity(quantity)
+
+    //     const foundProduct = await this.productRepository.findOne({
+    //         where: { id: productId },
+    //         relations: ["subcategory", "subcategory.category"],
+    //     });
+
+    //     this.commonValidationService.validateProduct(foundProduct)
+    //     this.commonValidationService.validateStockAvailability(foundProduct, quantity)
+    //     this.commonValidationService.validatePrice(foundProduct, addedPrice)
+
+    //     const amount = Number((foundProduct.price * quantity).toFixed(2));
+    //     const cartTotal = amount;
+    //     const totalQuantity = quantity;
+
+    //     const product = {
+    //         id: foundProduct.id,
+    //         quantity: totalQuantity,
+    //         amount,
+    //         productName: foundProduct.productName,
+    //         thumbnail: foundProduct.thumbnail,
+    //         price: foundProduct.price,
+    //         brand: foundProduct.brand,
+    //         subcategory: foundProduct.subcategory.subcategory,
+    //         category: foundProduct.subcategory.category.category,
+    //         availableStock: foundProduct.stock,
+    //     };
+
+    //     return { cartTotal, totalQuantity, products: [product] };
+    // }
 
     async clearCart(userUuid: string) {
         return this.dataSource.transaction(async transactionalEntityManager => {
