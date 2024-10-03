@@ -9,7 +9,6 @@ import { CartOperationsService } from './services/cart-operations.service';
 import { CartService } from './services/cart.service';
 import { CartUtilityService } from './services/cart-utility.service';
 import { CartItemService } from './services/cart-item.service';
-import { LocalCartService } from './services/local-cart.service';
 import { CommonValidationService } from 'src/common/services/common-validation.service';
 import { SessionCartService } from './services/session-cart.service';
 import { SessionCart } from 'src/entities/SessionCart.entity';
@@ -22,7 +21,6 @@ import { SessionCart } from 'src/entities/SessionCart.entity';
     CartUtilityService,
     CartItemService,
     CartOperationsService,
-    LocalCartService,
     CommonValidationService,
     SessionCartService
   ],

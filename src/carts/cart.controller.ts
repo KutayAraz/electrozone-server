@@ -12,7 +12,6 @@ import {
 import { SkipThrottle } from "@nestjs/throttler";
 import { CartOperationsService } from "./services/cart-operations.service";
 import { CartService } from "./services/cart.service";
-import { LocalCartService } from "./services/local-cart.service";
 import { Public } from "src/common/decorators/public.decorator";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { SessionCartService } from "./services/session-cart.service";
@@ -23,7 +22,6 @@ export class CartController {
   constructor(
     private readonly cartOperationsService: CartOperationsService,
     private readonly cartsService: CartService,
-    private readonly localCartService: LocalCartService,
     private readonly sessionCartService: SessionCartService
   ) { }
 
@@ -39,20 +37,20 @@ export class CartController {
     return await this.cartsService.getUserCart(userUuid);
   }
 
-  @Post("buy-now")
-  async getBuyNowCartInfo(@Body() cartItem: AddToCartDto) {
-    return await this.localCartService.getBuyNowCartInfo(
-      cartItem.productId,
-      cartItem.quantity,
-    );
-  }
+  // @Post("buy-now")
+  // async getBuyNowCartInfo(@Body() cartItem: AddToCartDto) {
+  //   return await this.cartsService.getBuyNowCartInfo(
+  //     cartItem.productId,
+  //     cartItem.quantity,
+  //   );
+  // }
 
-  @Patch("merge-carts")
+  @Patch("merge")
   async mergeCarts(
     @UserUuid() userUuid: string,
-    @Body() cartItems: AddToCartDto[],
+    @Session() session: Record<string, any>
   ) {
-    return await this.localCartService.mergeLocalWithBackendCart(userUuid, cartItems);
+    return await this.sessionCartService.mergeLocalWithBackendCart(userUuid, session.id);
   }
 
   @SkipThrottle()
