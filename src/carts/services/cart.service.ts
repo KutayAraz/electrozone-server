@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
-import { DataSource, EntityManager, Repository } from "typeorm";
+import { DataSource, EntityManager } from "typeorm";
 import { CartItemService } from "./cart-item.service";
 import { CartResponse } from "../types/cart-response.type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
@@ -13,7 +13,6 @@ import { Product } from "src/entities/Product.entity";
 export class CartService {
     constructor(
         @InjectRepository(Product)
-        private productRepository: Repository<Product>,
         private readonly cartItemService: CartItemService,
         private readonly cartUtilityService: CartUtilityService,
         private readonly commonValidationService: CommonValidationService,
@@ -71,6 +70,18 @@ export class CartService {
         });
     }
 
+    async clearCart(userUuid: string) {
+        return this.dataSource.transaction(async transactionalEntityManager => {
+            const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionalEntityManager);
+
+            cart.cartTotal = 0;
+            cart.totalQuantity = 0;
+            cart.cartItems = [];
+
+            await transactionalEntityManager.save(cart);
+        });
+    }
+
     // async getBuyNowCartInfo(productId: number, quantity: number, addedPrice: number) {
     //     this.commonValidationService.validateQuantity(quantity)
 
@@ -102,16 +113,4 @@ export class CartService {
 
     //     return { cartTotal, totalQuantity, products: [product] };
     // }
-
-    async clearCart(userUuid: string) {
-        return this.dataSource.transaction(async transactionalEntityManager => {
-            const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionalEntityManager);
-
-            cart.cartTotal = 0;
-            cart.totalQuantity = 0;
-            cart.cartItems = [];
-
-            await transactionalEntityManager.save(cart);
-        });
-    }
 }

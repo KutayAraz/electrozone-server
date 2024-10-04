@@ -4,6 +4,7 @@ import { CartItem } from "src/entities/CartItem.entity";
 import { User } from "src/entities/User.entity";
 import { EntityManager } from "typeorm";
 import { CommonValidationService } from "src/common/services/common-validation.service";
+import { FormattedCartItem } from "../types/formatted-cart-product.type";
 
 @Injectable()
 export class CartUtilityService {
@@ -30,9 +31,9 @@ export class CartUtilityService {
         });
         return await transactionManager.save(newCart);
     }
-    
-    async getCartItems(cartId: number, transactionManager: EntityManager) {
-        return transactionManager
+
+    async getCartItems(cartId: number, isSessionCart: boolean, transactionManager: EntityManager) {
+        const queryBuilder = transactionManager
             .createQueryBuilder(CartItem, "cartItem")
             .select([
                 "cartItem.id", "cartItem.quantity", "cartItem.amount", "cartItem.addedPrice",
@@ -42,25 +43,29 @@ export class CartUtilityService {
             ])
             .innerJoin("cartItem.product", "product")
             .innerJoin("product.subcategory", "subcategory")
-            .innerJoin("subcategory.category", "category")
-            .where("cartItem.cartId = :cartId", { cartId })
-            .getMany();
+            .innerJoin("subcategory.category", "category");
+
+        if (isSessionCart) {
+            queryBuilder.where("cartItem.sessionCartId = :cartId", { cartId });
+        } else {
+            queryBuilder.where("cartItem.cartId = :cartId", { cartId });
+        }
+
+        return queryBuilder.getMany();
     }
 
-    async getSessionCartItems(sessionCartId: number, transactionManager: EntityManager) {
-        return transactionManager
-            .createQueryBuilder(CartItem, "cartItem")
-            .select([
-                "cartItem.id", "cartItem.quantity", "cartItem.amount", "cartItem.addedPrice",
-                "product.productName", "product.averageRating", "product.thumbnail",
-                "product.price", "product.id", "product.stock",
-                "subcategory.subcategory", "category.category",
-            ])
-            // .innerJoin("cartItem.sessionCart", "sessionCart")
-            .innerJoin("cartItem.product", "product")
-            .innerJoin("product.subcategory", "subcategory")
-            .innerJoin("subcategory.category", "category")
-            .where("cartItem.sessionCartId = :sessionCartId", { sessionCartId })
-            .getMany();
+    formatCartItem(item: CartItem): FormattedCartItem {
+        return {
+            cartItemId: item.id,
+            quantity: item.quantity,
+            amount: item.product.price * item.quantity,
+            id: item.product.id,
+            productName: item.product.productName,
+            avgRating: item.product.averageRating,
+            thumbnail: item.product.thumbnail,
+            price: item.product.price,
+            subcategory: item.product.subcategory.subcategory,
+            category: item.product.subcategory.category.category,
+        };
     }
 }

@@ -21,9 +21,9 @@ export class CartItemService {
         let cartItems: CartItem[];
 
         if ('cartId' in cartIdentifier) {
-            cartItems = await this.cartUtilityService.getCartItems(cartIdentifier.cartId, transactionManager);
+            cartItems = await this.cartUtilityService.getCartItems(cartIdentifier.cartId, false, transactionManager);
         } else if ('sessionCartId' in cartIdentifier) {
-            cartItems = await this.cartUtilityService.getSessionCartItems(cartIdentifier.sessionCartId, transactionManager);
+            cartItems = await this.cartUtilityService.getCartItems(cartIdentifier.sessionCartId, true, transactionManager);
         } else {
             throw new Error('Invalid cart identifier provided');
         }
@@ -38,7 +38,7 @@ export class CartItemService {
                 const { updatedCartItem, quantityChange, priceChange } =
                     await this.updateCartItem(cartItem, transactionManager);
 
-                formattedCartItems.push(this.formatCartItem(updatedCartItem));
+                formattedCartItems.push(this.cartUtilityService.formatCartItem(updatedCartItem));
                 if (quantityChange) quantityChanges.push(quantityChange);
                 if (priceChange) priceChanges.push(priceChange);
             } else {
@@ -86,20 +86,4 @@ export class CartItemService {
 
         return { updatedCartItem: { ...cartItem, quantity, addedPrice: currentPrice }, quantityChange, priceChange };
     }
-
-    formatCartItem(item: CartItem): FormattedCartItem {
-        return {
-            cartItemId: item.id,
-            quantity: item.quantity,
-            amount: item.product.price * item.quantity,
-            id: item.product.id,
-            productName: item.product.productName,
-            avgRating: item.product.averageRating,
-            thumbnail: item.product.thumbnail,
-            price: item.product.price,
-            subcategory: item.product.subcategory.subcategory,
-            category: item.product.subcategory.category.category,
-        };
-    }
-
 }
