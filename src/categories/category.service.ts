@@ -18,11 +18,13 @@ export class CategoryService {
     return this.categoriesRepo.find();
   }
 
+  // Fetches subcategories and their top products for a given category
   async getCategoryInformation(category: string): Promise<SubcategoryTopProducts[]> {
     const subcategories = await this.getSubcategories(category);
     return this.getTopProductsForSubcategories(subcategories);
   }
 
+  // Retrieves subcategories for a given category using a custom query
   async getSubcategories(category: string): Promise<string[]> {
     const subcategories = await this.subcategoriesRepo
       .createQueryBuilder("subcategory")
@@ -34,6 +36,7 @@ export class CategoryService {
     return subcategories.map((sub) => sub.subcategory);
   }
 
+  // Fetches top selling and wishlisted products for each subcategory
   private async getTopProductsForSubcategories(subcategories: string[]): Promise<SubcategoryTopProducts[]> {
     const topProductsPromises = subcategories.map(async (subcategory) => {
       const [topSelling, topWishlisted] = await Promise.all([

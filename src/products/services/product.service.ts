@@ -143,6 +143,7 @@ export class ProductService {
       'product.stock',
     ];
 
+    // Only add the orderBy field if it's not averageRating (which is already included)
     if (orderBy !== 'averageRating') {
       selectFields.push(`product.${orderBy}`);
     }
@@ -212,6 +213,7 @@ export class ProductService {
         new Brackets(qb => {
           searchWords.forEach((word, index) => {
             const likeKey = `likeSearch${index}`;
+            // Use the first 3 characters of the word if it's longer than 2 characters
             const fragment = word.length > 2 ? word.substring(0, 3) : word;
             qb.orWhere(`product.productName LIKE :${likeKey}`, { [likeKey]: `%${fragment}%` });
             qb.orWhere("product.brand LIKE :brandSearch", { brandSearch: `%${search}%` });

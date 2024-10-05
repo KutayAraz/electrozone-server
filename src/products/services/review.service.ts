@@ -21,6 +21,7 @@ export class ReviewService {
     private readonly dataSource: DataSource
   ) { }
 
+  // Retrieves reviews for a specific product with pagination
   async getProductReviews(
     productId: number,
     skip: number = 0,
@@ -48,6 +49,7 @@ export class ReviewService {
     // Get ratings distribution
     const ratingsCount = await this.getRatingsDistribution(productId);
 
+    // Transform reviews to hide full names
     const transformedReviews: TransformedReview[] = reviews.map(review => ({
       id: review.id,
       reviewDate: review.reviewDate,

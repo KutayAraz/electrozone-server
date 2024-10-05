@@ -18,6 +18,7 @@ export class WishlistService {
     ) { }
 
     async getUserWishlist(userUuid: string): Promise<WishlistItem[]> {
+        // Fetch wishlist items with related product, subcategory, and category information
         const userWishlist = await this.wishlistRepo.createQueryBuilder("wishlist")
             .innerJoin("wishlist.user", "user")
             .innerJoin("wishlist.product", "product")
@@ -25,6 +26,7 @@ export class WishlistService {
             .innerJoin("subcategory.category", "category")
             .where("user.uuid = :userUuid", { userUuid })
             .select([
+                // Select specific fields to avoid overfetching
                 "product.id",
                 "product.productName",
                 "product.brand",
@@ -37,6 +39,7 @@ export class WishlistService {
             ])
             .getRawMany();
 
+        // Map the raw query result to the WishlistItem type
         return userWishlist.map((wishlist) => {
             return {
                 id: wishlist.product_id,
@@ -53,6 +56,7 @@ export class WishlistService {
     }
 
     async checkWishlist(productId: number, userUuid: string): Promise<boolean> {
+        // Check if a product is in the user's wishlist
         const count = await this.wishlistRepo.count({
             where: {
                 product: { id: productId },
@@ -65,6 +69,7 @@ export class WishlistService {
 
     async toggleWishlist(productId: number, userUuid: string): Promise<WishlistToggleResult> {
         return this.dataSource.transaction(async (transactionalEntityManager) => {
+            // Fetch user and product concurrently for efficiency
             const [user, product] = await Promise.all([
                 transactionalEntityManager.findOne(User, {
                     where: { uuid: userUuid },
@@ -80,6 +85,7 @@ export class WishlistService {
                 throw new AppError(ErrorType.PRODUCT_NOT_FOUND, "Product not found");
             }
 
+            // Check if the product is already in the wishlist
             const wishlistProduct = await transactionalEntityManager.findOne(Wishlist, {
                 where: {
                     product: { id: productId },
@@ -90,10 +96,12 @@ export class WishlistService {
             let action: "added" | "removed";
 
             if (wishlistProduct) {
+                // Remove from wishlist if it exists
                 product.wishlisted--;
                 await transactionalEntityManager.remove(wishlistProduct);
                 action = "removed";
             } else {
+                // Add to wishlist if it doesn't exist
                 product.wishlisted++;
                 const newWishlistProduct = transactionalEntityManager.create(Wishlist, {
                     product,
@@ -103,6 +111,7 @@ export class WishlistService {
                 action = "added";
             }
 
+            // Update the product's wishlisted count
             await transactionalEntityManager.save(product);
 
             return {
@@ -111,5 +120,4 @@ export class WishlistService {
             };
         });
     }
-
 }
