@@ -5,6 +5,7 @@ import { User } from "src/entities/User.entity";
 import { EntityManager } from "typeorm";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { FormattedCartItem } from "../types/formatted-cart-product.type";
+import { SessionCart } from "src/entities/SessionCart.entity";
 
 @Injectable()
 export class CartUtilityService {
@@ -30,6 +31,19 @@ export class CartUtilityService {
             totalQuantity: 0,
         });
         return await transactionManager.save(newCart);
+    }
+
+    async findOrCreateSessionCart(sessionId: string, transactionManager: EntityManager): Promise<SessionCart> {
+        const sessionCart = await transactionManager.findOne(SessionCart, { where: { sessionId } });
+
+        if (sessionCart) return sessionCart;
+
+        const newSessionCart = transactionManager.create(SessionCart, {
+            sessionId,
+            cartTotal: 0,
+            totalQuantity: 0
+        });
+        return await transactionManager.save(newSessionCart);
     }
 
     async getCartItems(cartId: number, isSessionCart: boolean, transactionManager: EntityManager) {
