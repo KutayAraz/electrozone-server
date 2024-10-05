@@ -7,10 +7,8 @@ import {
   Patch,
   Post,
   Session,
-  Headers
 } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
-import { CartOperationsService } from "./services/cart-operations.service";
 import { CartService } from "./services/cart.service";
 import { Public } from "src/common/decorators/public.decorator";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
@@ -20,50 +18,14 @@ import { AddToCartDto } from "./dtos/add-to-cart";
 @Controller("cart")
 export class CartController {
   constructor(
-    private readonly cartOperationsService: CartOperationsService,
     private readonly cartsService: CartService,
     private readonly sessionCartService: SessionCartService
-  ) { }
+  ) {}
 
-  // @Public()
-  // @SkipThrottle()
-  // @Post("local")
-  // async getLocalCartInformation(@Body() localCartDto: AddToCartDto[]) {
-  //   return await this.localCartService.getLocalCartInformation(localCartDto);
-  // }
-
+  // User Cart Operations
   @Get()
   async getUserCart(@UserUuid() userUuid: string) {
     return await this.cartsService.getUserCart(userUuid);
-  }
-
-  // @Post("buy-now")
-  // async getBuyNowCartInfo(@Body() cartItem: AddToCartDto) {
-  //   return await this.cartsService.getBuyNowCartInfo(
-  //     cartItem.productId,
-  //     cartItem.quantity,
-  //   );
-  // }
-
-  @Patch("merge")
-  async mergeCarts(
-    @UserUuid() userUuid: string,
-    @Session() session: Record<string, any>
-  ) {
-    return await this.sessionCartService.mergeLocalWithBackendCart(userUuid, session.id);
-  }
-
-  @SkipThrottle()
-  @Patch("user/item")
-  async updateItemQuantity(
-    @UserUuid() userUuid: string,
-    @Body() cartItem: AddToCartDto,
-  ) {
-    return await this.cartOperationsService.updateCartItemQuantity(
-      userUuid,
-      cartItem.productId,
-      cartItem.quantity,
-    );
   }
 
   @SkipThrottle()
@@ -72,7 +34,20 @@ export class CartController {
     @UserUuid() userUuid: string,
     @Body() cartItem: AddToCartDto,
   ) {
-    return await this.cartOperationsService.addProductToCart(
+    return await this.cartsService.addProductToCart(
+      userUuid,
+      cartItem.productId,
+      cartItem.quantity,
+    );
+  }
+
+  @SkipThrottle()
+  @Patch("user/item")
+  async updateItemQuantity(
+    @UserUuid() userUuid: string,
+    @Body() cartItem: AddToCartDto,
+  ) {
+    return await this.cartsService.updateCartItemQuantity(
       userUuid,
       cartItem.productId,
       cartItem.quantity,
@@ -88,44 +63,50 @@ export class CartController {
     return await this.cartsService.removeCartItem(userUuid, productId);
   }
 
-  @Delete("clear-cart")
+  @Delete("user/clear")
   async clearCart(@UserUuid() userUuid: string) {
     return await this.cartsService.clearCart(userUuid);
   }
 
+  // Session Cart Operations
   @Public()
   @Get('session')
-  async getSessionCart(@Session() session: Record<string, any>, @Headers() headers) {
-    // console.log('Session data:', session);
-    // console.log('Cookies:', headers.cookie);
-    const sessionId = session.id;
-    // console.log("Session ID:", sessionId);
-    return this.sessionCartService.getSessionCart(sessionId);
+  async getSessionCart(@Session() session: Record<string, any>) {
+    return this.sessionCartService.getSessionCart(session.id);
   }
 
   @Public()
   @Post('session')
   async addToSessionCart(
     @Session() session: Record<string, any>,
-    @Body('productId') productId: number,
-    @Body('quantity') quantity: number,
-    @Headers() headers
+    @Body() cartItem: AddToCartDto,
   ) {
-    // console.log('Session data:', session);
-    // console.log('Cookies:', headers.cookie);
-    const sessionId = session.id;
-    console.log("Session ID:", sessionId);
-    return await this.sessionCartService.addToSessionCart(sessionId, productId, quantity);
+    return await this.sessionCartService.addToSessionCart(session.id, cartItem.productId, cartItem.quantity);
   }
 
   @Public()
-  @Delete('session/remove/:productId')
+  @Delete('session/item/:productId')
   async removeFromSessionCart(
     @Session() session: Record<string, any>,
     @Param('productId') productId: number,
   ) {
-    const sessionId = session.id;
-    await this.sessionCartService.removeFromSessionCart(sessionId, productId);
-    return { message: 'Product removed from cart' };
+    return await this.sessionCartService.removeFromSessionCart(session.id, productId);
+  }
+
+  @Public()
+  @Delete('session/clear')
+  async clearSessionCart(
+    @Session() session: Record<string, any>,
+  ) {
+    return await this.sessionCartService.clearSessionCart(session.id);
+  }
+
+  // Merge Carts
+  @Patch("merge")
+  async mergeCarts(
+    @UserUuid() userUuid: string,
+    @Session() session: Record<string, any>
+  ) {
+    return await this.sessionCartService.mergeCarts(userUuid, session.id);
   }
 }
