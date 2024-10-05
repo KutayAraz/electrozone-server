@@ -5,7 +5,6 @@ import { Cart } from 'src/entities/Cart.entity';
 import { CartItem } from 'src/entities/CartItem.entity';
 import { User } from 'src/entities/User.entity';
 import { Product } from 'src/entities/Product.entity';
-import { CartOperationsService } from './services/cart-operations.service';
 import { CartService } from './services/cart.service';
 import { CartUtilityService } from './services/cart-utility.service';
 import { CartItemService } from './services/cart-item.service';
@@ -20,7 +19,6 @@ import { SessionCart } from 'src/entities/SessionCart.entity';
     CartService,
     CartUtilityService,
     CartItemService,
-    CartOperationsService,
     CommonValidationService,
     SessionCartService
   ],
