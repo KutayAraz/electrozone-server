@@ -4,7 +4,7 @@ import { Category } from "src/entities/Category.entity";
 import { CategoryInfo } from "./types/category-info.type";
 import { Public } from "src/common/decorators/public.decorator";
 
-@Controller("categories")
+@Controller("category")
 export class CategoryController {
   constructor(private categoriesService: CategoryService) { }
 

@@ -3,9 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  UpdateDateColumn,
 } from "typeorm";
 import { Cart } from "./Cart.entity";
 import { Product } from "./Product.entity";
+import { SessionCart } from "./SessionCart.entity";
 
 @Entity({ name: "cart_items" })
 export class CartItem {
@@ -24,6 +26,12 @@ export class CartItem {
   @ManyToOne(() => Product, (product) => product.cartItems)
   product: Product;
 
-  @ManyToOne(() => Cart, (cart) => cart.cartItems)
+  @ManyToOne(() => Cart, (cart) => cart.cartItems, { nullable: true })
   cart: Cart;
+
+  @ManyToOne(() => SessionCart, (sessionCart) => sessionCart.cartItems, { nullable: true })
+  sessionCart: SessionCart;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

@@ -6,58 +6,35 @@ import {
   Param,
   Patch,
   Post,
+  Session,
 } from "@nestjs/common";
-import { CartItemDto } from "./dtos/cart-item.dto";
 import { SkipThrottle } from "@nestjs/throttler";
-import { CartOperationsService } from "./services/cart-operations.service";
 import { CartService } from "./services/cart.service";
-import { LocalCartService } from "./services/local-cart.service";
 import { Public } from "src/common/decorators/public.decorator";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { SessionCartService } from "./services/session-cart.service";
+import { AddToCartDto } from "./dtos/add-to-cart";
 
-@Controller("carts")
+@Controller("cart")
 export class CartController {
   constructor(
-    private readonly cartOperationsService: CartOperationsService,
     private readonly cartsService: CartService,
-    private readonly localCartService: LocalCartService
-  ) { }
+    private readonly sessionCartService: SessionCartService
+  ) {}
 
-  @Public()
-  @SkipThrottle()
-  @Post("local")
-  async getLocalCartInformation(@Body() localCartDto: CartItemDto[]) {
-    return await this.localCartService.getLocalCartInformation(localCartDto);
-  }
-
-  @Get("user")
+  // User Cart Operations
+  @Get()
   async getUserCart(@UserUuid() userUuid: string) {
     return await this.cartsService.getUserCart(userUuid);
   }
 
-  @Post("buy-now")
-  async getBuyNowCartInfo(@Body() cartItem: CartItemDto) {
-    return await this.localCartService.getBuyNowCartInfo(
-      cartItem.productId,
-      cartItem.quantity,
-    );
-  }
-
-  @Patch("merge-carts")
-  async mergeCarts(
-    @UserUuid() userUuid: string,
-    @Body() cartItems: CartItemDto[],
-  ) {
-    return await this.localCartService.mergeLocalWithBackendCart(userUuid, cartItems);
-  }
-
   @SkipThrottle()
-  @Patch("user/item")
-  async updateItemQuantity(
+  @Post("user/item")
+  async addProductToCart(
     @UserUuid() userUuid: string,
-    @Body() cartItem: CartItemDto,
+    @Body() cartItem: AddToCartDto,
   ) {
-    return await this.cartOperationsService.updateCartItemQuantity(
+    return await this.cartsService.addProductToCart(
       userUuid,
       cartItem.productId,
       cartItem.quantity,
@@ -65,12 +42,12 @@ export class CartController {
   }
 
   @SkipThrottle()
-  @Post("user/item")
-  async addProductToCart(
+  @Patch("user/item")
+  async updateItemQuantity(
     @UserUuid() userUuid: string,
-    @Body() cartItem: CartItemDto,
+    @Body() cartItem: AddToCartDto,
   ) {
-    return await this.cartOperationsService.addProductToCart(
+    return await this.cartsService.updateCartItemQuantity(
       userUuid,
       cartItem.productId,
       cartItem.quantity,
@@ -86,8 +63,50 @@ export class CartController {
     return await this.cartsService.removeCartItem(userUuid, productId);
   }
 
-  @Delete("clear-cart")
+  @Delete("user/clear")
   async clearCart(@UserUuid() userUuid: string) {
     return await this.cartsService.clearCart(userUuid);
+  }
+
+  // Session Cart Operations
+  @Public()
+  @Get('session')
+  async getSessionCart(@Session() session: Record<string, any>) {
+    return this.sessionCartService.getSessionCart(session.id);
+  }
+
+  @Public()
+  @Post('session')
+  async addToSessionCart(
+    @Session() session: Record<string, any>,
+    @Body() cartItem: AddToCartDto,
+  ) {
+    return await this.sessionCartService.addToSessionCart(session.id, cartItem.productId, cartItem.quantity);
+  }
+
+  @Public()
+  @Delete('session/item/:productId')
+  async removeFromSessionCart(
+    @Session() session: Record<string, any>,
+    @Param('productId') productId: number,
+  ) {
+    return await this.sessionCartService.removeFromSessionCart(session.id, productId);
+  }
+
+  @Public()
+  @Delete('session/clear')
+  async clearSessionCart(
+    @Session() session: Record<string, any>,
+  ) {
+    return await this.sessionCartService.clearSessionCart(session.id);
+  }
+
+  // Merge Carts
+  @Patch("merge")
+  async mergeCarts(
+    @UserUuid() userUuid: string,
+    @Session() session: Record<string, any>
+  ) {
+    return await this.sessionCartService.mergeCarts(userUuid, session.id);
   }
 }

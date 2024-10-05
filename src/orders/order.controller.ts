@@ -15,7 +15,7 @@ import { SkipThrottle } from "@nestjs/throttler";
 import { OrderService } from "./services/order.service";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 
-@Controller('orders')
+@Controller('order')
 @UseInterceptors(ClassSerializerInterceptor)
 export class OrderController {
   constructor(private orderService: OrderService) { }

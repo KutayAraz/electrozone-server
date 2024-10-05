@@ -1,6 +1,6 @@
 import { IsNumber, Max, Min } from "class-validator";
 
-export class CartItemDto {
+export class AddToCartDto {
   @IsNumber()
   @Min(1)
   productId: number;

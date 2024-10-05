@@ -5,7 +5,7 @@ import { CommonQueryParams, ProcessedQueryParams, ProductQueryParams } from './t
 import { ProductQueryResult } from './types/product-query-result.type';
 import { Public } from 'src/common/decorators/public.decorator';
 
-@Controller("subcategories")
+@Controller("subcategory")
 export class SubcategoryController {
   constructor(private subcategoryService: SubcategoryService) { }
 
