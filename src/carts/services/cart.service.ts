@@ -49,7 +49,12 @@ export class CartService {
         });
     }
 
-    async addProductToCart(userUuid: string, productId: number, quantity: number, transactionalEntityManager?: EntityManager) {
+    async addProductToCart(
+        userUuid: string,
+        productId: number,
+        quantity: number,
+        transactionalEntityManager?: EntityManager
+    ): Promise<CartResponse> {
         // Make sure the quantity doesn't exceed the available limit (10)
         this.commonValidationService.validateQuantity(quantity);
 
@@ -82,7 +87,7 @@ export class CartService {
         productId: number,
         quantity: number,
         transactionalEntityManager?: EntityManager
-    ) {
+    ): Promise<CartResponse> {
         this.commonValidationService.validateQuantity(quantity);
 
         const manager = transactionalEntityManager || this.dataSource.manager;
@@ -123,7 +128,7 @@ export class CartService {
         });
     }
 
-    async removeCartItem(userUuid: string, productId: number) {
+    async removeCartItem(userUuid: string, productId: number): Promise<CartResponse> {
         return this.dataSource.transaction(async transactionalEntityManager => {
             const [cart, cartItemToRemove] = await Promise.all([
                 this.cartUtilityService.findOrCreateCart(userUuid, transactionalEntityManager),
@@ -142,7 +147,7 @@ export class CartService {
         });
     }
 
-    async clearCart(userUuid: string) {
+    async clearCart(userUuid: string): Promise<CartResponse> {
         return this.dataSource.transaction(async transactionalEntityManager => {
             const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionalEntityManager);
 
@@ -159,36 +164,4 @@ export class CartService {
             };
         });
     }
-
-    // async getBuyNowCartInfo(productId: number, quantity: number, addedPrice: number) {
-    //     this.commonValidationService.validateQuantity(quantity)
-
-    //     const foundProduct = await this.productRepository.findOne({
-    //         where: { id: productId },
-    //         relations: ["subcategory", "subcategory.category"],
-    //     });
-
-    //     this.commonValidationService.validateProduct(foundProduct)
-    //     this.commonValidationService.validateStockAvailability(foundProduct, quantity)
-    //     this.commonValidationService.validatePrice(foundProduct, addedPrice)
-
-    //     const amount = Number((foundProduct.price * quantity).toFixed(2));
-    //     const cartTotal = amount;
-    //     const totalQuantity = quantity;
-
-    //     const product = {
-    //         id: foundProduct.id,
-    //         quantity: totalQuantity,
-    //         amount,
-    //         productName: foundProduct.productName,
-    //         thumbnail: foundProduct.thumbnail,
-    //         price: foundProduct.price,
-    //         brand: foundProduct.brand,
-    //         subcategory: foundProduct.subcategory.subcategory,
-    //         category: foundProduct.subcategory.category.category,
-    //         availableStock: foundProduct.stock,
-    //     };
-
-    //     return { cartTotal, totalQuantity, products: [product] };
-    // }
 }

@@ -10,12 +10,11 @@ import { CartUtilityService } from './cart-utility.service';
 import { CartService } from './cart.service';
 import { AppError } from 'src/common/errors/app-error';
 import { ErrorType } from 'src/common/errors/error-type';
+import { CartResponse } from '../types/cart-response.type';
 
 @Injectable()
 export class SessionCartService {
     constructor(
-        @InjectRepository(SessionCart)
-        private sessionCartRepository: Repository<SessionCart>,
         @InjectRepository(Product)
         private productRepository: Repository<Product>,
         private readonly commonValidationService: CommonValidationService,
@@ -25,7 +24,7 @@ export class SessionCartService {
         private readonly dataSource: DataSource,
     ) { }
 
-    async getSessionCart(sessionId: string, transactionalEntityManager?: EntityManager) {
+    async getSessionCart(sessionId: string, transactionalEntityManager?: EntityManager): Promise<CartResponse> {
         this.commonValidationService.validateSessionId(sessionId)
         const manager = transactionalEntityManager || this.dataSource.manager;
 
@@ -54,7 +53,12 @@ export class SessionCartService {
         });
     }
 
-    async addToSessionCart(sessionId: string, productId: number, quantity: number, transactionalEntityManager?: EntityManager) {
+    async addToSessionCart(
+        sessionId: string,
+        productId: number,
+        quantity: number,
+        transactionalEntityManager?: EntityManager
+    ): Promise<CartResponse> {
         this.commonValidationService.validateSessionId(sessionId)
         this.commonValidationService.validateQuantity(quantity);
 
@@ -84,7 +88,7 @@ export class SessionCartService {
         productId: number,
         quantity: number,
         transactionalEntityManager?: EntityManager
-    ) {
+    ): Promise<CartResponse> {
         this.commonValidationService.validateSessionId(sessionId)
         this.commonValidationService.validateQuantity(quantity)
 
@@ -127,7 +131,7 @@ export class SessionCartService {
         });
     }
 
-    async removeFromSessionCart(sessionId: string, productId: number) {
+    async removeFromSessionCart(sessionId: string, productId: number): Promise<CartResponse> {
         this.commonValidationService.validateSessionId(sessionId)
 
         return this.dataSource.transaction(async (transactionManager) => {
@@ -156,7 +160,7 @@ export class SessionCartService {
         });
     }
 
-    async mergeCarts(sessionId: string, userUuid: string) {
+    async mergeCarts(sessionId: string, userUuid: string): Promise<CartResponse> {
         this.commonValidationService.validateSessionId(sessionId)
 
         return this.dataSource.transaction(async transactionalEntityManager => {
@@ -219,7 +223,7 @@ export class SessionCartService {
         });
     }
 
-    async clearSessionCart(sessionId: string, transactionalEntityManager?: EntityManager) {
+    async clearSessionCart(sessionId: string, transactionalEntityManager?: EntityManager): Promise<CartResponse> {
         this.commonValidationService.validateSessionId(sessionId);
 
         const manager = transactionalEntityManager || this.dataSource.manager;

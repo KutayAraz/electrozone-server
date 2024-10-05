@@ -24,7 +24,7 @@ export class CartItemService {
         product: Product,
         quantity: number,
         transactionManager: EntityManager
-    ) {
+    ): Promise<{ quantityChanges: QuantityChange[] }> {
         // Validate that product exists and is in stock
         this.commonValidationService.validateProduct(product);
         this.commonValidationService.validateStock(product);
@@ -85,7 +85,7 @@ export class CartItemService {
         cart: Cart | SessionCart,
         cartItem: CartItem,
         transactionManager: EntityManager
-    ) {
+    ): Promise<Cart | SessionCart> {
         this.commonValidationService.validateProduct(cartItem.product);
 
         cart.totalQuantity -= cartItem.quantity;
@@ -102,7 +102,7 @@ export class CartItemService {
         cartItem: CartItem,
         quantity: number,
         transactionManager: EntityManager
-    ) {
+    ): Promise<CartItem> {
         // Make sure the requested quantity is available in stock
         this.commonValidationService.validateStockAvailability(cartItem.product, quantity);
 
@@ -140,21 +140,27 @@ export class CartItemService {
             throw new Error('Invalid cart identifier provided');
         }
 
-        // Create arrays for final cartItems and changes
+        // Initialize arrays to store the results
         const formattedCartItems: FormattedCartItem[] = [];
         const removedCartItems: string[] = [];
         const priceChanges: PriceChange[] = [];
         const quantityChanges: QuantityChange[] = [];
 
+        // Process each cart item concurrently
         await Promise.all(cartItems.map(async (cartItem) => {
             if (cartItem.product.stock > 0) {
+                // Update the cart item if the product is in stock
                 const { updatedCartItem, quantityChange, priceChange } =
                     await this.updateCartItem(cartItem, transactionManager);
 
+                // Add the updated cart item to the formatted items list
                 formattedCartItems.push(this.cartUtilityService.formatCartItem(updatedCartItem));
+
+                // Record any quantity or price changes
                 if (quantityChange) quantityChanges.push(quantityChange);
                 if (priceChange) priceChanges.push(priceChange);
             } else {
+                // Remove the cart item if the product is out of stock
                 await transactionManager.delete(CartItem, cartItem.id);
                 removedCartItems.push(cartItem.product.productName);
             }
@@ -163,7 +169,11 @@ export class CartItemService {
         return { cartItems: formattedCartItems, removedCartItems, priceChanges, quantityChanges };
     }
 
-    async updateCartItem(cartItem: CartItem, transactionManager: EntityManager) {
+    async updateCartItem(cartItem: CartItem, transactionManager: EntityManager): Promise<{
+        updatedCartItem: CartItem,
+        quantityChange: QuantityChange | null,
+        priceChange: PriceChange | null
+    }> {
         const currentPrice = cartItem.product.price;
         const addedPrice = cartItem.addedPrice;
         let quantity = cartItem.quantity;

@@ -6,7 +6,7 @@ export interface CartResponse {
     cartTotal: number;
     totalQuantity: number;
     cartItems: FormattedCartItem[];
-    removedCartItems: string[];
-    priceChanges: PriceChange[];
-    quantityChanges: QuantityChange[];
+    removedCartItems?: string[];
+    priceChanges?: PriceChange[];
+    quantityChanges?: QuantityChange[];
 }

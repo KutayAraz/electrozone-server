@@ -46,7 +46,7 @@ export class CartUtilityService {
         return await transactionManager.save(newSessionCart);
     }
 
-    async getCartItems(cartId: number, isSessionCart: boolean, transactionManager: EntityManager) {
+    async getCartItems(cartId: number, isSessionCart: boolean, transactionManager: EntityManager): Promise<CartItem[]> {
         const queryBuilder = transactionManager
             .createQueryBuilder(CartItem, "cartItem")
             .select([
