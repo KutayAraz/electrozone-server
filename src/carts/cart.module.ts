@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { CartController } from './cart.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Cart } from 'src/entities/Cart.entity';
 import { CartItem } from 'src/entities/CartItem.entity';
@@ -11,16 +10,22 @@ import { CartItemService } from './services/cart-item.service';
 import { CommonValidationService } from 'src/common/services/common-validation.service';
 import { SessionCartService } from './services/session-cart.service';
 import { SessionCart } from 'src/entities/SessionCart.entity';
+import { UserCartController } from './controllers/user-cart.controller';
+import { SessionCartController } from './controllers/session-cart.controller';
+import { BuyNowCartController } from './controllers/buy-now.controller';
+import { BuyNowSessionCart } from 'src/entities/BuyNowSessionCart.entity';
+import { BuyNowCartService } from './services/buy-now-cart.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Cart, CartItem, User, Product, SessionCart])],
-  controllers: [CartController],
+  imports: [TypeOrmModule.forFeature([Cart, CartItem, User, Product, SessionCart, BuyNowSessionCart])],
+  controllers: [UserCartController, SessionCartController, BuyNowCartController],
   providers: [
     CartService,
     CartUtilityService,
     CartItemService,
     CommonValidationService,
-    SessionCartService
+    SessionCartService,
+    BuyNowCartService
   ],
   exports: [
     CartService,

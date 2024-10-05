@@ -12,6 +12,7 @@ import { Subcategory } from 'src/entities/Subcategory.entity';
 import { User } from 'src/entities/User.entity';
 import { Wishlist } from 'src/entities/Wishlist.entity';
 import { SessionCart } from 'src/entities/SessionCart.entity';
+import { BuyNowSessionCart } from 'src/entities/BuyNowSessionCart.entity';
 
 export default (config: ConfigService): TypeOrmModuleOptions => ({
     type: 'mysql',
@@ -33,6 +34,7 @@ export default (config: ConfigService): TypeOrmModuleOptions => ({
         Cart,
         CartItem,
         SessionCart,
+        BuyNowSessionCart,
     ],
     synchronize: config.get<string>('NODE_ENV') !== 'production',
     ssl: config.get<string>('NODE_ENV') === 'production' ? {
