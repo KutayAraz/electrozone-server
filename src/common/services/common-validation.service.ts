@@ -56,4 +56,13 @@ export class CommonValidationService {
             );
         }
     }
+
+    validateSessionId(sessionId: string) {
+        if (typeof sessionId !== 'string' || sessionId.trim().length === 0) {
+          throw new AppError(
+            ErrorType.INVALID_SESSION,
+            'Invalid session identifier provided'
+          );
+        }
+      }
 }
