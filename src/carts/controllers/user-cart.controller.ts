@@ -4,6 +4,7 @@ import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { AddToCartDto } from "../dtos/add-to-cart.dto";
 import { CartService } from "../services/cart.service";
 import { CartResponse } from "../types/cart-response.type";
+import { QuantityChange } from "../types/quantity-change.type";
 
 @Controller("cart/user")
 export class UserCartController {
@@ -19,7 +20,7 @@ export class UserCartController {
     async addProductToCart(
         @UserUuid() userUuid: string,
         @Body() cartItem: AddToCartDto,
-    ): Promise<CartResponse> {
+    ): Promise<QuantityChange> {
         return await this.cartService.addProductToCart(
             userUuid,
             cartItem.productId,

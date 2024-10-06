@@ -4,6 +4,7 @@ import { AddToCartDto } from "../dtos/add-to-cart.dto";
 import { SessionCartService } from "../services/session-cart.service";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { CartResponse } from "../types/cart-response.type";
+import { QuantityChange } from "../types/quantity-change.type";
 
 @Controller("cart/session")
 export class SessionCartController {
@@ -20,7 +21,7 @@ export class SessionCartController {
     async addToSessionCart(
         @Session() session: Record<string, any>,
         @Body() cartItem: AddToCartDto,
-    ): Promise<CartResponse> {
+    ): Promise<QuantityChange> {
         return await this.sessionCartService.addToSessionCart(
             session.id, 
             cartItem.productId, 

@@ -6,14 +6,13 @@ import { CartItemService } from "./cart-item.service";
 import { CartResponse } from "../types/cart-response.type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { CartUtilityService } from "./cart-utility.service";
-import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
+import { QuantityChange } from "../types/quantity-change.type";
 
 @Injectable()
 export class CartService {
     constructor(
-        @InjectRepository(Product)
         private readonly cartItemService: CartItemService,
         private readonly cartUtilityService: CartUtilityService,
         private readonly commonValidationService: CommonValidationService,
@@ -54,7 +53,7 @@ export class CartService {
         productId: number,
         quantity: number,
         transactionalEntityManager?: EntityManager
-    ): Promise<CartResponse> {
+    ): Promise<QuantityChange> {
         // Make sure the quantity doesn't exceed the available limit (10)
         this.commonValidationService.validateQuantity(quantity);
 
@@ -69,16 +68,14 @@ export class CartService {
 
             this.commonValidationService.validateUser(user);
 
-            const { quantityChanges } = await this.cartItemService.addCartItem(
+            const quantityChange = await this.cartItemService.addCartItem(
                 cart,
                 product,
                 quantity,
                 transactionalEntityManager
             );
 
-            // Return the final version of the cart
-            const updatedCart = await this.getUserCart(userUuid, transactionalEntityManager);
-            return { ...updatedCart, quantityChanges };
+            return quantityChange
         });
     }
 

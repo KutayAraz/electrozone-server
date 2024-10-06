@@ -24,7 +24,7 @@ export class CartItemService {
         product: Product,
         quantity: number,
         transactionManager: EntityManager
-    ): Promise<{ quantityChanges: QuantityChange[] }> {
+    ): Promise<QuantityChange> {
         // Validate that product exists and is in stock
         this.commonValidationService.validateProduct(product);
         this.commonValidationService.validateStock(product);
@@ -42,16 +42,16 @@ export class CartItemService {
 
         // Make sure that quantity does not exceed 10
         let newQuantity = Math.min(currentQuantity + quantity, 10, product.stock);
-        const quantityChanges: QuantityChange[] = [];
+        let quantityChange: QuantityChange;
 
         // If quantity changed because it went over the limit, add it to quantityChanges array
         if (newQuantity !== currentQuantity + quantity) {
-            quantityChanges.push({
+            quantityChange = {
                 productName: product.productName,
                 oldQuantity: currentQuantity + quantity,
                 newQuantity,
                 reason: newQuantity === 10 ? ErrorType.QUANTITY_LIMIT_EXCEEDED : ErrorType.STOCK_LIMIT_EXCEEDED
-            });
+            };
         }
 
         const quantityToAdd = newQuantity - currentQuantity;
@@ -78,7 +78,7 @@ export class CartItemService {
         await transactionManager.save(cartItem);
         await transactionManager.save(cart);
 
-        return { quantityChanges };
+        return quantityChange;
     }
 
     async removeCartItem(

@@ -11,12 +11,12 @@ import { CartService } from './cart.service';
 import { AppError } from 'src/common/errors/app-error';
 import { ErrorType } from 'src/common/errors/error-type';
 import { CartResponse } from '../types/cart-response.type';
+import { QuantityChange } from '../types/quantity-change.type';
 
 @Injectable()
 export class SessionCartService {
     constructor(
-        @InjectRepository(Product)
-        private productRepository: Repository<Product>,
+        @InjectRepository(Product) private productRepository: Repository<Product>,
         private readonly commonValidationService: CommonValidationService,
         private readonly cartItemService: CartItemService,
         private readonly cartUtilityService: CartUtilityService,
@@ -58,7 +58,7 @@ export class SessionCartService {
         productId: number,
         quantity: number,
         transactionalEntityManager?: EntityManager
-    ): Promise<CartResponse> {
+    ): Promise<QuantityChange> {
         this.commonValidationService.validateSessionId(sessionId)
         this.commonValidationService.validateQuantity(quantity);
 
@@ -70,16 +70,15 @@ export class SessionCartService {
                 this.productRepository.findOne({ where: { id: productId } })
             ]);
 
-            const { quantityChanges } = await this.cartItemService.addCartItem(
+            const quantityChange = await this.cartItemService.addCartItem(
                 sessionCart,
                 product,
                 quantity,
                 transactionManager
             );
 
-            // Return the final version of the cart
-            const updatedCart = await this.getSessionCart(sessionId, transactionalEntityManager);
-            return { ...updatedCart, quantityChanges };
+            // Return the quantity change 
+            return quantityChange
         });
     }
 
