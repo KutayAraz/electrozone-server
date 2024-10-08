@@ -20,12 +20,16 @@ import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 export class OrderController {
   constructor(private orderService: OrderService) { }
 
-  @Post()
+  @Get("/confirm")
   createOrder(
-    @Body() createOrderDto: CreateOrderDto,
     @UserUuid() userUuid: string,
   ) {
-    return this.orderService.createOrder(userUuid, createOrderDto.orderItems);
+    return this.orderService.processOrder(userUuid);
+  }
+
+  @Get()
+  initiateOrder(@UserUuid() userUuid: string,) {
+    return this.orderService.initiateCheckout(userUuid)
   }
 
   @Get()

@@ -11,6 +11,7 @@ import { OrderController } from "./order.controller";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { OrderValidationService } from "./services/order-validation.service";
 import { CartModule } from "src/carts/cart.module";
+import { CartUtilityService } from "src/carts/services/cart-utility.service";
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { CartModule } from "src/carts/cart.module";
     CartModule
   ],
   controllers: [OrderController],
-  providers: [OrderService, CommonValidationService, OrderValidationService],
+  providers: [OrderService, CommonValidationService, OrderValidationService, CartUtilityService],
 })
 export class OrderModule { }
