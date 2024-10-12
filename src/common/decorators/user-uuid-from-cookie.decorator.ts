@@ -1,10 +1,19 @@
-import { createParamDecorator, ExecutionContext } from "@nestjs/common";
-import { JwtPayloadWithRt } from "src/users/types";
+import { createParamDecorator, ExecutionContext, HttpStatus } from "@nestjs/common";
+import * as jwt from "jsonwebtoken";
+import { AppError } from "../errors/app-error";
+import { ErrorType } from "../errors/error-type";
 
 export const RefreshTokenUserUuid = createParamDecorator(
   (_: undefined, context: ExecutionContext): string => {
     const request = context.switchToHttp().getRequest();
-    const user = request.user as JwtPayloadWithRt;
-    return user.sub;
+    const rawToken = request.cookies?.refresh_token;
+
+    if (!rawToken) {
+      throw new AppError(ErrorType.UNAUTHORIZED, "Access Denied", HttpStatus.UNAUTHORIZED);
+    }
+
+    const decoded: any = jwt.decode(rawToken);
+
+    return decoded.sub;
   },
 );

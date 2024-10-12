@@ -27,8 +27,5 @@ import { BuyNowCartService } from './services/buy-now-cart.service';
     SessionCartService,
     BuyNowCartService
   ],
-  exports: [
-    CartService,
-  ]
 })
 export class CartModule { }

@@ -61,7 +61,6 @@ export class AuthController {
     res.send({ success: result });
   }
 
-  @UseGuards(AtGuard)
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Patch("/update-password")
   async updateUserPassword(
@@ -72,7 +71,7 @@ export class AuthController {
   }  
 
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 3600000 } })
+  @Throttle({ default: { limit: 60, ttl: 3600000 } })
   @UseGuards(RtGuard)
   @Post("refresh")
   @HttpCode(HttpStatus.OK)

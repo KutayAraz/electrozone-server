@@ -1,25 +1,18 @@
-import { ExecutionContext, HttpStatus } from '@nestjs/common';
+import { ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AppError } from '../errors/app-error';
 import { ErrorType } from '../errors/error-type';
 import { Reflector } from '@nestjs/core';
 
+@Injectable()
 export class RtGuard extends AuthGuard('jwt-refresh') {
   constructor(private reflector: Reflector) {
     super();
   }
 
   canActivate(context: ExecutionContext) {
-    const isPublic = this.reflector.getAllAndOverride('isPublic', [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (isPublic) return true;
-
     return super.canActivate(context);
   }
-
 
   handleRequest(err: Error | null, user: any, info: { message: string } | undefined) {
     if (info && info.message === 'jwt expired') {
