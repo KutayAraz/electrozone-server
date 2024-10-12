@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { JwtPayload } from '../types';
-import { UserService } from '../services/user.service';
+import { JwtPayload } from '../../users/types';
+import { UserService } from '../../users/services/user.service';
 import { AppError } from 'src/common/errors/app-error';
 import { ErrorType } from 'src/common/errors/error-type';
 
