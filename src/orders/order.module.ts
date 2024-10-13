@@ -12,13 +12,19 @@ import { CommonValidationService } from "src/common/services/common-validation.s
 import { OrderValidationService } from "./services/order-validation.service";
 import { CartModule } from "src/carts/cart.module";
 import { CartUtilityService } from "src/carts/services/cart-utility.service";
+import { BuyNowCartService } from "src/carts/services/buy-now-cart.service";
+import { SessionCartService } from "src/carts/services/session-cart.service";
+import { CartService } from "src/carts/services/cart.service";
+import { SessionCart } from "src/entities/SessionCart.entity";
+import { BuyNowSessionCart } from "src/entities/BuyNowSessionCart.entity";
+import { CartItemService } from "src/carts/services/cart-item.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, User, Product, Cart, CartItem]),
+    TypeOrmModule.forFeature([Order, OrderItem, User, Product, Cart, CartItem, SessionCart, BuyNowSessionCart]),
     CartModule
   ],
   controllers: [OrderController],
-  providers: [OrderService, CommonValidationService, OrderValidationService, CartUtilityService],
+  providers: [OrderService, CommonValidationService, OrderValidationService, CartUtilityService, BuyNowCartService, SessionCartService, CartService, CartItemService],
 })
 export class OrderModule { }

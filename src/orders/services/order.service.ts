@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, NotFoundException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, NotFoundException, HttpStatus } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
@@ -14,8 +14,11 @@ import { AppError } from "src/common/errors/app-error";
 import { CheckoutSessionMap } from "../types/checkout-session-map.type";
 import { CartResponse } from "src/carts/types/cart-response.type";
 import { CartItem } from "src/entities/CartItem.entity";
-import { Cart } from "src/entities/Cart.entity";
 import { CartUtilityService } from "src/carts/services/cart-utility.service";
+import { SessionCartService } from "src/carts/services/session-cart.service";
+import { BuyNowCartService } from "src/carts/services/buy-now-cart.service";
+import { CheckoutType } from "../types/checkoutType.enum";
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class OrderService {
@@ -28,34 +31,56 @@ export class OrderService {
     private readonly orderValidationService: OrderValidationService,
     private readonly commonValidationService: CommonValidationService,
     private readonly cartUtilityService: CartUtilityService,
+    private readonly sessionCartService: SessionCartService,
+    private readonly buyNowCartService: BuyNowCartService,
     private dataSource: DataSource,
   ) { }
 
-  async initiateCheckout(userUuid: string): Promise<CartResponse> {
-    const cartResponse = await this.cartService.getUserCart(userUuid);
+  async initiateCheckout(userUuid: string, checkoutType: CheckoutType, sessionId?: string): Promise<{checkoutSessionId: string, cartData: CartResponse}> {
+    let cartResponse: CartResponse | PromiseLike<CartResponse>;
+
+    switch (checkoutType) {
+      case CheckoutType.NORMAL:
+        cartResponse = await this.cartService.getUserCart(userUuid);
+        break;
+      case CheckoutType.SESSION:
+        cartResponse = await this.sessionCartService.getSessionCart(sessionId);
+        break;
+      case CheckoutType.BUY_NOW:
+        cartResponse = await this.buyNowCartService.getBuyNowCart(userUuid);
+        break;
+      default:
+        throw new AppError(ErrorType.INVALID_CHECKOUT_TYPE, 'Invalid checkout type');
+    }
+
 
     if (cartResponse.cartItems.length === 0) {
       throw new AppError(ErrorType.EMPTY_CART, 'Cart is empty');
     }
 
-    // Check if there's an existing session and clean it up
-    if (this.checkoutSessions[userUuid]) {
-      delete this.checkoutSessions[userUuid];
-    }
+    const checkoutSessionId = uuidv4();
 
     // Store snapshot
-    this.checkoutSessions[userUuid] = {
+    this.checkoutSessions[checkoutSessionId] = {
+      id: checkoutSessionId,
+      userUuid,
       cartItems: cartResponse.cartItems,
       cartTotal: cartResponse.cartTotal,
       totalQuantity: cartResponse.totalQuantity,
       createdAt: new Date(),
+      checkoutType,
+      sessionId: checkoutType === CheckoutType.SESSION ? sessionId : undefined,
     };
 
-    return cartResponse;
+    return {
+      checkoutSessionId,
+      cartData: cartResponse
+    };
   }
 
-  async processOrder(userUuid: string) {
-    const snapshot = this.checkoutSessions[userUuid];
+  async processOrder(checkoutSessionId: string, userUuid: string) {
+    const snapshot = this.checkoutSessions[checkoutSessionId];
+    console.log("snapshots are ", this.checkoutSessions)
     if (!snapshot) {
       throw new AppError(
         ErrorType.NO_CHECKOUT_SESSION,
@@ -63,10 +88,19 @@ export class OrderService {
       );
     }
 
+    // Validate that the session belongs to the current user
+    if (snapshot.userUuid !== userUuid) {
+      throw new AppError(
+        ErrorType.UNAUTHORIZED,
+        'Unauthorized access to checkout session',
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
     // Check session expiry (60 minutes)
     const sessionAge = Date.now() - snapshot.createdAt.getTime();
     if (sessionAge > 60 * 60 * 1000) {
-      delete this.checkoutSessions[userUuid];
+      delete this.checkoutSessions[checkoutSessionId];
       throw new AppError(
         ErrorType.CHECKOUT_SESSION_EXPIRED,
         'Checkout session has expired. Please start checkout again.'
@@ -77,15 +111,29 @@ export class OrderService {
       const user = await transactionManager.findOneBy(User, { uuid: userUuid });
       this.commonValidationService.validateUser(user);
 
-      // Get user's cart
-      const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
+      let latestCartResponse: CartResponse;
+      switch (snapshot.checkoutType) {
+        case CheckoutType.NORMAL:
+          latestCartResponse = await this.cartService.getUserCart(userUuid);
+          break;
+        case CheckoutType.SESSION:
+          latestCartResponse = await this.sessionCartService.getSessionCart(snapshot.sessionId);
+          break;
+        case CheckoutType.BUY_NOW:
+          latestCartResponse = await this.buyNowCartService.getBuyNowCart(userUuid);
+          break;
+      }
+
+      // Compare the latest cart with the snapshot
+      if (JSON.stringify(latestCartResponse.cartItems) !== JSON.stringify(snapshot.cartItems)) {
+        throw new AppError(
+          ErrorType.CART_CHANGED,
+          'Your cart has changed since checkout was initiated. Please review your cart and try again.'
+        );
+      }
 
       const order = new Order();
       order.user = user;
-
-      const snapshot = this.checkoutSessions[userUuid];
-
-      console.log("snapshot is ", snapshot)
 
       // Validate items and get products
       const validatedOrderItems = await Promise.all(
@@ -124,85 +172,67 @@ export class OrderService {
       await transactionManager.save(Product, validatedOrderItems.map(({ product }) => product));
       await transactionManager.save(OrderItem, orderItemsEntities);
 
-      // Get current cart items that were in the snapshot
-      const currentCartItems = await transactionManager.find(CartItem, {
-        where: {
-          cart: { id: cart.id },
-          product: {
-            id: In(snapshot.cartItems.map(item => item.id))
-          }
-        },
-        relations: ['product'] // Add this to ensure product relation is loaded
-      });
-
-      // First, separate items into those to be removed and those to be updated
-      const itemsToRemove: CartItem[] = [];
-      const itemsToUpdate: CartItem[] = [];
-
-      for (const currentItem of currentCartItems) {
-        const orderedItem = snapshot.cartItems.find(item => item.id === currentItem.product.id);
-        if (orderedItem) {
-          if (currentItem.quantity <= orderedItem.quantity) {
-            itemsToRemove.push(currentItem);
-          } else {
-            currentItem.quantity -= orderedItem.quantity;
-            itemsToUpdate.push(currentItem);
-          }
-        }
+       // Clear the cart based on checkout type
+       switch (snapshot.checkoutType) {
+        case CheckoutType.NORMAL:
+          await this.cartService.clearCart(userUuid);
+          break;
+        case CheckoutType.SESSION:
+          await this.sessionCartService.clearSessionCart(snapshot.sessionId);
+          break;
+        case CheckoutType.BUY_NOW:
+          // No need to clear anything for buy now
+          break;
       }
 
-      // Bulk remove items
-      if (itemsToRemove.length > 0) {
-        await transactionManager.remove(CartItem, itemsToRemove);
-      }
+      // switch (snapshot.checkoutType) {
+      //   case CheckoutType.NORMAL:
+      //     // Get current cart items that were in the snapshot
+      //     const currentCartItems = await transactionManager.find(CartItem, {
+      //       where: {
+      //         cart: { id: cart.id },
+      //         product: {
+      //           id: In(snapshot.cartItems.map(item => item.id))
+      //         }
+      //       },
+      //       relations: ['product'] // Add this to ensure product relation is loaded
+      //     });
 
-      // Bulk update items
-      if (itemsToUpdate.length > 0) {
-        await transactionManager.save(CartItem, itemsToUpdate);
-      }
+      //     // First, separate items into those to be removed and those to be updated
+      //     const itemsToRemove: CartItem[] = [];
+      //     const itemsToUpdate: CartItem[] = [];
+
+      //     for (const currentItem of currentCartItems) {
+      //       const orderedItem = snapshot.cartItems.find(item => item.id === currentItem.product.id);
+      //       if (orderedItem) {
+      //         if (currentItem.quantity <= orderedItem.quantity) {
+      //           itemsToRemove.push(currentItem);
+      //         } else {
+      //           currentItem.quantity -= orderedItem.quantity;
+      //           itemsToUpdate.push(currentItem);
+      //         }
+      //       }
+      //     }
+
+      //     // Bulk remove items
+      //     if (itemsToRemove.length > 0) {
+      //       await transactionManager.remove(CartItem, itemsToRemove);
+      //     }
+
+      //     // Bulk update items
+      //     if (itemsToUpdate.length > 0) {
+      //       await transactionManager.save(CartItem, itemsToUpdate);
+      //     }
+      //     break;
+      //   case CheckoutType.SESSION:
+      //     await this.sessionCartService.clearSessionCart(userUuid);
+      //     break;
+      //   case CheckoutType.BUY_NOW:
+      //     break;
+      // }
+
       // Clear checkout session
       delete this.checkoutSessions[userUuid];
-
-      return savedOrder.id;
-    });
-  }
-
-  async createOrder(userUuid: string, orderItems: CreateOrderItemDTO[]) {
-    return this.dataSource.transaction(async (transactionManager) => {
-      const user = await transactionManager.findOneBy(User, { uuid: userUuid });
-      this.commonValidationService.validateUser(user);
-
-      const order = new Order();
-      order.user = user;
-
-      let total = 0;
-      const validatedOrderItems = await Promise.all(
-        orderItems.map(async (item) => {
-          const product = await this.orderValidationService.validateOrderItem(item, transactionManager);
-          total += product.price * item.quantity;
-          return { item, product };
-        })
-      );
-
-      order.orderTotal = total;
-      const savedOrder = await transactionManager.save(Order, order);
-
-      const orderItemsEntities = validatedOrderItems.map(({ item, product }) => {
-        const orderItem = new OrderItem();
-        orderItem.order = savedOrder;
-        orderItem.quantity = item.quantity;
-        orderItem.product = product;
-        orderItem.price = product.price;
-
-        product.stock -= item.quantity;
-        product.sold += item.quantity;
-
-        return orderItem;
-      });
-
-      await transactionManager.save(Product, validatedOrderItems.map(({ product }) => product));
-      await transactionManager.save(OrderItem, orderItemsEntities);
-      await this.cartService.clearCart(userUuid);
 
       return savedOrder.id;
     });
