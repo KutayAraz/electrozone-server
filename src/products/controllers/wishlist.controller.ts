@@ -26,7 +26,7 @@ export class WishlistController {
         );
     }
 
-    @Patch(":productId/wishlist")
+    @Patch(":productId")
     async toggleWishlist(
         @Param("productId", ParseIntPipe) productId: number,
         @UserUuid() userUuid: string,

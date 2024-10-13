@@ -99,8 +99,10 @@ export class ReviewService {
     // Check if the user has ordered the product
     const hasOrderedProduct = await this.ordersRepo
       .createQueryBuilder("order")
+      .innerJoin("order.user", "user")
       .innerJoin("order.orderItems", "orderItem")
-      .where("order.user.uuid = :userUuid", { userUuid })
+      .innerJoin("orderItem.product", "product")
+      .where("user.uuid = :userUuid", { userUuid })
       .andWhere("orderItem.product.id = :productId", { productId: selectedProductId })
       .select("orderItem.product.id", "productId")
       .getRawOne();
