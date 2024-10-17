@@ -28,22 +28,27 @@ export class CartItemService {
         // Validate that product exists and is in stock
         this.commonValidationService.validateProduct(product);
         this.commonValidationService.validateStock(product);
-
+    
+        console.log("cart id is ", cart.id);
+    
+        // Ensure the cart is saved to the database
+        await transactionManager.save(cart);
+    
         let cartItem = await transactionManager.findOne(CartItem, {
-            where: {
-                cart: { id: cart.id },
-                product: { id: product.id }
-            },
+            where: [
+                { cart: { id: cart.id }, product: { id: product.id } },
+                { sessionCart: { id: cart.id }, product: { id: product.id } }
+            ],
             relations: ["product"],
         });
-
+    
         // Check if the product is already in the cart
         const currentQuantity = cartItem ? cartItem.quantity : 0;
-
+    
         // Make sure that quantity does not exceed 10
         let newQuantity = Math.min(currentQuantity + quantity, 10, product.stock);
         let quantityChange: QuantityChange;
-
+    
         // If quantity changed because it went over the limit, add it to quantityChanges array
         if (newQuantity !== currentQuantity + quantity) {
             quantityChange = {
@@ -53,31 +58,38 @@ export class CartItemService {
                 reason: newQuantity === 10 ? ErrorType.QUANTITY_LIMIT_EXCEEDED : ErrorType.STOCK_LIMIT_EXCEEDED
             };
         }
-
+    
         const quantityToAdd = newQuantity - currentQuantity;
-
-        // If it was already in cart, increase the quantity 
-        // If not create a new CartItem
+    
+        // If it was already in cart, update the existing cartItem
         if (cartItem) {
             cartItem.quantity = newQuantity;
             cartItem.amount = newQuantity * product.price;
             cartItem.addedPrice = product.price;
         } else {
+            // Create a new CartItem
             cartItem = transactionManager.create(CartItem, {
                 product,
                 quantity: newQuantity,
                 amount: newQuantity * product.price,
-                cart,
                 addedPrice: product.price
             });
+    
+            // Set the correct relation based on the cart type
+            if (cart instanceof SessionCart) {
+                cartItem.sessionCart = cart;
+            } else {
+                cartItem.cart = cart;
+            }
         }
-
+    
         cart.totalQuantity += quantityToAdd;
         cart.cartTotal = Number(cart.cartTotal) + Number(quantityToAdd * product.price);
-
+    
+        // Save both the cartItem and the cart
         await transactionManager.save(cartItem);
         await transactionManager.save(cart);
-
+    
         return quantityChange;
     }
 

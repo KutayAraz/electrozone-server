@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule, RequestMethod, ValidationPipe } from "@nestjs/common";
+import { MiddlewareConsumer, Module, RequestMethod, ValidationPipe } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { CategoriesModule } from "./categories/category.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -26,7 +26,7 @@ import { SessionMiddleware } from "./common/middleware/session.middleware";
     }),
     ThrottlerModule.forRoot([{
       ttl: 60000,  // Time to live for the records in miliseconds
-      limit: 10,  // Maximum number of requests within the TTL
+      limit: 50,  // Maximum number of requests within the TTL
     }]),
     UserModule,
     CategoriesModule,
@@ -54,11 +54,12 @@ import { SessionMiddleware } from "./common/middleware/session.middleware";
 })
 
 export class AppModule {
-  // configure(consumer: MiddlewareConsumer) {
-  //   consumer
-  //     .apply(SessionMiddleware)
-  //     .forRoutes(
-  //       { path: 'cart/session', method: RequestMethod.ALL },
-  //     );
-  // }
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(SessionMiddleware)
+      .forRoutes(
+        { path: 'cart/session', method: RequestMethod.ALL },
+        { path: 'order/process-order', method: RequestMethod.POST }
+      );
+  }
 }
