@@ -25,4 +25,7 @@ export class Order {
 
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
   orderItems: OrderItem[];
+
+  @Column({ unique: true, nullable: true })
+  idempotencyKey: string;
 }
