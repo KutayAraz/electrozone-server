@@ -3,9 +3,9 @@ import { ErrorType } from "src/common/errors/error-type";
 import { Order } from "src/entities/Order.entity";
 import { Product } from "src/entities/Product.entity";
 import { Repository, EntityManager } from "typeorm";
-import { CreateOrderItemDTO } from "../dtos/order-item.dto";
 import { AppError } from "src/common/errors/app-error";
 import { CommonValidationService } from "src/common/services/common-validation.service";
+import { OrderItemDTO } from "../dtos/order-item.dto";
 
 @Injectable()
 export class OrderValidationService {
@@ -13,7 +13,7 @@ export class OrderValidationService {
     private readonly commonValidationService: CommonValidationService,
   ) { }
 
-  async validateOrderItem(orderItem: CreateOrderItemDTO, transactionManager: EntityManager) {
+  async validateOrderItem(orderItem: OrderItemDTO, transactionManager: EntityManager) {
     const product = await transactionManager.findOneBy(Product, { id: orderItem.productId });
 
     this.commonValidationService.validateProduct(product)

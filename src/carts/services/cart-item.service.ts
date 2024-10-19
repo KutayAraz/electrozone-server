@@ -29,8 +29,6 @@ export class CartItemService {
         this.commonValidationService.validateProduct(product);
         this.commonValidationService.validateStock(product);
     
-        console.log("cart id is ", cart.id);
-    
         // Ensure the cart is saved to the database
         await transactionManager.save(cart);
     
@@ -60,7 +58,7 @@ export class CartItemService {
         }
     
         const quantityToAdd = newQuantity - currentQuantity;
-    
+
         // If it was already in cart, update the existing cartItem
         if (cartItem) {
             cartItem.quantity = newQuantity;
