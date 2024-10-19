@@ -25,6 +25,14 @@ import { CartItemService } from "src/carts/services/cart-item.service";
     CartModule
   ],
   controllers: [OrderController],
-  providers: [OrderService, CommonValidationService, OrderValidationService, CartUtilityService, BuyNowCartService, SessionCartService, CartService, CartItemService],
+  providers: [
+    OrderService,
+    CommonValidationService,
+    OrderValidationService, CartUtilityService,
+    BuyNowCartService,
+    SessionCartService,
+    CartService,
+    CartItemService
+  ],
 })
 export class OrderModule { }

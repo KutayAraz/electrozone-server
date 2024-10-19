@@ -8,30 +8,18 @@ import {
   ParseIntPipe,
   Post,
   Query,
-  Req,
-  Res,
   UseInterceptors,
 } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { OrderService } from "./services/order.service";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { CheckoutType } from "./types/checkoutType.enum";
-import { Response } from 'express';
 import { OrderItemDTO } from "./dtos/order-item.dto";
 
 @Controller('order')
 @UseInterceptors(ClassSerializerInterceptor)
 export class OrderController {
   constructor(private orderService: OrderService) { }
-
-  @Post("/initiate-checkout")
-  async initiateOrder(
-    @UserUuid() userUuid: string,
-    @Res({ passthrough: true }) res: Response,
-    @Body('checkoutType') checkoutType: CheckoutType) {
-    const { cartData } = await this.orderService.initiateCheckout(userUuid, checkoutType);
-    return cartData;
-  }
 
   @Post('process-order')
   async processOrder(
