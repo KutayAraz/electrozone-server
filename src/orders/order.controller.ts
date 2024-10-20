@@ -21,14 +21,22 @@ import { OrderItemDTO } from "./dtos/order-item.dto";
 export class OrderController {
   constructor(private orderService: OrderService) { }
 
+  @Post('initiate-checkout')
+  async initiateCheckout(
+    @UserUuid() userUuid: string,
+    @Body('checkoutType') checkoutType: CheckoutType
+  ) {
+    const {checkoutSnapshotId, cartData} = await this.orderService.initiateCheckout(userUuid, checkoutType );
+    return { checkoutSnapshotId, cartData };
+  }
+
   @Post('process-order')
   async processOrder(
     @UserUuid() userUuid: string,
-    @Body('checkoutType') checkoutType: CheckoutType,
-    @Body('cartItems') orderItemDto: OrderItemDTO[],
+    @Body('checkoutSnapshot') checkoutSnapshotId: string,
     @Body("idempotencyKey") idempotencyKey: string
   ) {
-    const orderId = await this.orderService.processOrder(userUuid, checkoutType, orderItemDto, idempotencyKey);
+    const orderId = await this.orderService.processOrder(userUuid, checkoutSnapshotId, idempotencyKey);
     return { orderId };
   }
 

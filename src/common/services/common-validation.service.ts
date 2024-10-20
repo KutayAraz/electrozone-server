@@ -29,7 +29,8 @@ export class CommonValidationService {
 
     validatePrice(product: Product, addedPrice: number): void {
         this.validateProduct(product);
-        if (product.price !== addedPrice) {
+        const priceDifference = Math.abs(product.price - addedPrice);
+        if (priceDifference > 0.03) {
             throw new AppError(
                 ErrorType.PRODUCT_PRICE_CHANGED,
                 `Price of ${product.productName} has changed. Expected: ${product.price}, Received: ${addedPrice}.`
@@ -59,10 +60,10 @@ export class CommonValidationService {
 
     validateSessionId(sessionId: string) {
         if (typeof sessionId !== 'string' || sessionId.trim().length === 0) {
-          throw new AppError(
-            ErrorType.INVALID_SESSION,
-            'Invalid session identifier provided'
-          );
+            throw new AppError(
+                ErrorType.INVALID_SESSION,
+                'Invalid session identifier provided'
+            );
         }
-      }
+    }
 }

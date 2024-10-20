@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
@@ -16,9 +16,16 @@ import { CheckoutType } from "../types/checkoutType.enum";
 import { FormattedCartItem } from "src/carts/types/formatted-cart-product.type";
 import { OrderItemDTO } from "../dtos/order-item.dto";
 import { IsolationLevel } from "typeorm/driver/types/IsolationLevel";
+import { v4 as uuidv4 } from 'uuid';
+import { SessionCartService } from "src/carts/services/session-cart.service";
+import { CartUtilityService } from "src/carts/services/cart-utility.service";
+import { CartItem } from "src/entities/CartItem.entity";
+import Decimal from "decimal.js";
 
 @Injectable()
 export class OrderService {
+  private checkoutSnapshots = []
+
   constructor(
     @InjectRepository(Order) private orderRepository: Repository<Order>,
     @InjectRepository(User) private userRepository: Repository<User>,
@@ -26,103 +33,197 @@ export class OrderService {
     private readonly orderValidationService: OrderValidationService,
     private readonly commonValidationService: CommonValidationService,
     private readonly buyNowCartService: BuyNowCartService,
+    private readonly sessionCartService: SessionCartService,
+    private readonly cartUtilityService: CartUtilityService,
     private dataSource: DataSource,
   ) { }
 
-  private compareCartItems(cartItems: FormattedCartItem[], orderItems: OrderItemDTO[]): boolean {
-    if (cartItems.length !== orderItems.length) return false;
+  async initiateCheckout(
+    userUuid: string,
+    checkoutType: CheckoutType,
+    sessionId?: string
+  ): Promise<{ checkoutSnapshotId: string, cartData: CartResponse }> {
+    let cartResponse: CartResponse | PromiseLike<CartResponse>;
 
-    return cartItems.every(cartItem => {
-      const orderItem = orderItems.find(item => item.productId === cartItem.id);
-      return orderItem
-        && orderItem.quantity === cartItem.quantity
-        && Math.abs(orderItem.price - cartItem.price) < 0.01; // Allow for small floating point discrepancies
-    });
+    switch (checkoutType) {
+      case CheckoutType.NORMAL:
+        cartResponse = await this.cartService.getUserCart(userUuid);
+        break;
+      case CheckoutType.SESSION:
+        cartResponse = await this.sessionCartService.getSessionCart(sessionId);
+        break;
+      case CheckoutType.BUY_NOW:
+        cartResponse = await this.buyNowCartService.getBuyNowCart(userUuid);
+        break;
+      default:
+        throw new AppError(ErrorType.INVALID_CHECKOUT_TYPE, 'Invalid checkout type');
+    }
+
+
+    if (cartResponse.cartItems.length === 0) {
+      throw new AppError(ErrorType.EMPTY_CART, 'Cart is empty');
+    }
+
+    const checkoutSnapshotId = uuidv4();
+
+    // Store snapshot
+    this.checkoutSnapshots[checkoutSnapshotId] = {
+      id: checkoutSnapshotId,
+      userUuid,
+      cartItems: cartResponse.cartItems,
+      cartTotal: cartResponse.cartTotal,
+      totalQuantity: cartResponse.totalQuantity,
+      createdAt: new Date(),
+      checkoutType,
+      sessionId: checkoutType === CheckoutType.SESSION ? sessionId : undefined,
+    };
+
+    return {
+      checkoutSnapshotId,
+      cartData: cartResponse
+    };
   }
 
-  async processOrder(userUuid: string, checkoutType: CheckoutType, orderItemsDto: OrderItemDTO[], idempotencyKey: string) {
+  async processOrder(userUuid: string, checkoutSnapshotId: string, idempotencyKey: string) {
     const existingOrder = await this.dataSource.getRepository(Order).findOne({ where: { idempotencyKey } });
     if (existingOrder) {
       return existingOrder.id; // Order already processed
     }
 
-    return this.dataSource.transaction("REPEATABLE READ" as IsolationLevel, async (transactionManager: EntityManager) => {
-      // Set transaction timeout
-      await transactionManager.query('SET LOCAL statement_timeout = 30000'); // 30 seconds timeout
+    const snapshot = this.checkoutSnapshots[checkoutSnapshotId];
+    if (!snapshot) {
+      throw new AppError(
+        ErrorType.NO_CHECKOUT_SESSION,
+        'No active checkout session found. Please start checkout again.'
+      );
+    }
 
+    if (snapshot.userUuid !== userUuid) {
+      throw new AppError(
+        ErrorType.ACCESS_DENIED,
+        'You are not authorized to process checkout from this cart.',
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    // Check session expiry (15 minutes)
+    const sessionAge = Date.now() - snapshot.createdAt.getTime();
+    if (sessionAge > 15 * 60 * 1000) {
+      delete this.checkoutSnapshots[userUuid];
+      throw new AppError(
+        ErrorType.CHECKOUT_SESSION_EXPIRED,
+        'Checkout session has expired. Please start checkout again.'
+      );
+    }
+
+    return this.dataSource.transaction("REPEATABLE READ" as IsolationLevel, async (transactionManager: EntityManager) => {
       const user = await transactionManager.findOneBy(User, { uuid: userUuid });
       this.commonValidationService.validateUser(user);
 
-      let latestCartResponse: CartResponse;
-      if (CheckoutType.NORMAL) {
-        latestCartResponse = await this.cartService.getUserCart(userUuid);
-      } else if (CheckoutType.BUY_NOW) {
-        latestCartResponse = await this.buyNowCartService.getBuyNowCart(userUuid);
-      } else {
-        throw new AppError(ErrorType.INVALID_CHECKOUT_TYPE, "Invalid checkout. Please try again.")
-      }
-
-      // Compare the latest cart with the snapshot
-      if (!this.compareCartItems(latestCartResponse.cartItems, orderItemsDto)) {
-        throw new AppError(
-          ErrorType.CART_CHANGED,
-          'Your cart has changed since checkout was initiated. Please review your cart and try again.'
-        );
-      }
+      // Get user's cart
+      const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
 
       const order = new Order();
       order.user = user;
       order.idempotencyKey = idempotencyKey;
-      let orderTotal: number = 0;
+
+      let orderTotal: Decimal = new Decimal(0);
 
       // Validate items and get products
       const validatedOrderItems = await Promise.all(
-        orderItemsDto.map(async (orderItemDto) => {
+        snapshot.cartItems.map(async (cartItem: FormattedCartItem) => {
           const product = await this.orderValidationService.validateOrderItem(
             {
-              productId: orderItemDto.productId,
-              price: orderItemDto.price,
-              quantity: orderItemDto.quantity
+              productId: cartItem.id,
+              price: cartItem.price,
+              quantity: cartItem.quantity
             },
             transactionManager
           );
-          orderTotal += product.price * orderItemDto.quantity
-          return { validatedOrderItem: orderItemDto, product };
+
+          // Use the snapshot price for the order
+          const orderItemTotal = new Decimal(cartItem.price).times(cartItem.quantity);
+          orderTotal = orderTotal.plus(orderItemTotal);
+
+          return { validatedOrderItem: cartItem, product, orderItemTotal };
         })
       );
 
-      order.orderTotal = orderTotal
-
+      order.orderTotal = orderTotal.toNumber();
       const savedOrder = await transactionManager.save(Order, order);
 
       // Create and save order items
-      const orderItemsEntities = validatedOrderItems.map(({ validatedOrderItem, product }) => {
+      const orderItemsEntities = validatedOrderItems.map(({ validatedOrderItem, product, orderItemTotal }) => {
         const orderItem = new OrderItem();
         orderItem.order = savedOrder;
         orderItem.quantity = validatedOrderItem.quantity;
         orderItem.product = product;
-        orderItem.price = product.price;
-
+        orderItem.productPrice = orderItemTotal.dividedBy(validatedOrderItem.quantity);
+        orderItem.totalPrice = orderItemTotal.toNumber();
+        
         // Update product stock and sold count
         product.stock -= validatedOrderItem.quantity;
         product.sold += validatedOrderItem.quantity;
 
+        console.log("order item is ", orderItem)
         return orderItem;
       });
 
       // Save updated products
       await transactionManager.save(Product, validatedOrderItems.map(({ product }) => product));
-      await transactionManager.save(OrderItem, orderItemsEntities);
-
-      // Clear the cart based on checkout type
-      switch (checkoutType) {
+      for (const orderItem of orderItemsEntities) {
+        await transactionManager.save(OrderItem, orderItem);
+      }
+      // Clear the cart based on checkout type      
+      switch (snapshot.checkoutType) {
         case CheckoutType.NORMAL:
-          await this.cartService.clearCart(userUuid);
+          // Get current cart items that were in the snapshot
+          const currentCartItems = await transactionManager.find(CartItem, {
+            where: {
+              cart: { id: cart.id },
+              product: {
+                id: In(snapshot.cartItems.map(product => product.id))
+              }
+            },
+            relations: ['product'] // Add this to ensure product relation is loaded
+          });
+
+
+          // First, separate items into those to be removed and those to be updated
+          const itemsToRemove: CartItem[] = [];
+          const itemsToUpdate: CartItem[] = [];
+
+          for (const currentItem of currentCartItems) {
+            const orderedItem = snapshot.cartItems.find((item: CartItem) => item.id === currentItem.product.id);
+            if (orderedItem) {
+              if (currentItem.quantity <= orderedItem.quantity) {
+                itemsToRemove.push(currentItem);
+              } else {
+                currentItem.quantity -= orderedItem.quantity;
+                itemsToUpdate.push(currentItem);
+              }
+            }
+          }
+
+          // Bulk remove items
+          if (itemsToRemove.length > 0) {
+            await transactionManager.remove(CartItem, itemsToRemove);
+          }
+
+          // Bulk update items
+          if (itemsToUpdate.length > 0) {
+            await transactionManager.save(CartItem, itemsToUpdate);
+          }
+          break;
+        case CheckoutType.SESSION:
+          await this.sessionCartService.clearSessionCart(userUuid);
           break;
         case CheckoutType.BUY_NOW:
-          // No need to clear anything for buy now
           break;
       }
+
+      // Clear checkout session
+      delete this.checkoutSnapshots[checkoutSnapshotId];
 
       return savedOrder.id;
     });

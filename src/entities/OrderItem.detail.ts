@@ -16,7 +16,10 @@ export class OrderItem {
   quantity: number;
 
   @Column("decimal", { precision: 10, scale: 2 })
-  price: number;
+  productPrice: number;
+
+  @Column("decimal", { precision: 10, scale: 2 })
+  totalPrice: number;
 
   @ManyToOne(() => Order, (order) => order.orderItems)
   order: Order;

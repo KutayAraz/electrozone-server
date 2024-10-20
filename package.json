@@ -36,6 +36,7 @@
     "cookie-parser": "^1.4.6",
     "cookie-session": "^2.0.0",
     "cross-env": "^7.0.3",
+    "decimal.js": "^10.4.3",
     "express-session": "^1.18.0",
     "mysql2": "^3.5.0",
     "passport": "^0.6.0",

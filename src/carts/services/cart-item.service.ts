@@ -11,6 +11,7 @@ import { CommonValidationService } from "src/common/services/common-validation.s
 import { Cart } from "src/entities/Cart.entity";
 import { Product } from "src/entities/Product.entity";
 import { SessionCart } from "src/entities/SessionCart.entity";
+import Decimal from "decimal.js";
 
 @Injectable()
 export class CartItemService {
@@ -62,14 +63,14 @@ export class CartItemService {
         // If it was already in cart, update the existing cartItem
         if (cartItem) {
             cartItem.quantity = newQuantity;
-            cartItem.amount = newQuantity * product.price;
+            cartItem.amount = new Decimal(newQuantity).times(product.price).toNumber();
             cartItem.addedPrice = product.price;
         } else {
             // Create a new CartItem
             cartItem = transactionManager.create(CartItem, {
                 product,
                 quantity: newQuantity,
-                amount: newQuantity * product.price,
+                amount: new Decimal(newQuantity).times(product.price).toNumber(),
                 addedPrice: product.price
             });
     
@@ -82,7 +83,7 @@ export class CartItemService {
         }
     
         cart.totalQuantity += quantityToAdd;
-        cart.cartTotal = Number(cart.cartTotal) + Number(quantityToAdd * product.price);
+        cart.cartTotal = new Decimal(cart.cartTotal).plus(new Decimal(quantityToAdd).times(product.price)).toNumber();
     
         // Save both the cartItem and the cart
         await transactionManager.save(cartItem);

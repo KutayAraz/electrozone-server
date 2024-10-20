@@ -9,6 +9,7 @@ import { CartUtilityService } from "./cart-utility.service";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { QuantityChange } from "../types/quantity-change.type";
+import Decimal from "decimal.js";
 
 @Injectable()
 export class CartService {
@@ -30,15 +31,21 @@ export class CartService {
             const { cartItems, removedCartItems, priceChanges, quantityChanges } =
                 await this.cartItemService.fetchAndUpdateCartItems(transactionManager, { cartId: cart.id });
 
-            // Recalculate cart total and quantity
-            const cartTotal = cartItems.reduce((total, product) => total + product.amount, 0);
+            // Recalculate cart total and quantity using Decimal.js
+            const cartTotal = cartItems.reduce((total, product) => {
+                return total.plus(new Decimal(product.amount));
+            }, new Decimal(0));
+
             const totalQuantity = cartItems.reduce((total, product) => total + product.quantity, 0);
 
             // Update cart in database
-            await transactionManager.update(Cart, cart.id, { cartTotal, totalQuantity });
+            await transactionManager.update(Cart, cart.id, {
+                cartTotal: cartTotal.toNumber(),
+                totalQuantity
+            });
 
             return {
-                cartTotal,
+                cartTotal: cartTotal.toNumber(),
                 totalQuantity,
                 cartItems,
                 removedCartItems,
