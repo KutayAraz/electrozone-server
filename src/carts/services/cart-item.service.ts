@@ -67,7 +67,7 @@ export class CartItemService {
     if (cartItem) {
       cartItem.quantity = newQuantity;
       cartItem.amount = new Decimal(newQuantity)
-        .times(product.price)
+        .mul(new Decimal(product.price))
         .toFixed(2);
       cartItem.addedPrice = product.price;
     } else {
@@ -75,7 +75,9 @@ export class CartItemService {
       cartItem = transactionManager.create(CartItem, {
         product,
         quantity: newQuantity,
-        amount: new Decimal(newQuantity).times(product.price).toFixed(2),
+        amount: new Decimal(newQuantity)
+          .mul(new Decimal(product.price))
+          .toFixed(2),
         addedPrice: product.price,
       });
 
@@ -89,7 +91,7 @@ export class CartItemService {
 
     cart.totalQuantity += quantityToAdd;
     cart.cartTotal = new Decimal(cart.cartTotal)
-      .plus(Decimal.mul(quantityToAdd, product.price))
+      .plus(new Decimal(quantityToAdd).mul(new Decimal(product.price)))
       .toFixed(2);
 
     // Save both the cartItem and the cart
@@ -108,7 +110,7 @@ export class CartItemService {
 
     cart.totalQuantity -= cartItem.quantity;
     cart.cartTotal = new Decimal(cart.cartTotal)
-      .minus(cartItem.amount)
+      .mul(cartItem.amount)
       .toFixed(2);
 
     await transactionManager.save(cart);
@@ -131,10 +133,10 @@ export class CartItemService {
 
     const oldQuantity = cartItem.quantity;
     const oldAmount = new Decimal(oldQuantity)
-      .times(cartItem.product.price)
+      .mul(cartItem.product.price)
       .toFixed(2);
     const newAmount = new Decimal(quantity)
-      .times(cartItem.product.price)
+      .mul(cartItem.product.price)
       .toFixed(2);
 
     cartItem.quantity = quantity;
@@ -249,7 +251,7 @@ export class CartItemService {
       };
       await transactionManager.update(CartItem, cartItem.id, {
         quantity,
-        amount: new Decimal(currentPrice).times(quantity).toFixed(2),
+        amount: new Decimal(currentPrice).mul(quantity).toFixed(2),
       });
     }
 
@@ -266,7 +268,7 @@ export class CartItemService {
       };
       await transactionManager.update(CartItem, cartItem.id, {
         addedPrice: currentPrice,
-        amount: new Decimal(currentPrice).times(quantity).toFixed(2),
+        amount: new Decimal(currentPrice).mul(quantity).toFixed(2),
       });
     }
 

@@ -3,8 +3,8 @@ export interface RawProduct {
     product_productName: string;
     product_brand: string;
     product_thumbnail: string;
-    product_averageRating: number;
-    product_price: number;
+    product_averageRating: string;
+    product_price: string;
     product_stock: number;
     subcategory: string;
     category: string;

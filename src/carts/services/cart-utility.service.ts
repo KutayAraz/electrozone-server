@@ -51,7 +51,7 @@ export class CartUtilityService {
 
     const newSessionCart = transactionManager.create(SessionCart, {
       sessionId,
-      cartTotal: "0",
+      cartTotal: new Decimal(0).toFixed(2),
       totalQuantity: 0,
     });
     return await transactionManager.save(newSessionCart);
@@ -95,7 +95,7 @@ export class CartUtilityService {
     return {
       cartItemId: item.id,
       quantity: item.quantity,
-      amount: new Decimal(item.product.price).times(item.quantity).toFixed(2),
+      amount: new Decimal(item.product.price).mul(item.quantity).toFixed(2),
       id: item.product.id,
       productName: item.product.productName,
       avgRating: item.product.averageRating,

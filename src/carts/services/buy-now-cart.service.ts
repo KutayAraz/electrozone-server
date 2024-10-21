@@ -50,7 +50,7 @@ export class BuyNowCartService {
       buyNowCart.product = product;
       buyNowCart.quantity = quantity;
       buyNowCart.addedPrice = product.price;
-      buyNowCart.total = new Decimal(product.price).times(quantity).toFixed(2);
+      buyNowCart.total = new Decimal(product.price).mul(quantity).toFixed(2);
 
       await transactionManager.save(buyNowCart);
     });
@@ -100,7 +100,7 @@ export class BuyNowCartService {
       });
       buyNowCart.addedPrice = product.price;
       buyNowCart.total = new Decimal(product.price)
-        .times(buyNowCart.quantity)
+        .mul(buyNowCart.quantity)
         .toFixed(2);
       await this.buyNowCartRepository.save(buyNowCart);
     }

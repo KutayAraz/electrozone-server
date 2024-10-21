@@ -22,7 +22,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   private createErrorResponse(exception: unknown): StandardErrorResponse {
     if (exception instanceof AppError) {
-      console.log("apperror");
       return {
         statusCode: exception.statusCode,
         error: exception.type,

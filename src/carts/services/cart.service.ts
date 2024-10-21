@@ -38,7 +38,7 @@ export class CartService {
           cartId: cart.id,
         });
 
-      // Recalculate cart total and quantity using Decimal.js
+      // Recalculate cart total and quantity
       const cartTotal = cartItems
         .reduce((total, product) => {
           return total.plus(new Decimal(product.amount));
@@ -92,6 +92,7 @@ export class CartService {
 
       this.commonValidationService.validateUser(user);
 
+      console.log("product price", product)
       const quantityChange = await this.cartItemService.addCartItem(
         cart,
         product,
