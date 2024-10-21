@@ -10,8 +10,8 @@ export interface ProductDetails {
     thumbnail: string;
     description: string;
     productImages: ProductImage[];
-    averageRating: number;
-    price: number;
+    averageRating: string;
+    price: string;
     stock: number;
     subcategory: string;
     category: string;
