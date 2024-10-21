@@ -17,11 +17,11 @@ export class CartItem {
   @Column()
   quantity: number;
 
-  @Column("decimal", { precision: 10, scale: 2 })
-  amount: number;
+  @Column('varchar', { length: 10 })
+  amount: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  addedPrice: number;
+  @Column('varchar', { length: 10, nullable: true})
+  addedPrice: string;
 
   @ManyToOne(() => Product, (product) => product.cartItems)
   product: Product;

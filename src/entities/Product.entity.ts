@@ -23,25 +23,25 @@ export class Product {
   @Column()
   brand: string;
 
-  @Column("json", {nullable: true})
+  @Column("json", { nullable: true })
   description: string;
 
   @Column()
   thumbnail: string;
 
-  @Column("decimal", { precision: 10, scale: 1, nullable: true, default: null })
-  averageRating: number;
+  @Column("varchar", { length: 10, nullable: true, default: null })
+  averageRating: string;
 
-  @Column("decimal", { precision: 10, scale: 2 })
-  price: number;
+  @Column("varchar", { length: 10 })
+  price: string;
 
   @Column()
   stock: number;
 
-  @Column({default: 0})
+  @Column({ default: 0 })
   sold: number;
 
-  @Column({default: 0})
+  @Column({ default: 0 })
   wishlisted: number;
 
   @OneToMany(() => Review, (review) => review.product)

@@ -1,9 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-  Column,
-} from "typeorm";
+import { Entity, PrimaryGeneratedColumn, ManyToOne, Column } from "typeorm";
 import { Order } from "./Order.entity";
 import { Product } from "./Product.entity";
 
@@ -15,11 +10,11 @@ export class OrderItem {
   @Column()
   quantity: number;
 
-  @Column("decimal", { precision: 10, scale: 2 })
-  productPrice: number;
+  @Column("varchar", { length: 10 })
+  productPrice: string;
 
-  @Column("decimal", { precision: 10, scale: 2 })
-  totalPrice: number;
+  @Column("varchar", { length: 10 })
+  totalPrice: string;
 
   @ManyToOne(() => Order, (order) => order.orderItems)
   order: Order;
