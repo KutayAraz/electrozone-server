@@ -14,7 +14,6 @@ import { SkipThrottle } from "@nestjs/throttler";
 import { OrderService } from "./services/order.service";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { CheckoutType } from "./types/checkoutType.enum";
-import { OrderItemDTO } from "./dtos/order-item.dto";
 
 @Controller('order')
 @UseInterceptors(ClassSerializerInterceptor)

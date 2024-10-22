@@ -6,6 +6,7 @@ import { Repository, EntityManager } from "typeorm";
 import { AppError } from "src/common/errors/app-error";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { OrderItemDTO } from "../dtos/order-item.dto";
+import { OrderItem } from "../types/order-item.type";
 
 @Injectable()
 export class OrderValidationService {
@@ -13,7 +14,7 @@ export class OrderValidationService {
     private readonly commonValidationService: CommonValidationService,
   ) { }
 
-  async validateOrderItem(orderItem: OrderItemDTO, transactionManager: EntityManager) {
+  async validateOrderItem(orderItem: OrderItem, transactionManager: EntityManager) {
     const product = await transactionManager.findOneBy(Product, { id: orderItem.productId });
 
     this.commonValidationService.validateProduct(product)
