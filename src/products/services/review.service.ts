@@ -174,7 +174,7 @@ export class ReviewService {
         new Decimal(0),
       );
       product.averageRating = ratingTotal
-        .dividedBy(product.reviews.length)
+        .div(product.reviews.length)
         .toFixed(2);
 
       await transactionalEntityManager.save(product);

@@ -36,7 +36,7 @@ export class OrderService {
     private readonly sessionCartService: SessionCartService,
     private readonly cartUtilityService: CartUtilityService,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   async initiateCheckout(
     userUuid: string,
@@ -178,9 +178,8 @@ export class OrderService {
             orderItem.order = savedOrder;
             orderItem.quantity = validatedOrderItem.quantity;
             orderItem.product = product;
-            orderItem.productPrice = orderItemTotal.dividedBy(
-              validatedOrderItem.quantity,
-            );
+            orderItem.productPrice = new Decimal(orderItemTotal).div(
+              validatedOrderItem.quantity).toFixed(2);
             orderItem.totalPrice = orderItemTotal;
 
             // Update product stock and sold count

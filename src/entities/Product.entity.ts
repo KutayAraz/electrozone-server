@@ -29,7 +29,7 @@ export class Product {
   @Column()
   thumbnail: string;
 
-  @Column("varchar", { length: 10, nullable: true, default: null })
+  @Column("varchar", { length: 3, nullable: true, default: null })
   averageRating: string;
 
   @Column("varchar", { length: 10 })
