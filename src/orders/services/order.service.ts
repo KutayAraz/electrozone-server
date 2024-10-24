@@ -36,7 +36,7 @@ export class OrderService {
     private readonly sessionCartService: SessionCartService,
     private readonly cartUtilityService: CartUtilityService,
     private dataSource: DataSource,
-  ) { }
+  ) {}
 
   async initiateCheckout(
     userUuid: string,
@@ -91,38 +91,17 @@ export class OrderService {
     checkoutSnapshotId: string,
     idempotencyKey: string,
   ) {
-    const existingOrder = await this.dataSource
-      .getRepository(Order)
-      .findOne({ where: { idempotencyKey } });
+    const existingOrder = await this.orderValidationService.validateIdempotency(
+      idempotencyKey,
+      this.dataSource.getRepository(Order),
+    );
+
     if (existingOrder) {
-      return existingOrder.id; // Order already processed
+      return existingOrder.id; // Order has already been processed
     }
 
     const snapshot = this.checkoutSnapshots[checkoutSnapshotId];
-    if (!snapshot) {
-      throw new AppError(
-        ErrorType.NO_CHECKOUT_SESSION,
-        "No active checkout session found. Please start checkout again.",
-      );
-    }
-
-    if (snapshot.userUuid !== userUuid) {
-      throw new AppError(
-        ErrorType.ACCESS_DENIED,
-        "You are not authorized to process checkout from this cart.",
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
-    // Check session expiry (15 minutes)
-    const sessionAge = Date.now() - snapshot.createdAt.getTime();
-    if (sessionAge > 15 * 60 * 1000) {
-      delete this.checkoutSnapshots[checkoutSnapshotId];
-      throw new AppError(
-        ErrorType.CHECKOUT_SESSION_EXPIRED,
-        "Checkout session has expired. Please start checkout again.",
-      );
-    }
+    this.orderValidationService.validateCheckoutSession(snapshot, userUuid);
 
     return this.dataSource.transaction(
       "REPEATABLE READ" as IsolationLevel,
@@ -142,33 +121,19 @@ export class OrderService {
         order.user = user;
         order.idempotencyKey = idempotencyKey;
 
-        let orderTotal: string = new Decimal(0).toFixed(2);
-
         // Validate items and get products
-        const validatedOrderItems = await Promise.all(
-          snapshot.cartItems.map(async (cartItem: FormattedCartItem) => {
-            const product = await this.orderValidationService.validateOrderItem(
-              {
-                productId: cartItem.id,
-                price: cartItem.price,
-                quantity: cartItem.quantity,
-              },
-              transactionManager,
-            );
+        const validatedOrderItems =
+          await this.orderValidationService.validateOrderItems(
+            snapshot.cartItems,
+            transactionManager,
+          );
 
-            // Use the snapshot price for the order
-            const orderItemTotal = new Decimal(cartItem.price)
-              .times(cartItem.quantity)
-              .toFixed(2);
-            orderTotal = new Decimal(orderTotal)
-              .plus(orderItemTotal)
-              .toFixed(2);
-
-            return { validatedOrderItem: cartItem, product, orderItemTotal };
-          }),
+        order.orderTotal = validatedOrderItems.reduce(
+          (total, { orderItemTotal }) =>
+            new Decimal(total).plus(orderItemTotal).toFixed(2),
+          "0.00",
         );
 
-        order.orderTotal = orderTotal;
         const savedOrder = await transactionManager.save(Order, order);
 
         // Create and save order items
@@ -178,15 +143,15 @@ export class OrderService {
             orderItem.order = savedOrder;
             orderItem.quantity = validatedOrderItem.quantity;
             orderItem.product = product;
-            orderItem.productPrice = new Decimal(orderItemTotal).div(
-              validatedOrderItem.quantity).toFixed(2);
+            orderItem.productPrice = new Decimal(orderItemTotal)
+              .div(validatedOrderItem.quantity)
+              .toFixed(2);
             orderItem.totalPrice = orderItemTotal;
 
             // Update product stock and sold count
             product.stock -= validatedOrderItem.quantity;
             product.sold += validatedOrderItem.quantity;
 
-            console.log("order item is ", orderItem);
             return orderItem;
           },
         );
