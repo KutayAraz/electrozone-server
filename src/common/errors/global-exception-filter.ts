@@ -29,24 +29,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         details: exception.details
       };
     }
-
-    // if (exception instanceof UnauthorizedException) {
-    //   const message = exception.message;
-    //   let error = 'Access denied';
-
-    //   if (message === 'Token expired') {
-    //     error = 'Session Expired';
-    //   } else if (message === 'No token provided') {
-    //     error = 'Authentication Required';
-    //   }
-
-    //   return {
-    //     statusCode: HttpStatus.UNAUTHORIZED,
-    //     error,
-    //     message
-    //   };
-    // }
-
+    
     if (exception instanceof HttpException) {
       const response = exception.getResponse() as string | object;
       return {

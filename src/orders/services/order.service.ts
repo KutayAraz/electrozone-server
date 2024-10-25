@@ -164,6 +164,7 @@ export class OrderService {
         for (const orderItem of orderItemsEntities) {
           await transactionManager.save(OrderItem, orderItem);
         }
+        
         // Clear the cart based on checkout type
         switch (snapshot.checkoutType) {
           case CheckoutType.NORMAL:
