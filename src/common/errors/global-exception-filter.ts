@@ -22,7 +22,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
   private createErrorResponse(exception: unknown): StandardErrorResponse {
     if (exception instanceof AppError) {
-      console.log("apperror");
       return {
         statusCode: exception.statusCode,
         error: exception.type,
@@ -50,7 +49,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const response = exception.getResponse() as string | object;
-      console.log("httpexception");
       return {
         statusCode: exception.getStatus(),
         error: exception.name,

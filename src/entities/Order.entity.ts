@@ -14,8 +14,8 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column("decimal", { precision: 10, scale: 2, default: 0 })
-  orderTotal: number;
+  @Column("varchar", { length: 10, default: 0 })
+  orderTotal: string;
 
   @CreateDateColumn()
   orderDate: Date;

@@ -14,11 +14,11 @@ export class Cart {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({default: 0})
+  @Column({ default: 0 })
   totalQuantity: number;
 
-  @Column("decimal", { precision: 10, scale: 2, default: 0.00 })
-  cartTotal: number;
+  @Column("varchar", { length: 10 })
+  cartTotal: string;
 
   @OneToOne(() => User)
   @JoinColumn()

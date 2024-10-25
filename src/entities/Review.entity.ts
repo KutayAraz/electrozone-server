@@ -17,8 +17,8 @@ export class Review {
   @CreateDateColumn()
   reviewDate: Date;
 
-  @Column("decimal", { precision: 10, scale: 1,})
-  rating: number;
+  @Column("varchar", { length: 10 })
+  rating: string;
 
   @Column()
   comment: string;

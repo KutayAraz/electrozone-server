@@ -10,35 +10,37 @@ import { DataSource, Repository } from "typeorm";
 import { ProductReviewsResponse } from "../types/product-reviews-response.type";
 import { TransformedReview } from "../types/transformed-review.type";
 import { RatingDistribution } from "../types/rating-distribution.type";
+import Decimal from "decimal.js";
 
 @Injectable()
 export class ReviewService {
   constructor(
-    @InjectRepository(Product) private readonly productsRepo: Repository<Product>,
+    @InjectRepository(Product)
+    private readonly productsRepo: Repository<Product>,
     @InjectRepository(Review) private readonly reviewsRepo: Repository<Review>,
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
     @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
-    private readonly dataSource: DataSource
-  ) { }
+    private readonly dataSource: DataSource,
+  ) {}
 
   // Retrieves reviews for a specific product with pagination
   async getProductReviews(
     productId: number,
     skip: number = 0,
-    limit: number = 5
+    limit: number = 5,
   ): Promise<ProductReviewsResponse> {
     const reviews = await this.reviewsRepo
-      .createQueryBuilder('review')
+      .createQueryBuilder("review")
       .select([
-        'review.id',
-        'review.reviewDate',
-        'review.rating',
-        'review.comment',
-        'user.firstName',
-        'user.lastName'
+        "review.id",
+        "review.reviewDate",
+        "review.rating",
+        "review.comment",
+        "user.firstName",
+        "user.lastName",
       ])
-      .innerJoin('review.user', 'user')
-      .orderBy('review.reviewDate', 'DESC')
+      .innerJoin("review.user", "user")
+      .orderBy("review.reviewDate", "DESC")
       .where("review.productId = :productId", { productId })
       .skip(skip)
       .take(limit)
@@ -50,15 +52,15 @@ export class ReviewService {
     const ratingsCount = await this.getRatingsDistribution(productId);
 
     // Transform reviews to hide full names
-    const transformedReviews: TransformedReview[] = reviews.map(review => ({
+    const transformedReviews: TransformedReview[] = reviews.map((review) => ({
       id: review.id,
       reviewDate: review.reviewDate,
       rating: review.rating,
       comment: review.comment,
       user: {
         firstName: `${review.user.firstName.charAt(0)}.`,
-        lastName: `${review.user.lastName.charAt(0)}.`
-      }
+        lastName: `${review.user.lastName.charAt(0)}.`,
+      },
     }));
 
     return {
@@ -66,36 +68,45 @@ export class ReviewService {
       ratingsDistribution: ratingsCount,
       totalCount: totalCount,
       skip: skip,
-      limit: limit
+      limit: limit,
     };
   }
 
   private async getTotalReviewCount(productId: number): Promise<number> {
-    return await this.reviewsRepo.count({ where: { product: { id: productId } } });
+    return await this.reviewsRepo.count({
+      where: { product: { id: productId } },
+    });
   }
 
-  private async getRatingsDistribution(productId: number): Promise<RatingDistribution[]> {
+  private async getRatingsDistribution(
+    productId: number,
+  ): Promise<RatingDistribution[]> {
     const ratingsCountRaw = await this.reviewsRepo
-      .createQueryBuilder('review')
-      .select('review.rating', 'rating')
-      .addSelect('COUNT(*)', 'count')
+      .createQueryBuilder("review")
+      .select("review.rating", "rating")
+      .addSelect("COUNT(*)", "count")
       .where("review.productId = :productId", { productId })
-      .groupBy('review.rating')
+      .groupBy("review.rating")
       .getRawMany();
 
     const ratingsCount = [];
     for (let i = 5; i >= 1; i--) {
-      const ratingEntry = ratingsCountRaw.find(rc => parseInt(rc.rating) === i);
+      const ratingEntry = ratingsCountRaw.find(
+        (rc) => parseInt(rc.rating) === i,
+      );
       ratingsCount.push({
         review_rating: i,
-        count: ratingEntry ? ratingEntry.count : '0'
+        count: ratingEntry ? ratingEntry.count : "0",
       });
     }
 
     return ratingsCount;
   }
 
-  async checkReviewEligibility(selectedProductId: number, userUuid: string): Promise<boolean> {
+  async checkReviewEligibility(
+    selectedProductId: number,
+    userUuid: string,
+  ): Promise<boolean> {
     // Check if the user has ordered the product
     const hasOrderedProduct = await this.ordersRepo
       .createQueryBuilder("order")
@@ -103,7 +114,9 @@ export class ReviewService {
       .innerJoin("order.orderItems", "orderItem")
       .innerJoin("orderItem.product", "product")
       .where("user.uuid = :userUuid", { userUuid })
-      .andWhere("orderItem.product.id = :productId", { productId: selectedProductId })
+      .andWhere("orderItem.product.id = :productId", {
+        productId: selectedProductId,
+      })
       .select("orderItem.product.id", "productId")
       .getRawOne();
 
@@ -125,15 +138,18 @@ export class ReviewService {
   async addReview(
     productId: number,
     userUuid: string,
-    rating: number,
+    rating: string,
     comment: string,
-  ): Promise<number> {
+  ): Promise<string> {
     const canReview = await this.checkReviewEligibility(productId, userUuid);
     if (!canReview) {
-      throw new AppError(ErrorType.INELIGABLE_REVIEW, "You are not eligible to review this product");
+      throw new AppError(
+        ErrorType.INELIGABLE_REVIEW,
+        "You are not eligible to review this product",
+      );
     }
 
-    return this.dataSource.transaction(async transactionalEntityManager => {
+    return this.dataSource.transaction(async (transactionalEntityManager) => {
       const [product, user] = await Promise.all([
         transactionalEntityManager.findOneOrFail(Product, {
           where: { id: productId },
@@ -153,8 +169,13 @@ export class ReviewService {
 
       // Update product's average rating
       product.reviews.push(review);
-      const ratingTotal = product.reviews.reduce((total, rev) => total + rev.rating, 0);
-      product.averageRating = ratingTotal / product.reviews.length;
+      const ratingTotal = product.reviews.reduce(
+        (total, rev) => total.plus(new Decimal(rev.rating)),
+        new Decimal(0),
+      );
+      product.averageRating = ratingTotal
+        .div(product.reviews.length)
+        .toFixed(2);
 
       await transactionalEntityManager.save(product);
 

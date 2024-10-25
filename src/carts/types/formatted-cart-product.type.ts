@@ -1,12 +1,12 @@
 export interface FormattedCartItem {
     cartItemId: number;
     quantity: number;
-    amount: number;
+    amount: string;
     id: number;
     productName: string;
-    avgRating: number;
+    avgRating: string;
     thumbnail: string;
-    price: number;
+    price: string;
     subcategory: string;
     category: string;
 }

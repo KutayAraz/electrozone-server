@@ -15,11 +15,11 @@ export class BuyNowSessionCart {
     @Column()
     quantity: number;
 
-    @Column('decimal', { precision: 10, scale: 2 })
-    addedPrice: number;
+    @Column('varchar', { length: 10 })
+    addedPrice: string;
 
-    @Column('decimal', { precision: 10, scale: 2 })
-    total: number;
+    @Column('varchar', { length: 10 })
+    total: string;
 
     @CreateDateColumn()
     createdAt: Date;

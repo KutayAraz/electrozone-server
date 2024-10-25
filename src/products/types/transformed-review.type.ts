@@ -1,7 +1,7 @@
 export interface TransformedReview {
     id: number;
     reviewDate: Date;
-    rating: number;
+    rating: string;
     comment: string;
     user: {
         firstName: string;

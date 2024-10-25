@@ -3,8 +3,8 @@ export interface FormattedProduct {
     productName: string;
     brand: string;
     thumbnail: string;
-    averageRating: number;
-    price: number;
+    averageRating: string;
+    price: string;
     stock: number;
     subcategory: string;
     category: string;

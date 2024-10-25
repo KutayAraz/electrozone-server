@@ -1,5 +1,5 @@
 export interface PriceChange {
     productName: string;
-    oldPrice: number;
-    newPrice: number;
+    oldPrice: string;
+    newPrice: string;
 }
