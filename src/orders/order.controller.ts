@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Post,
   Query,
+  Session,
   UseInterceptors,
 } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
@@ -23,9 +24,10 @@ export class OrderController {
   @Post('initiate-checkout')
   async initiateCheckout(
     @UserUuid() userUuid: string,
+    @Session() session: Record<string, any>,
     @Body('checkoutType') checkoutType: CheckoutType
   ) {
-    const {checkoutSnapshotId, cartData} = await this.orderService.initiateCheckout(userUuid, checkoutType );
+    const {checkoutSnapshotId, cartData} = await this.orderService.initiateCheckout(userUuid, checkoutType, session?.id );
     return { checkoutSnapshotId, cartData };
   }
 
