@@ -18,6 +18,7 @@ import { CartService } from "src/carts/services/cart.service";
 import { SessionCart } from "src/entities/SessionCart.entity";
 import { BuyNowSessionCart } from "src/entities/BuyNowSessionCart.entity";
 import { CartItemService } from "src/carts/services/cart-item.service";
+import { OrderUtilityService } from "./services/order-utility.service";
 
 @Module({
   imports: [
@@ -28,7 +29,9 @@ import { CartItemService } from "src/carts/services/cart-item.service";
   providers: [
     OrderService,
     CommonValidationService,
-    OrderValidationService, CartUtilityService,
+    OrderValidationService,
+    CartUtilityService,
+    OrderUtilityService,
     BuyNowCartService,
     SessionCartService,
     CartService,

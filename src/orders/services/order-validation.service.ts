@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  UnauthorizedException,
-  HttpStatus,
-} from "@nestjs/common";
+import { Injectable, HttpStatus } from "@nestjs/common";
 import { ErrorType } from "src/common/errors/error-type";
 import { Order } from "src/entities/Order.entity";
 import { Product } from "src/entities/Product.entity";
@@ -12,52 +6,60 @@ import { Repository, EntityManager } from "typeorm";
 import { AppError } from "src/common/errors/app-error";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { OrderItemDTO } from "../dtos/order-item.dto";
-import { OrderItem } from "../types/order-item.type";
-import { CheckoutSnapshot } from "../types/checkout-snapshot.type";
 import Decimal from "decimal.js";
 import { FormattedCartItem } from "src/carts/types/formatted-cart-product.type";
+import { OrderUtilityService } from "./order-utility.service";
 
 @Injectable()
 export class OrderValidationService {
   constructor(
     private readonly commonValidationService: CommonValidationService,
-  ) {}
+    private readonly orderUtilityService: OrderUtilityService,
+  ) { }
 
-  validateCheckoutSession(snapshot: CheckoutSnapshot, userUuid: string): void {
-    if (!snapshot) {
-      throw new AppError(
-        ErrorType.NO_CHECKOUT_SESSION,
-        "No active checkout session found. Please start checkout again.",
-      );
+
+  async validateOrderWithCart(
+    cartItems: FormattedCartItem[],
+    orderItems: OrderItemDTO[],
+    transactionManager: EntityManager,
+  ) {
+    if (cartItems.length !== orderItems.length) {
+      throw this.orderUtilityService.cartChangedError();
     }
 
-    if (snapshot.userUuid !== userUuid) {
-      throw new AppError(
-        ErrorType.ACCESS_DENIED,
-        "You are not authorized to process checkout from this cart.",
-        HttpStatus.FORBIDDEN,
-      );
-    }
+    return await Promise.all(
+      cartItems.map(async (cartItem) => {
+        const orderItem = orderItems.find(
+          (item) => item.productId === cartItem.id,
+        );
+        if (!orderItem || orderItem.quantity !== cartItem.quantity) {
+          throw this.orderUtilityService.cartChangedError();
+        }
 
-    // Check session expiry (15 minutes)
-    const sessionAge = Date.now() - snapshot.createdAt.getTime();
-    if (sessionAge > 15 * 60 * 1000) {
-      throw new AppError(
-        ErrorType.CHECKOUT_SESSION_EXPIRED,
-        "Checkout session has expired. Please start checkout again.",
-      );
-    }
-  }
+        // Validate prices match within tolerance
+        const priceDifference = new Decimal(orderItem.price)
+          .minus(new Decimal(cartItem.price))
+          .abs();
+        if (!priceDifference.lessThanOrEqualTo("0.01")) {
+          throw this.orderUtilityService.cartChangedError();
+        }
 
-  async validateIdempotency(
-    idempotencyKey: string,
-    orderRepo: Repository<Order>,
-  ): Promise<Order | null> {
-    return await orderRepo.findOne({ where: { idempotencyKey } });
+        const product = await this.validateOrderItem(
+          orderItem,
+          transactionManager,
+        );
+
+        const orderItemTotal = new Decimal(orderItem.price)
+          .times(orderItem.quantity)
+          .toFixed(2);
+
+        return { orderItem, product, orderItemTotal };
+      }),
+    );
   }
 
   async validateOrderItem(
-    orderItem: OrderItem,
+    orderItem: OrderItemDTO,
     transactionManager: EntityManager,
   ) {
     const product = await transactionManager.findOneBy(Product, {
@@ -65,7 +67,10 @@ export class OrderValidationService {
     });
 
     this.commonValidationService.validateProduct(product);
-    this.commonValidationService.validatePrice(product, orderItem.price);
+    this.commonValidationService.validatePrice(
+      product,
+      new Decimal(orderItem.price).toFixed(2),
+    );
     this.commonValidationService.validateQuantity(orderItem.quantity);
     this.commonValidationService.validateStockAvailability(
       product,
@@ -75,34 +80,11 @@ export class OrderValidationService {
     return product;
   }
 
-  async validateOrderItems(
-    cartItems: FormattedCartItem[],
-    transactionManager: EntityManager,
-  ): Promise<
-    Array<{
-      validatedOrderItem: FormattedCartItem;
-      product: Product;
-      orderItemTotal: string;
-    }>
-  > {
-    return await Promise.all(
-      cartItems.map(async (cartItem: FormattedCartItem) => {
-        const product = await this.validateOrderItem(
-          {
-            productId: cartItem.id,
-            price: cartItem.price,
-            quantity: cartItem.quantity,
-          },
-          transactionManager,
-        );
-
-        const orderItemTotal = new Decimal(cartItem.price)
-          .times(cartItem.quantity)
-          .toFixed(2);
-
-        return { validatedOrderItem: cartItem, product, orderItemTotal };
-      }),
-    );
+  async validateIdempotency(
+    idempotencyKey: string,
+    orderRepo: Repository<Order>,
+  ): Promise<Order | null> {
+    return await orderRepo.findOne({ where: { idempotencyKey } });
   }
 
   async validateUserOrder(
@@ -115,7 +97,7 @@ export class OrderValidationService {
       relations: ["user", "orderItems"],
     });
 
-    this.validateOrder(order);
+    this.validateOrder(order, orderId);
 
     if (order.user.uuid !== userUuid) {
       throw new AppError(
@@ -132,11 +114,11 @@ export class OrderValidationService {
     return new Date().getTime() - orderDate.getTime() <= 86400000;
   }
 
-  validateOrder(order: Order) {
+  validateOrder(order: Order, orderId?: number) {
     if (!order) {
       throw new AppError(
         ErrorType.ORDER_NOT_FOUND,
-        `Order with id of ${order.id} is not found`,
+        `Order${orderId ? ` with id of ${orderId}` : ''} is not found`,
       );
     }
   }
