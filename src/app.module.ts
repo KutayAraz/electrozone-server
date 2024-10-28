@@ -12,6 +12,7 @@ import { AtGuard } from "./common/guards/at.guard";
 import { UserModule } from "./users/user.module";
 import { ProductModule } from "./products/product.module";
 import { SessionMiddleware } from "./common/middleware/session.middleware";
+import { RedisModule } from "./redis/redis.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SessionMiddleware } from "./common/middleware/session.middleware";
       ttl: 60000,  // Time to live for the records in miliseconds
       limit: 50,  // Maximum number of requests within the TTL
     }]),
+    RedisModule,
     UserModule,
     CategoriesModule,
     ProductModule,
