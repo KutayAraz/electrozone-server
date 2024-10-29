@@ -7,6 +7,7 @@ import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { RawProduct } from "./types/raw-product.type";
 import { ProductQueryResult } from "./types/product-query-result.type";
+import { CacheResult } from "src/common/decorators/cache-result.decorator";
 
 enum ProductOrderBy {
   SOLD = "product.sold",
@@ -101,6 +102,11 @@ export class SubcategoryService {
     return { products: formattedProducts, productQuantity: count };
   }
 
+  @CacheResult({
+    prefix: "products",
+    ttl: 10800,
+    paramKeys: ["params", "orderByField", "orderDirection"]
+  })
   async getProducts(
     params: ProductQueryParams,
     orderByField: string,
@@ -110,6 +116,11 @@ export class SubcategoryService {
     return this.executeQuery(query, params.skip, params.limit, orderByField, orderDirection);
   }
 
+  @CacheResult({
+    prefix: "brands",
+    ttl: 10800,
+    paramKeys: ["subcategory"]
+  })
   async getAllBrands(subcategory: string): Promise<string[]> {
     const brands = await this.productsRepo
       .createQueryBuilder("product")
@@ -122,6 +133,11 @@ export class SubcategoryService {
     return brands.map(brand => brand.brand);
   }
 
+  @CacheResult({
+    prefix: "price-range",
+    ttl: 10800,
+    paramKeys: ["subcategory", "brand"]
+  })
   async getPriceRange(subcategory: string, brand?: string): Promise<{ min: number; max: number }> {
     let query = this.productsRepo
       .createQueryBuilder("product")
@@ -143,6 +159,11 @@ export class SubcategoryService {
 
   // Base method for retrieving products with custom ordering
   // Used by other methods to implement specific product listing features
+  @CacheResult({
+    prefix: "ordered-products",
+    ttl: 10800,
+    paramKeys: ["params", "orderBy", "orderDirection"]
+  })
   async getProductsWithOrder(
     params: ProductQueryParams,
     orderBy: ProductOrderBy,
@@ -151,26 +172,56 @@ export class SubcategoryService {
     return this.getProducts(params, orderBy, orderDirection);
   }
 
+  @CacheResult({
+    prefix: "featured-products",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getFeaturedProducts(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
   }
 
+  @CacheResult({
+    prefix: "best-rated-products",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getProductsBasedOnRating(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.RATING, OrderDirection.DESC);
   }
 
+  @CacheResult({
+    prefix: "price-asc-products",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getProductsByPriceAsc(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.PRICE, OrderDirection.ASC);
   }
 
+  @CacheResult({
+    prefix: "price-desc-products",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getProductsByPriceDesc(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.PRICE, OrderDirection.DESC);
   }
 
+  @CacheResult({
+    prefix: "top-selling-products",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getTopSelling(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
   }
 
+  @CacheResult({
+    prefix: "top-wishlisted-products",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getTopWishlistedProducts(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.WISHLISTED, OrderDirection.DESC);
   }

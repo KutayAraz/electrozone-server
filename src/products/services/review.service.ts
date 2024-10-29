@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
@@ -11,19 +11,27 @@ import { ProductReviewsResponse } from "../types/product-reviews-response.type";
 import { TransformedReview } from "../types/transformed-review.type";
 import { RatingDistribution } from "../types/rating-distribution.type";
 import Decimal from "decimal.js";
+import { CacheResult } from "src/common/decorators/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
 
 @Injectable()
 export class ReviewService {
+  private readonly logger = new Logger(ReviewService.name);
+
   constructor(
     @InjectRepository(Product)
-    private readonly productsRepo: Repository<Product>,
     @InjectRepository(Review) private readonly reviewsRepo: Repository<Review>,
-    @InjectRepository(User) private readonly usersRepo: Repository<User>,
     @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
     private readonly dataSource: DataSource,
-  ) {}
+    private readonly redisService: RedisService
+  ) { }
 
   // Retrieves reviews for a specific product with pagination
+  @CacheResult({
+    prefix: 'product-reviews',
+    ttl: 10800,
+    paramKeys: ['productId', 'skip', 'limit']
+  })
   async getProductReviews(
     productId: number,
     skip: number = 0,
@@ -72,12 +80,22 @@ export class ReviewService {
     };
   }
 
+  @CacheResult({
+    prefix: 'review-count',
+    ttl: 10800,
+    paramKeys: ['productId']
+  })
   private async getTotalReviewCount(productId: number): Promise<number> {
     return await this.reviewsRepo.count({
       where: { product: { id: productId } },
     });
   }
 
+  @CacheResult({
+    prefix: 'ratings-distribution',
+    ttl: 10800,
+    paramKeys: ['productId']
+  })
   private async getRatingsDistribution(
     productId: number,
   ): Promise<RatingDistribution[]> {
@@ -107,6 +125,17 @@ export class ReviewService {
     selectedProductId: number,
     userUuid: string,
   ): Promise<boolean> {
+    const cacheKey = this.redisService.generateKey('review-eligibility', {
+      productId: selectedProductId,
+      userUuid
+    });
+
+    // Try to get from cache first
+    const cachedResult = await this.redisService.get<boolean>(cacheKey);
+    if (cachedResult !== null) {
+      return cachedResult;
+    }
+
     // Check if the user has ordered the product
     const hasOrderedProduct = await this.ordersRepo
       .createQueryBuilder("order")
@@ -132,7 +161,9 @@ export class ReviewService {
       },
     });
 
-    return !existingReview;
+    const isEligible = !existingReview;
+    await this.redisService.set(cacheKey, isEligible, 10800);
+    return isEligible;
   }
 
   async addReview(
@@ -179,7 +210,26 @@ export class ReviewService {
 
       await transactionalEntityManager.save(product);
 
+      // Invalidate related caches
+      await this.invalidateProductReviewCaches(productId, userUuid);
+
       return product.averageRating;
     });
+  }
+
+  private async invalidateProductReviewCaches(productId: number, userUuid: string): Promise<void> {
+    try {
+      const keysToInvalidate = [
+        this.redisService.generateKey('product-reviews', { productId, skip: 0, limit: 5 }), // Default page
+        this.redisService.generateKey('review-count', { productId }),
+        this.redisService.generateKey('ratings-distribution', { productId }),
+        this.redisService.generateKey('review-eligibility', { productId, userUuid })
+      ];
+
+      await Promise.all(keysToInvalidate.map(key => this.redisService.del(key)));
+      this.logger.debug(`Invalidated cache keys for product ${productId}`);
+    } catch (error) {
+      this.logger.error('Failed to invalidate review caches:', error);
+    }
   }
 }

@@ -5,6 +5,7 @@ import { Subcategory } from "src/entities/Subcategory.entity";
 import { SubcategoryService } from "src/subcategories/subcategory.service";
 import { Repository } from "typeorm";
 import { SubcategoryTopProducts } from "./types/subcategory-top-products.type";
+import { CacheResult } from "src/common/decorators/cache-result.decorator";
 
 @Injectable()
 export class CategoryService {
@@ -14,17 +15,31 @@ export class CategoryService {
     private readonly subcategoriesService: SubcategoryService,
   ) { }
 
+  @CacheResult({
+    prefix: "all-categories",
+    ttl: 86400,
+  })
   async getAllCategories(): Promise<Category[]> {
     return this.categoriesRepo.find();
   }
 
   // Fetches subcategories and their top products for a given category
+  @CacheResult({
+    prefix: "category-information",
+    ttl: 10800,
+    paramKeys: ["category"]
+  })
   async getCategoryInformation(category: string): Promise<SubcategoryTopProducts[]> {
     const subcategories = await this.getSubcategories(category);
     return this.getTopProductsForSubcategories(subcategories);
   }
 
   // Retrieves subcategories for a given category using a custom query
+  @CacheResult({
+    prefix: "category-information",
+    ttl: 86400,
+    paramKeys: ["category"]
+  })
   async getSubcategories(category: string): Promise<string[]> {
     const subcategories = await this.subcategoriesRepo
       .createQueryBuilder("subcategory")

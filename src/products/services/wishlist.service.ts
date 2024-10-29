@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
@@ -8,15 +8,25 @@ import { WishlistItem } from "../types/wishlist-product.type";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { WishlistToggleResult } from "../types/wishlist-toggle-result.type";
+import { RedisService } from "src/redis/redis.service";
+import { CacheResult } from "src/common/decorators/cache-result.decorator";
 
 @Injectable()
 export class WishlistService {
+    private readonly logger = new Logger(WishlistService.name);
+
     constructor(
         @InjectRepository(Wishlist)
         private readonly wishlistRepo: Repository<Wishlist>,
         private readonly dataSource: DataSource,
+        private readonly redisService: RedisService,
     ) { }
 
+    @CacheResult({
+        prefix: 'user-wishlist',
+        ttl: 3600,
+        paramKeys: ['userUuid']
+    })
     async getUserWishlist(userUuid: string): Promise<WishlistItem[]> {
         // Fetch wishlist items with related product, subcategory, and category information
         const userWishlist = await this.wishlistRepo.createQueryBuilder("wishlist")
@@ -55,6 +65,11 @@ export class WishlistService {
         });
     }
 
+    @CacheResult({
+        prefix: 'wishlist-check',
+        ttl: 3600,
+        paramKeys: ['productId', 'userUuid']
+    })
     async checkWishlist(productId: number, userUuid: string): Promise<boolean> {
         // Check if a product is in the user's wishlist
         const count = await this.wishlistRepo.count({
@@ -114,10 +129,27 @@ export class WishlistService {
             // Update the product's wishlisted count
             await transactionalEntityManager.save(product);
 
+            // Invalidate related caches
+            await this.invalidateWishlistCaches(userUuid);
+
             return {
                 action,
                 productId,
             };
         });
+    }
+
+    private async invalidateWishlistCaches(userUuid: string): Promise<void> {
+        try {
+            const keysToInvalidate = [
+                this.redisService.generateKey('user-wishlist', { userUuid }),
+                this.redisService.generateKey('wishlist-check', { productId: 0, userUuid }) // Invalidate all product checks
+            ];
+
+            await Promise.all(keysToInvalidate.map(key => this.redisService.del(key)));
+            this.logger.debug(`Invalidated cache keys for user ${userUuid}`);
+        } catch (error) {
+            this.logger.error('Failed to invalidate wishlist caches:', error);
+        }
     }
 }

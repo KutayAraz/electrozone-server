@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
@@ -21,9 +21,13 @@ import { SessionCartService } from "src/carts/services/session-cart.service";
 import { CartUtilityService } from "src/carts/services/cart-utility.service";
 import { CartItem } from "src/entities/CartItem.entity";
 import Decimal from "decimal.js";
+import { CacheResult } from "src/common/decorators/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
 
 @Injectable()
 export class OrderService {
+  private readonly logger = new Logger(OrderService.name);
+
   private checkoutSnapshots = [];
 
   constructor(
@@ -36,7 +40,8 @@ export class OrderService {
     private readonly sessionCartService: SessionCartService,
     private readonly cartUtilityService: CartUtilityService,
     private dataSource: DataSource,
-  ) {}
+    private redisService: RedisService,
+  ) { }
 
   async initiateCheckout(
     userUuid: string,
@@ -164,7 +169,10 @@ export class OrderService {
         for (const orderItem of orderItemsEntities) {
           await transactionManager.save(OrderItem, orderItem);
         }
-        
+
+        // Invalidate order caches
+        await this.invalidateOrderCaches(userUuid, savedOrder.id);
+
         // Clear the cart based on checkout type
         switch (snapshot.checkoutType) {
           case CheckoutType.NORMAL:
@@ -249,9 +257,17 @@ export class OrderService {
       );
 
       await transactionManager.remove(order);
+
+      // Invalidate order caches
+      await this.invalidateOrderCaches(userUuid, orderId);
     });
   }
 
+  @CacheResult({
+    prefix: 'order-by-id',
+    ttl: 86400, // 1 hour
+    paramKeys: ['userUuid', 'orderId']
+  })
   async getOrderById(userUuid: string, orderId: number) {
     const user = await this.userRepository.findOne({
       where: { uuid: userUuid },
@@ -290,6 +306,11 @@ export class OrderService {
     };
   }
 
+  @CacheResult({
+    prefix: 'user-orders',
+    ttl: 86400,
+    paramKeys: ['userUuid', 'skip', 'take']
+  })
   async getOrdersForUser(userUuid: string, skip: number, take: number) {
     const orders = await this.orderRepository.find({
       where: { user: { uuid: userUuid } },
@@ -348,5 +369,19 @@ export class OrderService {
       },
       orderItems: transformedOrderItems,
     };
+  }
+
+  private async invalidateOrderCaches(userUuid: string, orderId?: number): Promise<void> {
+    try {
+      const keysToInvalidate = [
+        this.redisService.generateKey('order-by-id', { userUuid, orderId }),
+        this.redisService.generateKey('user-orders', { userUuid, skip: 0, take: 10 }) // Invalidate default page
+      ];
+
+      await Promise.all(keysToInvalidate.map(key => this.redisService.del(key)));
+      this.logger.debug(`Invalidated cache keys for user ${userUuid}`);
+    } catch (error) {
+      this.logger.error('Failed to invalidate order caches:', error);
+    }
   }
 }

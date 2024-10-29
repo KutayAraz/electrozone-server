@@ -9,6 +9,7 @@ import { ProductDetails } from "../types/product-details.type";
 import { SuggestedProducts } from "../types/suggested-products.type";
 import { TopProduct } from "../types/top-product.type";
 import { SearchResult } from "../types/search-result.type";
+import { CacheResult } from "src/common/decorators/cache-result.decorator";
 
 @Injectable()
 export class ProductService {
@@ -17,6 +18,11 @@ export class ProductService {
     private readonly commonValidationService: CommonValidationService
   ) { }
 
+  @CacheResult({
+    prefix: 'product-details',
+    ttl: 10800,
+    paramKeys: ['id']
+  })
   async getProductDetails(id: number): Promise<ProductDetails> {
     const product = await this.productsRepo.createQueryBuilder('product')
       .leftJoinAndSelect('product.productImages', 'productImages')
@@ -49,6 +55,11 @@ export class ProductService {
     };
   }
 
+  @CacheResult({
+    prefix: 'similar-products',
+    ttl: 10800,
+    paramKeys: ['productId', 'subcategoryId']
+  })
   async getRandomSimilarProducts(productId: number, subcategoryId: number): Promise<Product[]> {
     return this.productsRepo.createQueryBuilder('product')
       .where('product.subcategoryId = :subcategoryId', { subcategoryId })
@@ -58,6 +69,11 @@ export class ProductService {
       .getMany();
   }
 
+  @CacheResult({
+    prefix: 'suggested-products',
+    ttl: 10800,
+    paramKeys: ['productId']
+  })
   async getSuggestedProducts(productId: number): Promise<SuggestedProducts> {
     // Attempt to find frequently bought together products
     const frequentlyBoughtTogether = await this.productsRepo
@@ -129,6 +145,11 @@ export class ProductService {
     }
   }
 
+  @CacheResult({
+    prefix: 'top-products',
+    ttl: 10800,
+    paramKeys: ['orderBy', 'take']
+  })
   async getTopProducts(
     orderBy: 'sold' | 'wishlisted' | 'averageRating',
     take: number = 10
@@ -173,18 +194,38 @@ export class ProductService {
     }));
   }
 
+  @CacheResult({
+    prefix: 'best-sellers',
+    ttl: 10800,
+    paramKeys: ['take']
+  })
   async getBestSellers(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('sold', take);
   }
 
+  @CacheResult({
+    prefix: 'top-wishlisted',
+    ttl: 10800,
+    paramKeys: ['take']
+  })
   async getTopWishlisted(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('wishlisted', take);
   }
 
+  @CacheResult({
+    prefix: 'best-rated',
+    ttl: 10800,
+    paramKeys: ['take']
+  })
   async getBestRated(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('averageRating', take);
   }
 
+  @CacheResult({
+    prefix: 'search-results',
+    ttl: 1800, // 30 minutes since search results are more dynamic
+    paramKeys: ['search', 'skip', 'take', 'sort', 'stockStatus', 'priceRange', 'brands', 'subcategories']
+  })
   async findBySearch(
     search: string,
     skip: number,
