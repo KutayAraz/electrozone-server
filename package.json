@@ -38,6 +38,7 @@
     "cross-env": "^7.0.3",
     "decimal.js": "^10.4.3",
     "express-session": "^1.18.0",
+    "ioredis": "^5.4.1",
     "mysql2": "^3.5.0",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",

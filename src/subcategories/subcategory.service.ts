@@ -7,6 +7,8 @@ import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { RawProduct } from "./types/raw-product.type";
 import { ProductQueryResult } from "./types/product-query-result.type";
+import { CacheTTL, Cache } from "src/redis/cache.decorator";
+import { ModuleRef } from "@nestjs/core";
 
 enum ProductOrderBy {
   SOLD = "product.sold",
@@ -26,6 +28,7 @@ export class SubcategoryService {
 
   constructor(
     @InjectRepository(Product) private productsRepo: Repository<Product>,
+    private readonly moduleRef: ModuleRef,
   ) { }
 
   // Builds the base query for product retrieval, applying filters based on the provided parameters
@@ -101,6 +104,8 @@ export class SubcategoryService {
     return { products: formattedProducts, productQuantity: count };
   }
 
+  @Cache()
+  @CacheTTL(3600)
   async getProducts(
     params: ProductQueryParams,
     orderByField: string,

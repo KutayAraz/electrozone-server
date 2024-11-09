@@ -12,6 +12,7 @@ import { AtGuard } from "./common/guards/at.guard";
 import { UserModule } from "./users/user.module";
 import { ProductModule } from "./products/product.module";
 import { SessionMiddleware } from "./common/middleware/session.middleware";
+import { RedisModule } from "./redis/redis.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SessionMiddleware } from "./common/middleware/session.middleware";
     OrderModule,
     SubcategoryModule,
     CartModule,
+    RedisModule
   ],
   providers: [
     {
