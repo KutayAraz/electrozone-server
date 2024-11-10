@@ -1,10 +1,11 @@
-import { RedisService } from './redis.service';
-import { SetMetadata, Inject } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
-export const CACHE_TTL_KEY = 'cache_ttl';
-export const CacheTTL = (ttl: number) => SetMetadata(CACHE_TTL_KEY, ttl);
+import { RedisService } from "./redis.service";
 
-export function Cache() {
+export interface CacheOptions {
+    ttl?: number;
+    keyPrefix?: string;
+}
+
+export function Cache(options: CacheOptions = {}) {
     return function (
         target: any,
         propertyKey: string,
@@ -13,38 +14,28 @@ export function Cache() {
         const originalMethod = descriptor.value;
 
         descriptor.value = async function (...args: any[]) {
-            // Get the ModuleRef from the class instance
-            const moduleRef = (this as any).moduleRef;
-            if (!moduleRef) {
-                throw new Error('ModuleRef must be injected in the class');
+            const redisService: RedisService = this.redisService;
+            if (!redisService) {
+                console.log("no service")
+                return originalMethod.apply(this, args);
             }
 
-            // Get the RedisCacheService instance
-            const cacheService = moduleRef.get(RedisService, { strict: false });
-
-            const className = this.constructor.name;
-            const cacheKey = cacheService.createKey(className, propertyKey, args);
-
-            // Get TTL from decorator metadata if exists
-            const ttl = Reflect.getMetadata(CACHE_TTL_KEY, target, propertyKey);
+            const prefix = options.keyPrefix || this.constructor.name;
+            const argsString = args
+                .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg)))
+                .join(':');
+            const cacheKey = `${prefix}:${propertyKey}:${argsString}`;
 
             try {
-                // Try to get from cache first
-                const cachedValue = await cacheService.get(cacheKey);
+                const cachedValue = await redisService.get(cacheKey);
                 if (cachedValue !== null) {
                     return cachedValue;
                 }
 
-                // If not in cache, execute the original method
                 const result = await originalMethod.apply(this, args);
-
-                // Store in cache with TTL if provided
-                await cacheService.set(cacheKey, result, ttl);
-
+                await redisService.set(cacheKey, result, options.ttl);
                 return result;
             } catch (error) {
-                // If there's any cache error, fallback to original method
-                console.error('Cache error:', error);
                 return originalMethod.apply(this, args);
             }
         };

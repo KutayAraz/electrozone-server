@@ -3,11 +3,9 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { Repository, SelectQueryBuilder } from "typeorm";
 import { ProductQueryParams } from "./types/product-query.interface";
-import { AppError } from "src/common/errors/app-error";
-import { ErrorType } from "src/common/errors/error-type";
 import { RawProduct } from "./types/raw-product.type";
 import { ProductQueryResult } from "./types/product-query-result.type";
-import { CacheTTL, Cache } from "src/redis/cache.decorator";
+import { Cache } from "src/redis/cache.decorator";
 import { ModuleRef } from "@nestjs/core";
 
 enum ProductOrderBy {
@@ -104,8 +102,6 @@ export class SubcategoryService {
     return { products: formattedProducts, productQuantity: count };
   }
 
-  @Cache()
-  @CacheTTL(3600)
   async getProducts(
     params: ProductQueryParams,
     orderByField: string,

@@ -1,14 +1,16 @@
-import { Injectable, Inject } from '@nestjs/common';
-import Redis from 'ioredis';
+import { Injectable } from '@nestjs/common';
+import { Redis } from 'ioredis';
+import { RedisService as NestRedisService } from '@liaoliaots/nestjs-redis';
 
 @Injectable()
 export class RedisService {
-    constructor(
-        @Inject('REDIS_CLIENT')
-        private readonly redis: Redis,
-    ) { }
+    private readonly redis: Redis;
 
-    async get<T>(key: string): Promise<T | null> {
+    constructor(private readonly redisService: NestRedisService) {
+        this.redis = this.redisService.getOrThrow();
+    }
+
+    async get(key: string): Promise<any> {
         const value = await this.redis.get(key);
         return value ? JSON.parse(value) : null;
     }
@@ -16,30 +18,21 @@ export class RedisService {
     async set(key: string, value: any, ttl?: number): Promise<void> {
         const serializedValue = JSON.stringify(value);
         if (ttl) {
-            await this.redis.setex(key, ttl, serializedValue);
+            await this.redis.set(key, serializedValue, 'EX', ttl);
         } else {
             await this.redis.set(key, serializedValue);
         }
     }
 
-    async del(key: string): Promise<void> {
-        await this.redis.del(key);
+    async del(key: string | string[]): Promise<void> {
+        await this.redis.del(Array.isArray(key) ? key : [key]);
     }
 
-    async invalidateByPattern(pattern: string): Promise<void> {
+    async clearProductCache(productId: number): Promise<void> {
+        const pattern = `*:${productId}:*`;
         const keys = await this.redis.keys(pattern);
         if (keys.length > 0) {
             await this.redis.del(...keys);
         }
-    }
-
-    // Helper method to create cache key based on class name, method name and parameters
-    createKey(className: string, methodName: string, args: any[]): string {
-        return `${className}:${methodName}:${JSON.stringify(args)}`;
-    }
-
-    // Helper method to create product-related pattern for invalidation
-    createProductPattern(productId: number): string {
-        return `*:*:*${productId}*`;
     }
 }

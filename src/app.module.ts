@@ -12,7 +12,7 @@ import { AtGuard } from "./common/guards/at.guard";
 import { UserModule } from "./users/user.module";
 import { ProductModule } from "./products/product.module";
 import { SessionMiddleware } from "./common/middleware/session.middleware";
-import { RedisModule } from "./redis/redis.module";
+import { RedisModule } from "@liaoliaots/nestjs-redis";
 
 @Module({
   imports: [
@@ -25,6 +25,13 @@ import { RedisModule } from "./redis/redis.module";
       inject: [ConfigService],
       useFactory: databaseConfig,
     }),
+    RedisModule.forRoot({
+      config: {
+        host: 'localhost',
+        port: 6379,
+        password: 'authpassword'
+      }
+    }),
     ThrottlerModule.forRoot([{
       ttl: 60000,  // Time to live for the records in miliseconds
       limit: 50,  // Maximum number of requests within the TTL
@@ -35,7 +42,6 @@ import { RedisModule } from "./redis/redis.module";
     OrderModule,
     SubcategoryModule,
     CartModule,
-    RedisModule
   ],
   providers: [
     {
