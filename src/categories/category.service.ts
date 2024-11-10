@@ -5,7 +5,7 @@ import { Subcategory } from "src/entities/Subcategory.entity";
 import { SubcategoryService } from "src/subcategories/subcategory.service";
 import { Repository } from "typeorm";
 import { SubcategoryTopProducts } from "./types/subcategory-top-products.type";
-import { Cache } from "src/redis/cache.decorator";
+import { CacheResult } from "src/redis/cache-result.decorator";
 import { RedisService } from "src/redis/redis.service";
 @Injectable()
 export class CategoryService {
@@ -16,15 +16,13 @@ export class CategoryService {
     private readonly redisService: RedisService
   ) { }
 
+  @CacheResult({
+    prefix: 'category-information',
+    ttl: 10800, // 3 hours in seconds
+    paramKeys: []
+  })
   async getAllCategories(): Promise<Category[]> {
-    const cachedCategories = await this.redisService.get("categories")
-    if (!cachedCategories) {
-      const categories = await this.categoriesRepo.find();
-      await this.redisService.set("categories", categories)
-      return categories
-    } else {
-      return cachedCategories
-    }
+    return await this.categoriesRepo.find();
   }
 
   // Fetches subcategories and their top products for a given category
