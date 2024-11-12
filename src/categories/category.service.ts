@@ -6,19 +6,18 @@ import { SubcategoryService } from "src/subcategories/subcategory.service";
 import { Repository } from "typeorm";
 import { SubcategoryTopProducts } from "./types/subcategory-top-products.type";
 import { CacheResult } from "src/redis/cache-result.decorator";
-import { RedisService } from "src/redis/redis.service";
+
 @Injectable()
 export class CategoryService {
   constructor(
     @InjectRepository(Category) private readonly categoriesRepo: Repository<Category>,
     @InjectRepository(Subcategory) private readonly subcategoriesRepo: Repository<Subcategory>,
     private readonly subcategoriesService: SubcategoryService,
-    private readonly redisService: RedisService
   ) { }
 
   @CacheResult({
-    prefix: 'category-information',
-    ttl: 10800, // 3 hours in seconds
+    prefix: 'category-all',
+    ttl: 86400,
     paramKeys: []
   })
   async getAllCategories(): Promise<Category[]> {
@@ -26,12 +25,22 @@ export class CategoryService {
   }
 
   // Fetches subcategories and their top products for a given category
+  @CacheResult({
+    prefix: 'category-information',
+    ttl: 10800,
+    paramKeys: ["category"]
+  })
   async getCategoryInformation(category: string): Promise<SubcategoryTopProducts[]> {
     const subcategories = await this.getSubcategories(category);
     return this.getTopProductsForSubcategories(subcategories);
   }
 
   // Retrieves subcategories for a given category using a custom query
+  @CacheResult({
+    prefix: 'category-subcategories',
+    ttl: 86400,
+    paramKeys: ["category"]
+  })
   async getSubcategories(category: string): Promise<string[]> {
     const subcategories = await this.subcategoriesRepo
       .createQueryBuilder("subcategory")
@@ -44,6 +53,11 @@ export class CategoryService {
   }
 
   // Fetches top selling and wishlisted products for each subcategory
+  @CacheResult({
+    prefix: 'category-popular-products',
+    ttl: 86400,
+    paramKeys: ["subcategories"]
+  })
   private async getTopProductsForSubcategories(subcategories: string[]): Promise<SubcategoryTopProducts[]> {
     const topProductsPromises = subcategories.map(async (subcategory) => {
       const [topSelling, topWishlisted] = await Promise.all([

@@ -6,6 +6,7 @@ import { UpdateUserDto } from "../dtos/update-user.dto";
 import { Wishlist } from "src/entities/Wishlist.entity";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
+import { CacheResult } from "src/redis/cache-result.decorator";
 
 @Injectable()
 export class UserService {
@@ -14,6 +15,11 @@ export class UserService {
     @InjectRepository(Wishlist) private readonly wishlistsRepo: Repository<Wishlist>,
   ) { }
 
+  @CacheResult({
+    prefix: 'user-uuid',
+    ttl: 96400,
+    paramKeys: ['userUuid']
+  })
   async findByUuid(userUuid: string): Promise<User> {
     if (!userUuid) {
       throw new AppError(ErrorType.ACCESS_DENIED, 'Access Denied', HttpStatus.FORBIDDEN);
@@ -27,6 +33,11 @@ export class UserService {
     return user;
   }
 
+  @CacheResult({
+    prefix: 'user-email',
+    ttl: 96400,
+    paramKeys: ['email']
+  })
   async findByEmail(email: string): Promise<Omit<User, 'password' | 'hashedRt' | 'generateUuid' | 'uuid' | 'id'>> {
     const user = await this.usersRepo.findOne({
       where: { email },

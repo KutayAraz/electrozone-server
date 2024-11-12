@@ -1,14 +1,13 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
-import { Wishlist } from "src/entities/Wishlist.entity";
-import { Brackets, In, Repository } from "typeorm";
-import TopProductDto from "../dtos/top-product.dto";
+import { Brackets, Repository } from "typeorm";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { ProductDetails } from "../types/product-details.type";
 import { SuggestedProducts } from "../types/suggested-products.type";
 import { TopProduct } from "../types/top-product.type";
 import { SearchResult } from "../types/search-result.type";
+import { CacheResult } from "src/redis/cache-result.decorator";
 
 @Injectable()
 export class ProductService {
@@ -17,6 +16,11 @@ export class ProductService {
     private readonly commonValidationService: CommonValidationService
   ) { }
 
+  @CacheResult({
+    prefix: 'product-details',
+    ttl: 10800,
+    paramKeys: ['id']
+  })
   async getProductDetails(id: number): Promise<ProductDetails> {
     const product = await this.productsRepo.createQueryBuilder('product')
       .leftJoinAndSelect('product.productImages', 'productImages')
@@ -49,6 +53,11 @@ export class ProductService {
     };
   }
 
+  @CacheResult({
+    prefix: 'product-similar',
+    ttl: 10800,
+    paramKeys: ['productId', 'subcategoryId']
+  })
   async getRandomSimilarProducts(productId: number, subcategoryId: number): Promise<Product[]> {
     return this.productsRepo.createQueryBuilder('product')
       .where('product.subcategoryId = :subcategoryId', { subcategoryId })
@@ -58,6 +67,11 @@ export class ProductService {
       .getMany();
   }
 
+  @CacheResult({
+    prefix: 'product-suggested',
+    ttl: 10800,
+    paramKeys: ['productId']
+  })
   async getSuggestedProducts(productId: number): Promise<SuggestedProducts> {
     // Attempt to find frequently bought together products
     const frequentlyBoughtTogether = await this.productsRepo
@@ -129,6 +143,11 @@ export class ProductService {
     }
   }
 
+  @CacheResult({
+    prefix: 'product-top-products',
+    ttl: 10800,
+    paramKeys: ['orderBy', 'take']
+  })
   async getTopProducts(
     orderBy: 'sold' | 'wishlisted' | 'averageRating',
     take: number = 10
@@ -173,14 +192,29 @@ export class ProductService {
     }));
   }
 
+  @CacheResult({
+    prefix: 'product-best-sellers',
+    ttl: 10800,
+    paramKeys: ['take']
+  })
   async getBestSellers(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('sold', take);
   }
 
+  @CacheResult({
+    prefix: 'product-top-wishlisted',
+    ttl: 10800,
+    paramKeys: ['take']
+  })
   async getTopWishlisted(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('wishlisted', take);
   }
 
+  @CacheResult({
+    prefix: 'product-best-rated',
+    ttl: 10800,
+    paramKeys: ['take']
+  })
   async getBestRated(take: number = 10): Promise<TopProduct[]> {
     return this.getTopProducts('averageRating', take);
   }

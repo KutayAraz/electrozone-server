@@ -21,6 +21,7 @@ import { SessionCartService } from "src/carts/services/session-cart.service";
 import { CartUtilityService } from "src/carts/services/cart-utility.service";
 import { CartItem } from "src/entities/CartItem.entity";
 import Decimal from "decimal.js";
+import { CacheResult } from "src/redis/cache-result.decorator";
 
 @Injectable()
 export class OrderService {
@@ -36,7 +37,7 @@ export class OrderService {
     private readonly sessionCartService: SessionCartService,
     private readonly cartUtilityService: CartUtilityService,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   async initiateCheckout(
     userUuid: string,
@@ -164,7 +165,7 @@ export class OrderService {
         for (const orderItem of orderItemsEntities) {
           await transactionManager.save(OrderItem, orderItem);
         }
-        
+
         // Clear the cart based on checkout type
         switch (snapshot.checkoutType) {
           case CheckoutType.NORMAL:
@@ -252,6 +253,11 @@ export class OrderService {
     });
   }
 
+  @CacheResult({
+    prefix: 'order-id',
+    ttl: 1800,
+    paramKeys: ['userUuid', 'orderId']
+  })
   async getOrderById(userUuid: string, orderId: number) {
     const user = await this.userRepository.findOne({
       where: { uuid: userUuid },
@@ -290,6 +296,11 @@ export class OrderService {
     };
   }
 
+  @CacheResult({
+    prefix: "order-user",
+    ttl: 86400,
+    paramKeys: ["userUuid", "skip", "take"]
+  })
   async getOrdersForUser(userUuid: string, skip: number, take: number) {
     const orders = await this.orderRepository.find({
       where: { user: { uuid: userUuid } },
