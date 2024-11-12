@@ -11,18 +11,16 @@ export interface CacheOptions {
  * Decorator factory that creates a caching decorator for methods
  */
 export function CacheResult(options: CacheOptions) {
-    const redisServiceKey = 'RedisService';
+    const injectRedisService = Inject(RedisService)
 
     return function (
         target: any,
         propertyKey: string,
         descriptor: PropertyDescriptor
     ) {
+        injectRedisService(target, "redisService")
         // Get the original method
         const originalMethod = descriptor.value;
-
-        // Inject RedisService
-        const redisService = Inject(redisServiceKey)(target, 'redisService');
 
         // Create new method descriptor
         descriptor.value = async function (...args: any[]) {
