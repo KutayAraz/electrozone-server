@@ -102,13 +102,15 @@ export class CartService {
 
       this.commonValidationService.validateUser(user);
 
-      console.log("product price", product)
       const quantityChange = await this.cartItemService.addCartItem(
         cart,
         product,
         quantity,
         transactionalEntityManager,
       );
+
+      // Invalidate cache after adding product
+      await this.invalidateUserCartCache(userUuid);
 
       return quantityChange;
     });
@@ -158,6 +160,9 @@ export class CartService {
         );
       }
 
+      // Invalidate cache after updating quantity
+      await this.invalidateUserCartCache(userUuid);
+
       // Return updated cart information
       return await this.getUserCart(userUuid, transactionManager);
     });
@@ -186,6 +191,9 @@ export class CartService {
         cartItemToRemove,
         transactionalEntityManager,
       );
+
+      // Invalidate cache after removing item
+      await this.invalidateUserCartCache(userUuid);
 
       return this.getUserCart(userUuid, transactionalEntityManager);
     });

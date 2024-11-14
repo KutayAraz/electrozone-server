@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { User } from "src/entities/User.entity";
 import { Repository } from "typeorm";
@@ -7,12 +7,15 @@ import { Wishlist } from "src/entities/Wishlist.entity";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { CacheResult } from "src/redis/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
-    @InjectRepository(Wishlist) private readonly wishlistsRepo: Repository<Wishlist>,
+    private readonly redisService: RedisService
   ) { }
 
   @CacheResult({
@@ -59,6 +62,9 @@ export class UserService {
 
     await this.usersRepo.save(user);
 
+    // Invalidate user caches after update
+    await this.invalidateUserCaches(userUuid, user.email);
+
     return {
       email: user.email,
       address: user.address,
@@ -69,7 +75,26 @@ export class UserService {
   async deleteUser(userUuid: string): Promise<User> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       const user = await this.findByUuid(userUuid);
-      return await transactionalEntityManager.remove(User, user);
+      const deletedUser = await transactionalEntityManager.remove(User, user);
+
+      // Invalidate user caches after deletion
+      await this.invalidateUserCaches(userUuid, user.email);
+
+      return deletedUser;
     });
+  }
+
+  private async invalidateUserCaches(userUuid: string, email: string): Promise<void> {
+    try {
+      const keysToInvalidate = [
+        this.redisService.generateKey('user-by-uuid', { userUuid }),
+        this.redisService.generateKey('user-by-email', { email })
+      ];
+
+      await Promise.all(keysToInvalidate.map(key => this.redisService.del(key)));
+      this.logger.debug(`Invalidated cache keys for user ${userUuid}`);
+    } catch (error) {
+      this.logger.error('Failed to invalidate user caches:', error);
+    }
   }
 }
