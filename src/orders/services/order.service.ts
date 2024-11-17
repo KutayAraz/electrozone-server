@@ -1,10 +1,10 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
-import { Repository, DataSource, In, EntityManager } from "typeorm";
+import { Repository, DataSource, EntityManager } from "typeorm";
 import { OrderValidationService } from "./order-validation.service";
 import { ErrorType } from "src/common/errors/error-type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
@@ -13,17 +13,16 @@ import { AppError } from "src/common/errors/app-error";
 import { CartResponse } from "src/carts/types/cart-response.type";
 import { BuyNowCartService } from "src/carts/services/buy-now-cart.service";
 import { CheckoutType } from "../types/checkoutType.enum";
-import { FormattedCartItem } from "src/carts/types/formatted-cart-product.type";
-import { OrderItemDTO } from "../dtos/order-item.dto";
 import { IsolationLevel } from "typeorm/driver/types/IsolationLevel";
 import { v4 as uuidv4 } from "uuid";
 import { SessionCartService } from "src/carts/services/session-cart.service";
 import { CartUtilityService } from "src/carts/services/cart-utility.service";
-import { CartItem } from "src/entities/CartItem.entity";
-import Decimal from "decimal.js";
+import { CacheResult } from "src/redis/cache-result.decorator";
+import { OrderUtilityService } from "./order-utility.service";
 
 @Injectable()
 export class OrderService {
+  // Stores checkout session data temporarily in memory
   private checkoutSnapshots = [];
 
   constructor(
@@ -35,9 +34,14 @@ export class OrderService {
     private readonly buyNowCartService: BuyNowCartService,
     private readonly sessionCartService: SessionCartService,
     private readonly cartUtilityService: CartUtilityService,
+    private readonly orderUtilityService: OrderUtilityService,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
+  /**
+   * Initiates the checkout process by creating a snapshot of the current cart state
+   * This prevents race conditions and ensures price/stock consistency during checkout
+   */
   async initiateCheckout(
     userUuid: string,
     checkoutType: CheckoutType,
@@ -68,7 +72,8 @@ export class OrderService {
 
     const checkoutSnapshotId = uuidv4();
 
-    // Store snapshot
+    // Store cart snapshot with metadata
+    // This snapshot will be used to verify cart consistency during order processing
     this.checkoutSnapshots[checkoutSnapshotId] = {
       id: checkoutSnapshotId,
       userUuid,
@@ -91,6 +96,7 @@ export class OrderService {
     checkoutSnapshotId: string,
     idempotencyKey: string,
   ) {
+    // Check if this order was already processed using idempotency key
     const existingOrder = await this.orderValidationService.validateIdempotency(
       idempotencyKey,
       this.dataSource.getRepository(Order),
@@ -100,9 +106,12 @@ export class OrderService {
       return existingOrder.id; // Order has already been processed
     }
 
+    // Retrieve and validate checkout snapshot
     const snapshot = this.checkoutSnapshots[checkoutSnapshotId];
     this.orderValidationService.validateCheckoutSession(snapshot, userUuid);
 
+    // Process order in a transaction with REPEATABLE READ isolation
+    // This prevents phantom reads and ensures consistency during the entire order process
     return this.dataSource.transaction(
       "REPEATABLE READ" as IsolationLevel,
       async (transactionManager: EntityManager) => {
@@ -111,101 +120,31 @@ export class OrderService {
         });
         this.commonValidationService.validateUser(user);
 
-        // Get user's cart
+        // Get or create user's cart for cleanup later
         const cart = await this.cartUtilityService.findOrCreateCart(
           userUuid,
           transactionManager,
         );
 
-        const order = new Order();
-        order.user = user;
-        order.idempotencyKey = idempotencyKey;
-
-        // Validate items and get products
-        const validatedOrderItems =
-          await this.orderValidationService.validateOrderItems(
+        // Create order and order items, update product stock
+        const { savedOrder, updatedProducts, orderItemsEntities } =
+          await this.orderUtilityService.createOrderWithItems(
+            user,
+            idempotencyKey,
             snapshot.cartItems,
-            transactionManager,
+            transactionManager
           );
 
-        order.orderTotal = validatedOrderItems.reduce(
-          (total, { orderItemTotal }) =>
-            new Decimal(total).plus(orderItemTotal).toFixed(2),
-          "0.00",
-        );
+        await this.orderUtilityService.handleLowStockProducts(updatedProducts);
 
-        const savedOrder = await transactionManager.save(Order, order);
-
-        // Create and save order items
-        const orderItemsEntities = validatedOrderItems.map(
-          ({ validatedOrderItem, product, orderItemTotal }) => {
-            const orderItem = new OrderItem();
-            orderItem.order = savedOrder;
-            orderItem.quantity = validatedOrderItem.quantity;
-            orderItem.product = product;
-            orderItem.productPrice = new Decimal(orderItemTotal)
-              .div(validatedOrderItem.quantity)
-              .toFixed(2);
-            orderItem.totalPrice = orderItemTotal;
-
-            // Update product stock and sold count
-            product.stock -= validatedOrderItem.quantity;
-            product.sold += validatedOrderItem.quantity;
-
-            return orderItem;
-          },
-        );
-
-        // Save updated products
-        await transactionManager.save(
-          Product,
-          validatedOrderItems.map(({ product }) => product),
-        );
         for (const orderItem of orderItemsEntities) {
           await transactionManager.save(OrderItem, orderItem);
         }
-        
+
         // Clear the cart based on checkout type
         switch (snapshot.checkoutType) {
           case CheckoutType.NORMAL:
-            // Get current cart items that were in the snapshot
-            const currentCartItems = await transactionManager.find(CartItem, {
-              where: {
-                cart: { id: cart.id },
-                product: {
-                  id: In(snapshot.cartItems.map((product) => product.id)),
-                },
-              },
-              relations: ["product"], // Add this to ensure product relation is loaded
-            });
-
-            // First, separate items into those to be removed and those to be updated
-            const itemsToRemove: CartItem[] = [];
-            const itemsToUpdate: CartItem[] = [];
-
-            for (const currentItem of currentCartItems) {
-              const orderedItem = snapshot.cartItems.find(
-                (item: CartItem) => item.id === currentItem.product.id,
-              );
-              if (orderedItem) {
-                if (currentItem.quantity <= orderedItem.quantity) {
-                  itemsToRemove.push(currentItem);
-                } else {
-                  currentItem.quantity -= orderedItem.quantity;
-                  itemsToUpdate.push(currentItem);
-                }
-              }
-            }
-
-            // Bulk remove items
-            if (itemsToRemove.length > 0) {
-              await transactionManager.remove(CartItem, itemsToRemove);
-            }
-
-            // Bulk update items
-            if (itemsToUpdate.length > 0) {
-              await transactionManager.save(CartItem, itemsToUpdate);
-            }
+            await this.orderUtilityService.handleNormalCartCleanup(cart, snapshot.cartItems, transactionManager)
             break;
           case CheckoutType.SESSION:
             await this.sessionCartService.clearSessionCart(userUuid);
@@ -252,6 +191,11 @@ export class OrderService {
     });
   }
 
+  @CacheResult({
+    prefix: 'order-id',
+    ttl: 1800,
+    paramKeys: ['userUuid', 'orderId']
+  })
   async getOrderById(userUuid: string, orderId: number) {
     const user = await this.userRepository.findOne({
       where: { uuid: userUuid },
@@ -269,7 +213,7 @@ export class OrderService {
     const order = user.orders.find((o) => o.id === orderId);
     this.orderValidationService.validateOrder(order);
 
-    const transformedOrderItems = order.orderItems.map(this.transformOrderItem);
+    const transformedOrderItems = order.orderItems.map(this.orderUtilityService.transformOrderItem);
 
     const isCancellable = this.orderValidationService.isOrderCancellable(
       order.orderDate,
@@ -290,6 +234,11 @@ export class OrderService {
     };
   }
 
+  @CacheResult({
+    prefix: "order-user",
+    ttl: 86400,
+    paramKeys: ["userUuid", "skip", "take"]
+  })
   async getOrdersForUser(userUuid: string, skip: number, take: number) {
     const orders = await this.orderRepository.find({
       where: { user: { uuid: userUuid } },
@@ -305,48 +254,6 @@ export class OrderService {
       take, // Limit: Maximum number of rows to return
     });
 
-    return orders.map(this.transformOrder);
-  }
-
-  private transformOrderItem(orderItem: OrderItem) {
-    return {
-      id: orderItem.product.id,
-      quantity: orderItem.quantity,
-      price: new Decimal(orderItem.quantity)
-        .times(orderItem.product.price)
-        .toFixed(2),
-      productName: orderItem.product.productName,
-      brand: orderItem.product.brand,
-      thumbnail: orderItem.product.thumbnail,
-      category: orderItem.product.subcategory.category.category,
-      subcategory: orderItem.product.subcategory.subcategory,
-    };
-  }
-
-  private transformOrder(order: Order) {
-    const orderQuantity = order.orderItems.reduce(
-      (sum, item) => sum + item.quantity,
-      0,
-    );
-
-    const transformedOrderItems = order.orderItems.map((item) => ({
-      productId: item.product.id,
-      productName: item.product.productName,
-      thumbnail: item.product.thumbnail,
-      subcategory: item.product.subcategory.subcategory,
-      category: item.product.subcategory.category.category,
-    }));
-
-    return {
-      orderId: order.id,
-      orderTotal: order.orderTotal,
-      orderDate: order.orderDate,
-      orderQuantity,
-      user: {
-        firstName: order.user.firstName,
-        lastName: order.user.lastName,
-      },
-      orderItems: transformedOrderItems,
-    };
+    return orders.map(this.orderUtilityService.transformOrder);
   }
 }

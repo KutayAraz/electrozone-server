@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
@@ -8,6 +8,7 @@ import { WishlistItem } from "../types/wishlist-product.type";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { WishlistToggleResult } from "../types/wishlist-toggle-result.type";
+import { CacheResult } from "src/redis/cache-result.decorator";
 
 @Injectable()
 export class WishlistService {
@@ -17,6 +18,11 @@ export class WishlistService {
         private readonly dataSource: DataSource,
     ) { }
 
+    @CacheResult({
+        prefix: 'wishlist-user',
+        ttl: 10800,
+        paramKeys: ['userUuid']
+    })
     async getUserWishlist(userUuid: string): Promise<WishlistItem[]> {
         // Fetch wishlist items with related product, subcategory, and category information
         const userWishlist = await this.wishlistRepo.createQueryBuilder("wishlist")
@@ -55,6 +61,11 @@ export class WishlistService {
         });
     }
 
+    @CacheResult({
+        prefix: 'wishlist-check',
+        ttl: 10800,
+        paramKeys: ['productId', 'userUuid']
+    })
     async checkWishlist(productId: number, userUuid: string): Promise<boolean> {
         // Check if a product is in the user's wishlist
         const count = await this.wishlistRepo.count({

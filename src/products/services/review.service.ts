@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
@@ -11,19 +11,23 @@ import { ProductReviewsResponse } from "../types/product-reviews-response.type";
 import { TransformedReview } from "../types/transformed-review.type";
 import { RatingDistribution } from "../types/rating-distribution.type";
 import Decimal from "decimal.js";
+import { CacheResult } from "src/redis/cache-result.decorator";
 
 @Injectable()
 export class ReviewService {
   constructor(
     @InjectRepository(Product)
-    private readonly productsRepo: Repository<Product>,
     @InjectRepository(Review) private readonly reviewsRepo: Repository<Review>,
-    @InjectRepository(User) private readonly usersRepo: Repository<User>,
     @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   // Retrieves reviews for a specific product with pagination
+  @CacheResult({
+    prefix: 'review-product',
+    ttl: 10800,
+    paramKeys: ['productId', 'skip', 'limit']
+  })
   async getProductReviews(
     productId: number,
     skip: number = 0,
@@ -72,12 +76,22 @@ export class ReviewService {
     };
   }
 
+  @CacheResult({
+    prefix: 'review-count',
+    ttl: 10800,
+    paramKeys: ['productId']
+  })
   private async getTotalReviewCount(productId: number): Promise<number> {
     return await this.reviewsRepo.count({
       where: { product: { id: productId } },
     });
   }
 
+  @CacheResult({
+    prefix: 'review-product-ratings',
+    ttl: 10800,
+    paramKeys: ['productId']
+  })
   private async getRatingsDistribution(
     productId: number,
   ): Promise<RatingDistribution[]> {
@@ -103,8 +117,13 @@ export class ReviewService {
     return ratingsCount;
   }
 
+  @CacheResult({
+    prefix: 'review-ratings',
+    ttl: 1800,
+    paramKeys: ['productId']
+  })
   async checkReviewEligibility(
-    selectedProductId: number,
+    productId: number,
     userUuid: string,
   ): Promise<boolean> {
     // Check if the user has ordered the product
@@ -115,7 +134,7 @@ export class ReviewService {
       .innerJoin("orderItem.product", "product")
       .where("user.uuid = :userUuid", { userUuid })
       .andWhere("orderItem.product.id = :productId", {
-        productId: selectedProductId,
+        productId,
       })
       .select("orderItem.product.id", "productId")
       .getRawOne();
@@ -127,7 +146,7 @@ export class ReviewService {
     // Check if the user has already reviewed the product
     const existingReview = await this.reviewsRepo.findOne({
       where: {
-        product: { id: selectedProductId },
+        product: { id: productId },
         user: { uuid: userUuid },
       },
     });

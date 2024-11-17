@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { CartItem } from "src/entities/CartItem.entity";
@@ -13,9 +13,13 @@ import { ErrorType } from "src/common/errors/error-type";
 import { CartResponse } from "../types/cart-response.type";
 import { QuantityChange } from "../types/quantity-change.type";
 import Decimal from "decimal.js";
+import { CacheResult } from "src/redis/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
 
 @Injectable()
 export class SessionCartService {
+  private readonly logger = new Logger(SessionCartService.name);
+
   constructor(
     @InjectRepository(Product) private productRepository: Repository<Product>,
     private readonly commonValidationService: CommonValidationService,
@@ -23,8 +27,14 @@ export class SessionCartService {
     private readonly cartUtilityService: CartUtilityService,
     private readonly cartService: CartService,
     private readonly dataSource: DataSource,
-  ) {}
+    private readonly redisService: RedisService
+  ) { }
 
+  @CacheResult({
+    prefix: 'session-cart',
+    ttl: 3600,
+    paramKeys: ['sessionId']
+  })
   async getSessionCart(
     sessionId: string,
     transactionalEntityManager?: EntityManager,
@@ -149,6 +159,10 @@ export class SessionCartService {
             transactionManager,
           );
         }
+
+        // Invalidate cache after adding product
+        await this.invalidateSessionCartCache(sessionId);
+
         // Return updated cart information
         return await this.getSessionCart(sessionId, transactionManager);
       }
@@ -188,6 +202,9 @@ export class SessionCartService {
           "This product is already not in your cart",
         );
       }
+
+      // Invalidate cache after removing product
+      await this.invalidateSessionCartCache(sessionId);
 
       return this.getSessionCart(sessionId, transactionManager);
     });
@@ -260,6 +277,17 @@ export class SessionCartService {
       await transactionalEntityManager.delete(SessionCart, {
         id: existingSessionCart.id,
       });
+
+      // Invalidate cache for both session-cart and user-cart after merging carts
+      await this.invalidateSessionCartCache(sessionId);
+      try {
+        const cacheKey = this.redisService.generateKey('cart-user', { userUuid });
+        await this.redisService.del(cacheKey);
+        this.logger.debug(`Invalidated cache keys for user ${userUuid}`);
+      } catch (error) {
+        this.logger.error('Failed to invalidate user caches:', error);
+      }
+
       // Return the updated user cart
       return await this.cartService.getUserCart(
         userUuid,
@@ -295,11 +323,25 @@ export class SessionCartService {
       // Save the updated cart
       await transactionManager.save(sessionCart);
 
+      // Invalidate cache clearing session cart
+      await this.invalidateSessionCartCache(sessionId);
+
       return {
         cartTotal: sessionCart.cartTotal,
         totalQuantity: sessionCart.totalQuantity,
         cartItems: [],
       };
     });
+  }
+
+  // Helper method to invalidate session cart cache
+  private async invalidateSessionCartCache(sessionId: string): Promise<void> {
+    try {
+      const cacheKey = this.redisService.generateKey('session-cart', { sessionId });
+      await this.redisService.del(cacheKey);
+      this.logger.debug(`Invalidated cache keys for user ${sessionId}`);
+    } catch (error) {
+      this.logger.error('Failed to invalidate user caches:', error);
+    }
   }
 }

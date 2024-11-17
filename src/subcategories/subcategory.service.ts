@@ -2,23 +2,11 @@ import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
 import { Repository, SelectQueryBuilder } from "typeorm";
-import { ProductQueryParams } from "./types/product-query.interface";
-import { AppError } from "src/common/errors/app-error";
-import { ErrorType } from "src/common/errors/error-type";
+import { ProductOrderBy, ProductQueryParams } from "./types/product-query.interface";
 import { RawProduct } from "./types/raw-product.type";
 import { ProductQueryResult } from "./types/product-query-result.type";
-
-enum ProductOrderBy {
-  SOLD = "product.sold",
-  RATING = "product.averageRating",
-  PRICE = "product.price",
-  WISHLISTED = "product.wishlisted"
-}
-
-enum OrderDirection {
-  ASC = "ASC",
-  DESC = "DESC"
-}
+import { CacheResult } from "src/redis/cache-result.decorator";
+import { OrderDirection } from "./enums/order-direction.enum";
 
 @Injectable()
 export class SubcategoryService {
@@ -110,6 +98,11 @@ export class SubcategoryService {
     return this.executeQuery(query, params.skip, params.limit, orderByField, orderDirection);
   }
 
+  @CacheResult({
+    prefix: "subcategory-brands",
+    ttl: 10800,
+    paramKeys: ["subcategory"]
+  })
   async getAllBrands(subcategory: string): Promise<string[]> {
     const brands = await this.productsRepo
       .createQueryBuilder("product")
@@ -122,6 +115,11 @@ export class SubcategoryService {
     return brands.map(brand => brand.brand);
   }
 
+  @CacheResult({
+    prefix: "subcategory-price-range",
+    ttl: 10800,
+    paramKeys: ["subcategory", "brand"]
+  })
   async getPriceRange(subcategory: string, brand?: string): Promise<{ min: number; max: number }> {
     let query = this.productsRepo
       .createQueryBuilder("product")
@@ -151,26 +149,56 @@ export class SubcategoryService {
     return this.getProducts(params, orderBy, orderDirection);
   }
 
+  @CacheResult({
+    prefix: "subcategory-featured",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getFeaturedProducts(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
   }
 
+  @CacheResult({
+    prefix: "subcategory-best-rated",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getProductsBasedOnRating(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.RATING, OrderDirection.DESC);
   }
 
+  @CacheResult({
+    prefix: "subcategory-asc-price",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getProductsByPriceAsc(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.PRICE, OrderDirection.ASC);
   }
 
+  @CacheResult({
+    prefix: "subcategory-desc-prices",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getProductsByPriceDesc(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.PRICE, OrderDirection.DESC);
   }
 
+  @CacheResult({
+    prefix: "subcategory-top-selling",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getTopSelling(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
   }
 
+  @CacheResult({
+    prefix: "subcategory-top-wishlisted",
+    ttl: 10800,
+    paramKeys: ["params"]
+  })
   async getTopWishlistedProducts(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.WISHLISTED, OrderDirection.DESC);
   }

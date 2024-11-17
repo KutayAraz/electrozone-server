@@ -12,4 +12,4 @@ import { CategoryService } from "./category.service";
   controllers: [CategoryController],
   providers: [CategoryService, SubcategoryService],
 })
-export class CategoriesModule {}
+export class CategoriesModule { }
