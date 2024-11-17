@@ -89,11 +89,6 @@ export class SubcategoryService {
     return { products: formattedProducts, productQuantity: count };
   }
 
-  @CacheResult({
-    prefix: "subcategory-products",
-    ttl: 10800,
-    paramKeys: ["params", "orderByField", "orderDirection"]
-  })
   async getProducts(
     params: ProductQueryParams,
     orderByField: string,
@@ -146,11 +141,6 @@ export class SubcategoryService {
 
   // Base method for retrieving products with custom ordering
   // Used by other methods to implement specific product listing features
-  @CacheResult({
-    prefix: "subcategory-ordered-products",
-    ttl: 10800,
-    paramKeys: ["params", "orderBy", "orderDirection"]
-  })
   async getProductsWithOrder(
     params: ProductQueryParams,
     orderBy: ProductOrderBy,

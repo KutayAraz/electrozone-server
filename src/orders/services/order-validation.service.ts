@@ -1,17 +1,10 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  UnauthorizedException,
-  HttpStatus,
-} from "@nestjs/common";
+import { Injectable, HttpStatus } from "@nestjs/common";
 import { ErrorType } from "src/common/errors/error-type";
 import { Order } from "src/entities/Order.entity";
 import { Product } from "src/entities/Product.entity";
 import { Repository, EntityManager } from "typeorm";
 import { AppError } from "src/common/errors/app-error";
 import { CommonValidationService } from "src/common/services/common-validation.service";
-import { OrderItemDTO } from "../dtos/order-item.dto";
 import { OrderItem } from "../types/order-item.type";
 import { CheckoutSnapshot } from "../types/checkout-snapshot.type";
 import Decimal from "decimal.js";
@@ -21,7 +14,7 @@ import { FormattedCartItem } from "src/carts/types/formatted-cart-product.type";
 export class OrderValidationService {
   constructor(
     private readonly commonValidationService: CommonValidationService,
-  ) {}
+  ) { }
 
   validateCheckoutSession(snapshot: CheckoutSnapshot, userUuid: string): void {
     if (!snapshot) {
