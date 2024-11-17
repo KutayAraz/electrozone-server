@@ -6,7 +6,7 @@ import { Public } from "src/common/decorators/public.decorator";
 
 @Controller("category")
 export class CategoryController {
-  constructor(private categoriesService: CategoryService) { }
+  constructor(private categoriesService: CategoryService) {}
 
   @Public()
   @Get()
@@ -15,8 +15,8 @@ export class CategoryController {
   }
 
   @Public()
-  @Get(':categoryName')
-  async getCategoryInfo(@Param('categoryName') categoryName: string): Promise<CategoryInfo[]> {
+  @Get(":categoryName")
+  async getCategoryInfo(@Param("categoryName") categoryName: string): Promise<CategoryInfo[]> {
     return this.categoriesService.getCategoryInformation(categoryName);
   }
 }

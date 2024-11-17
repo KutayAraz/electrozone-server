@@ -26,7 +26,7 @@ import { RefreshTokenUserUuid } from "src/common/decorators/user-uuid-from-cooki
 @Controller("auth")
 @UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
-  constructor(private authService: AuthService) { }
+  constructor(private authService: AuthService) {}
 
   @Public()
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
@@ -40,35 +40,29 @@ export class AuthController {
   @Throttle({ default: { limit: 15, ttl: 3600000 } })
   @Post("signin")
   @HttpCode(HttpStatus.OK)
-  async signIn(
-    @Body() dto: SignUserDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async signIn(@Body() dto: SignUserDto, @Res({ passthrough: true }) res: Response) {
     const user = await this.authService.signIn(dto, res);
     return user;
   }
 
   @Public()
   @Throttle({ default: { limit: 15, ttl: 3600000 } })
-  @Post('logout')
+  @Post("logout")
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
     const refreshToken = req.cookies?.refresh_token;
 
     const result = await this.authService.logout(refreshToken, res);
 
-    res.cookie('refresh_token', '', { httpOnly: true, expires: new Date(0) });
+    res.cookie("refresh_token", "", { httpOnly: true, expires: new Date(0) });
     res.send({ success: result });
   }
 
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Patch("/update-password")
-  async updateUserPassword(
-    @UserUuid() userUuid: string,
-    @Body() input: ChangePasswordDto,
-  ) {
+  async updateUserPassword(@UserUuid() userUuid: string, @Body() input: ChangePasswordDto) {
     return await this.authService.changePassword(userUuid, input);
-  }  
+  }
 
   @Public()
   @Throttle({ default: { limit: 60, ttl: 3600000 } })

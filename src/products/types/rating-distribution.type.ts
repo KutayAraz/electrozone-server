@@ -1,4 +1,4 @@
 export interface RatingDistribution {
-    review_rating: number;
-    count: string;
+  review_rating: number;
+  count: string;
 }

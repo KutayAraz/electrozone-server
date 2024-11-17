@@ -1,4 +1,4 @@
 export interface WishlistToggleResult {
-    action: 'added' | 'removed';
-    productId: number;
+  action: "added" | "removed";
+  productId: number;
 }

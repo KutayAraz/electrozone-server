@@ -19,17 +19,16 @@ import { UserService } from "src/users/services/user.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Product,
-      User,
-      Wishlist,
-      Review,
-      Order,
-      OrderItem,
-      Subcategory
-    ]),
+    TypeOrmModule.forFeature([Product, User, Wishlist, Review, Order, OrderItem, Subcategory]),
   ],
   controllers: [ProductController, ReviewController, WishlistController],
-  providers: [ProductService, ReviewService, SubcategoryService, WishlistService, UserService, CommonValidationService],
+  providers: [
+    ProductService,
+    ReviewService,
+    SubcategoryService,
+    WishlistService,
+    UserService,
+    CommonValidationService,
+  ],
 })
-export class ProductModule { }
+export class ProductModule {}

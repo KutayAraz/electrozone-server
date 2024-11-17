@@ -10,15 +10,17 @@ import { CacheResult } from "src/redis/cache-result.decorator";
 @Injectable()
 export class CategoryService {
   constructor(
-    @InjectRepository(Category) private readonly categoriesRepo: Repository<Category>,
-    @InjectRepository(Subcategory) private readonly subcategoriesRepo: Repository<Subcategory>,
+    @InjectRepository(Category)
+    private readonly categoriesRepo: Repository<Category>,
+    @InjectRepository(Subcategory)
+    private readonly subcategoriesRepo: Repository<Subcategory>,
     private readonly subcategoriesService: SubcategoryService,
-  ) { }
+  ) {}
 
   @CacheResult({
-    prefix: 'category-all',
+    prefix: "category-all",
     ttl: 86400,
-    paramKeys: []
+    paramKeys: [],
   })
   async getAllCategories(): Promise<Category[]> {
     return await this.categoriesRepo.find();
@@ -26,9 +28,9 @@ export class CategoryService {
 
   // Fetches subcategories and their top products for a given category
   @CacheResult({
-    prefix: 'category-information',
+    prefix: "category-information",
     ttl: 10800,
-    paramKeys: ["category"]
+    paramKeys: ["category"],
   })
   async getCategoryInformation(category: string): Promise<SubcategoryTopProducts[]> {
     const subcategories = await this.getSubcategories(category);
@@ -37,9 +39,9 @@ export class CategoryService {
 
   // Retrieves subcategories for a given category using a custom query
   @CacheResult({
-    prefix: 'category-subcategories',
+    prefix: "category-subcategories",
     ttl: 86400,
-    paramKeys: ["category"]
+    paramKeys: ["category"],
   })
   async getSubcategories(category: string): Promise<string[]> {
     const subcategories = await this.subcategoriesRepo
@@ -49,20 +51,30 @@ export class CategoryService {
       .select("subcategory.subcategory")
       .getMany();
 
-    return subcategories.map((sub) => sub.subcategory);
+    return subcategories.map(sub => sub.subcategory);
   }
 
   // Fetches top selling and wishlisted products for each subcategory
   @CacheResult({
-    prefix: 'category-popular-products',
+    prefix: "category-popular-products",
     ttl: 86400,
-    paramKeys: ["subcategories"]
+    paramKeys: ["subcategories"],
   })
-  private async getTopProductsForSubcategories(subcategories: string[]): Promise<SubcategoryTopProducts[]> {
-    const topProductsPromises = subcategories.map(async (subcategory) => {
+  private async getTopProductsForSubcategories(
+    subcategories: string[],
+  ): Promise<SubcategoryTopProducts[]> {
+    const topProductsPromises = subcategories.map(async subcategory => {
       const [topSelling, topWishlisted] = await Promise.all([
-        this.subcategoriesService.getTopSelling({ subcategory, skip: 0, limit: 12 }),
-        this.subcategoriesService.getTopWishlistedProducts({ subcategory, skip: 0, limit: 12 }),
+        this.subcategoriesService.getTopSelling({
+          subcategory,
+          skip: 0,
+          limit: 12,
+        }),
+        this.subcategoriesService.getTopWishlistedProducts({
+          subcategory,
+          skip: 0,
+          limit: 12,
+        }),
       ]);
       return { subcategory, topSelling, topWishlisted };
     });

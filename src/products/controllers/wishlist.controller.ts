@@ -7,33 +7,27 @@ import { WishlistToggleResult } from "../types/wishlist-toggle-result.type";
 
 @Controller("wishlist")
 export class WishlistController {
-    constructor(private wishlistService: WishlistService) { }
+  constructor(private wishlistService: WishlistService) {}
 
-    @Get()
-    async getUserWishlist(@UserUuid() uuid: string): Promise<WishlistItem[]> {
-        return await this.wishlistService.getUserWishlist(uuid);
-    }
+  @Get()
+  async getUserWishlist(@UserUuid() uuid: string): Promise<WishlistItem[]> {
+    return await this.wishlistService.getUserWishlist(uuid);
+  }
 
-    @SkipThrottle()
-    @Get(":productId/check")
-    async checkWishlist(
-        @Param("productId", ParseIntPipe) productId: number,
-        @UserUuid() userUuid: string,
-    ): Promise<boolean> {
-        return await this.wishlistService.checkWishlist(
-            productId,
-            userUuid,
-        );
-    }
+  @SkipThrottle()
+  @Get(":productId/check")
+  async checkWishlist(
+    @Param("productId", ParseIntPipe) productId: number,
+    @UserUuid() userUuid: string,
+  ): Promise<boolean> {
+    return await this.wishlistService.checkWishlist(productId, userUuid);
+  }
 
-    @Patch(":productId")
-    async toggleWishlist(
-        @Param("productId", ParseIntPipe) productId: number,
-        @UserUuid() userUuid: string,
-    ): Promise<WishlistToggleResult> {
-        return await this.wishlistService.toggleWishlist(
-            productId,
-            userUuid,
-        );
-    }
+  @Patch(":productId")
+  async toggleWishlist(
+    @Param("productId", ParseIntPipe) productId: number,
+    @UserUuid() userUuid: string,
+  ): Promise<WishlistToggleResult> {
+    return await this.wishlistService.toggleWishlist(productId, userUuid);
+  }
 }

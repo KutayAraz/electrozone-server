@@ -1,11 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from "typeorm";
+import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Product } from "./Product.entity";
 import { Category } from "./Category.entity";
 
@@ -17,9 +10,9 @@ export class Subcategory {
   @Column()
   subcategory: string;
 
-  @ManyToOne(() => Category, (category) => category.subcategories)
+  @ManyToOne(() => Category, category => category.subcategories)
   category: Category;
 
-  @OneToMany(() => Product, (product) => product.subcategory)
+  @OneToMany(() => Product, product => product.subcategory)
   products: Product[];
 }

@@ -15,46 +15,51 @@ export class UserService {
 
   constructor(
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
-    private readonly redisService: RedisService
-  ) { }
+    private readonly redisService: RedisService,
+  ) {}
 
   @CacheResult({
-    prefix: 'user-uuid',
+    prefix: "user-uuid",
     ttl: 96400,
-    paramKeys: ['userUuid']
+    paramKeys: ["userUuid"],
   })
   async findByUuid(userUuid: string): Promise<User> {
     if (!userUuid) {
-      throw new AppError(ErrorType.ACCESS_DENIED, 'Access Denied', HttpStatus.FORBIDDEN);
+      throw new AppError(ErrorType.ACCESS_DENIED, "Access Denied", HttpStatus.FORBIDDEN);
     }
     const user = await this.usersRepo.findOne({ where: { uuid: userUuid } });
 
     if (!user) {
-      throw new AppError(ErrorType.USER_NOT_FOUND, 'User not found', HttpStatus.NOT_FOUND);
+      throw new AppError(ErrorType.USER_NOT_FOUND, "User not found", HttpStatus.NOT_FOUND);
     }
 
     return user;
   }
 
   @CacheResult({
-    prefix: 'user-email',
+    prefix: "user-email",
     ttl: 96400,
-    paramKeys: ['email']
+    paramKeys: ["email"],
   })
-  async findByEmail(email: string): Promise<Omit<User, 'password' | 'hashedRt' | 'generateUuid' | 'uuid' | 'id'>> {
+  async findByEmail(
+    email: string,
+  ): Promise<Omit<User, "password" | "hashedRt" | "generateUuid" | "uuid" | "id">> {
     const user = await this.usersRepo.findOne({
       where: { email },
     });
 
     if (!user) {
-      throw new AppError(ErrorType.USER_NOT_FOUND, 'User not found', HttpStatus.NOT_FOUND);
+      throw new AppError(ErrorType.USER_NOT_FOUND, "User not found", HttpStatus.NOT_FOUND);
     }
 
     const { password, hashedRt, id, uuid, ...result } = user;
     return result;
   }
 
-  async updateUserProfile(userUuid: string, updatedUserData: UpdateUserDto): Promise<Partial<User>> {
+  async updateUserProfile(
+    userUuid: string,
+    updatedUserData: UpdateUserDto,
+  ): Promise<Partial<User>> {
     const user = await this.findByUuid(userUuid);
 
     const { password, ...otherFields } = updatedUserData;
@@ -87,14 +92,14 @@ export class UserService {
   private async invalidateUserCaches(userUuid: string, email: string): Promise<void> {
     try {
       const keysToInvalidate = [
-        this.redisService.generateKey('user-by-uuid', { userUuid }),
-        this.redisService.generateKey('user-by-email', { email })
+        this.redisService.generateKey("user-by-uuid", { userUuid }),
+        this.redisService.generateKey("user-by-email", { email }),
       ];
 
       await Promise.all(keysToInvalidate.map(key => this.redisService.del(key)));
       this.logger.debug(`Invalidated cache keys for user ${userUuid}`);
     } catch (error) {
-      this.logger.error('Failed to invalidate user caches:', error);
+      this.logger.error("Failed to invalidate user caches:", error);
     }
   }
 }

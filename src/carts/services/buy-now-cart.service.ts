@@ -23,15 +23,11 @@ export class BuyNowCartService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async createBuyNowCart(
-    sessionId: string,
-    productId: number,
-    quantity: number,
-  ): Promise<void> {
+  async createBuyNowCart(sessionId: string, productId: number, quantity: number): Promise<void> {
     this.commonValidationService.validateSessionId(sessionId);
     this.commonValidationService.validateQuantity(quantity);
 
-    return this.dataSource.transaction(async (transactionManager) => {
+    return this.dataSource.transaction(async transactionManager => {
       // Clear any existing buy-now cart for this session
       await this.clearBuyNowCart(sessionId, transactionManager);
 
@@ -99,9 +95,7 @@ export class BuyNowCartService {
         newPrice: product.price,
       });
       buyNowCart.addedPrice = product.price;
-      buyNowCart.total = new Decimal(product.price)
-        .mul(buyNowCart.quantity)
-        .toFixed(2);
+      buyNowCart.total = new Decimal(product.price).mul(buyNowCart.quantity).toFixed(2);
       await this.buyNowCartRepository.save(buyNowCart);
     }
 
@@ -111,8 +105,7 @@ export class BuyNowCartService {
     tempCartItem.quantity = buyNowCart.quantity;
     tempCartItem.product = product;
 
-    const formattedCartItem =
-      this.cartUtilityService.formatCartItem(tempCartItem);
+    const formattedCartItem = this.cartUtilityService.formatCartItem(tempCartItem);
 
     return {
       cartItems: [formattedCartItem],
@@ -123,10 +116,7 @@ export class BuyNowCartService {
     };
   }
 
-  async clearBuyNowCart(
-    sessionId: string,
-    transactionManager?: EntityManager,
-  ): Promise<void> {
+  async clearBuyNowCart(sessionId: string, transactionManager?: EntityManager): Promise<void> {
     this.commonValidationService.validateSessionId(sessionId);
 
     const manager = transactionManager || this.dataSource.manager;

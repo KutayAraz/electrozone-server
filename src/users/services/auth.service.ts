@@ -21,7 +21,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly authUtilityService: AuthUtilityService,
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
-  ) { }
+  ) {}
 
   async changePassword(userUuid: string, updatedPasswordData: ChangePasswordDto): Promise<User> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
@@ -29,7 +29,11 @@ export class AuthService {
 
       // Check if the old password is correct
       if (await bcrypt.compare(updatedPasswordData.oldPassword, user.password)) {
-        throw new AppError(ErrorType.INVALID_CURRENT_PASSWORD, 'Current password is incorrect', HttpStatus.UNAUTHORIZED);
+        throw new AppError(
+          ErrorType.INVALID_CURRENT_PASSWORD,
+          "Current password is incorrect",
+          HttpStatus.UNAUTHORIZED,
+        );
       }
 
       // Validate new password
@@ -37,11 +41,11 @@ export class AuthService {
         updatedPasswordData.newPassword !== updatedPasswordData.newPasswordRetyped ||
         updatedPasswordData.oldPassword === updatedPasswordData.newPassword
       ) {
-        throw new AppError(ErrorType.INVALID_NEW_PASSWORD, 'New password is invalid')
+        throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "New password is invalid");
       }
 
       if (!this.authUtilityService.isPasswordStrong(updatedPasswordData.newPassword)) {
-        throw new AppError(ErrorType.INVALID_NEW_PASSWORD, 'Password is not strong enough');
+        throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "Password is not strong enough");
       }
 
       // Hash and save new password
@@ -55,13 +59,19 @@ export class AuthService {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       // Validate password match
       if (createUserDto.password !== createUserDto.retypedPassword) {
-        throw new AppError(ErrorType.PASSWORD_MISMATCH, 'Your new password does not match');
+        throw new AppError(ErrorType.PASSWORD_MISMATCH, "Your new password does not match");
       }
 
       // Check if user already exists
-      const existingUser = await transactionalEntityManager.findOne(User, { where: { email: createUserDto.email } });
+      const existingUser = await transactionalEntityManager.findOne(User, {
+        where: { email: createUserDto.email },
+      });
       if (existingUser) {
-        throw new AppError(ErrorType.USER_ALREADY_EXISTS, 'A user with this e-mail already exists', HttpStatus.CONFLICT);
+        throw new AppError(
+          ErrorType.USER_ALREADY_EXISTS,
+          "A user with this e-mail already exists",
+          HttpStatus.CONFLICT,
+        );
       }
 
       // Create new user with capitalized name fields
@@ -83,7 +93,11 @@ export class AuthService {
 
       // Generate tokens and update refresh token hash
       const tokens = await this.authUtilityService.getTokens(user);
-      await this.authUtilityService.updateRtHash(user.uuid, tokens.refresh_token, transactionalEntityManager);
+      await this.authUtilityService.updateRtHash(
+        user.uuid,
+        tokens.refresh_token,
+        transactionalEntityManager,
+      );
 
       // Remove sensitive data before returning user info
       const { password, hashedRt, ...result } = user;
@@ -91,20 +105,36 @@ export class AuthService {
     });
   }
 
-  async signIn(dto: SignUserDto, res: Response): Promise<Partial<User> & { access_token: string; cartItemCount: number }> {
+  async signIn(
+    dto: SignUserDto,
+    res: Response,
+  ): Promise<Partial<User> & { access_token: string; cartItemCount: number }> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       const user = await transactionalEntityManager.findOne(User, { where: { email: dto.email } });
 
-      if (!user) throw new AppError(ErrorType.USER_NOT_FOUND, 'A user with this e-mail does not exist', HttpStatus.NOT_FOUND);
+      if (!user)
+        throw new AppError(
+          ErrorType.USER_NOT_FOUND,
+          "A user with this e-mail does not exist",
+          HttpStatus.NOT_FOUND,
+        );
 
       // Validate password
       if (!(await bcrypt.compare(dto.password, user.password))) {
-        throw new AppError(ErrorType.INVALID_CREDENTIALS, 'Your credentials are invalid', HttpStatus.UNAUTHORIZED);
+        throw new AppError(
+          ErrorType.INVALID_CREDENTIALS,
+          "Your credentials are invalid",
+          HttpStatus.UNAUTHORIZED,
+        );
       }
 
       // Generate tokens and update refresh token hash
       const tokens = await this.authUtilityService.getTokens(user);
-      await this.authUtilityService.updateRtHash(user.uuid, tokens.refresh_token, transactionalEntityManager);
+      await this.authUtilityService.updateRtHash(
+        user.uuid,
+        tokens.refresh_token,
+        transactionalEntityManager,
+      );
       this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);
 
       // Get cart item count
@@ -130,7 +160,7 @@ export class AuthService {
       // Clear the refresh token hash in the database
       await transactionalEntityManager.update(User, { uuid: userUuid }, { hashedRt: null });
       // Clear the refresh token cookie
-      res.clearCookie('refresh_token');
+      res.clearCookie("refresh_token");
       return true;
     });
   }
@@ -139,15 +169,21 @@ export class AuthService {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       const user = await transactionalEntityManager.findOne(User, { where: { uuid: userUuid } });
 
-      if (!user || !user.hashedRt) throw new AppError(ErrorType.ACCESS_DENIED, 'Access denied', HttpStatus.UNAUTHORIZED);
+      if (!user || !user.hashedRt)
+        throw new AppError(ErrorType.ACCESS_DENIED, "Access denied", HttpStatus.UNAUTHORIZED);
 
       // Validate the provided refresh token
       const rtMatches = await bcrypt.compare(rt, user.hashedRt);
-      if (!rtMatches) throw new AppError(ErrorType.ACCESS_DENIED, 'Access denied', HttpStatus.UNAUTHORIZED);
+      if (!rtMatches)
+        throw new AppError(ErrorType.ACCESS_DENIED, "Access denied", HttpStatus.UNAUTHORIZED);
 
       // Generate new tokens
       const tokens = await this.authUtilityService.getTokens(user);
-      await this.authUtilityService.updateRtHash(user.uuid, tokens.refresh_token, transactionalEntityManager);
+      await this.authUtilityService.updateRtHash(
+        user.uuid,
+        tokens.refresh_token,
+        transactionalEntityManager,
+      );
 
       // Set the new refresh token in the cookie
       this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);

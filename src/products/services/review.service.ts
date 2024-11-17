@@ -17,16 +17,17 @@ import { CacheResult } from "src/redis/cache-result.decorator";
 export class ReviewService {
   constructor(
     @InjectRepository(Product)
-    @InjectRepository(Review) private readonly reviewsRepo: Repository<Review>,
+    @InjectRepository(Review)
+    private readonly reviewsRepo: Repository<Review>,
     @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
     private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
   // Retrieves reviews for a specific product with pagination
   @CacheResult({
-    prefix: 'review-product',
+    prefix: "review-product",
     ttl: 10800,
-    paramKeys: ['productId', 'skip', 'limit']
+    paramKeys: ["productId", "skip", "limit"],
   })
   async getProductReviews(
     productId: number,
@@ -56,7 +57,7 @@ export class ReviewService {
     const ratingsCount = await this.getRatingsDistribution(productId);
 
     // Transform reviews to hide full names
-    const transformedReviews: TransformedReview[] = reviews.map((review) => ({
+    const transformedReviews: TransformedReview[] = reviews.map(review => ({
       id: review.id,
       reviewDate: review.reviewDate,
       rating: review.rating,
@@ -77,9 +78,9 @@ export class ReviewService {
   }
 
   @CacheResult({
-    prefix: 'review-count',
+    prefix: "review-count",
     ttl: 10800,
-    paramKeys: ['productId']
+    paramKeys: ["productId"],
   })
   private async getTotalReviewCount(productId: number): Promise<number> {
     return await this.reviewsRepo.count({
@@ -88,13 +89,11 @@ export class ReviewService {
   }
 
   @CacheResult({
-    prefix: 'review-product-ratings',
+    prefix: "review-product-ratings",
     ttl: 10800,
-    paramKeys: ['productId']
+    paramKeys: ["productId"],
   })
-  private async getRatingsDistribution(
-    productId: number,
-  ): Promise<RatingDistribution[]> {
+  private async getRatingsDistribution(productId: number): Promise<RatingDistribution[]> {
     const ratingsCountRaw = await this.reviewsRepo
       .createQueryBuilder("review")
       .select("review.rating", "rating")
@@ -105,9 +104,7 @@ export class ReviewService {
 
     const ratingsCount = [];
     for (let i = 5; i >= 1; i--) {
-      const ratingEntry = ratingsCountRaw.find(
-        (rc) => parseInt(rc.rating) === i,
-      );
+      const ratingEntry = ratingsCountRaw.find(rc => parseInt(rc.rating) === i);
       ratingsCount.push({
         review_rating: i,
         count: ratingEntry ? ratingEntry.count : "0",
@@ -118,14 +115,11 @@ export class ReviewService {
   }
 
   @CacheResult({
-    prefix: 'review-ratings',
+    prefix: "review-ratings",
     ttl: 1800,
-    paramKeys: ['productId']
+    paramKeys: ["productId"],
   })
-  async checkReviewEligibility(
-    productId: number,
-    userUuid: string,
-  ): Promise<boolean> {
+  async checkReviewEligibility(productId: number, userUuid: string): Promise<boolean> {
     // Check if the user has ordered the product
     const hasOrderedProduct = await this.ordersRepo
       .createQueryBuilder("order")
@@ -168,7 +162,7 @@ export class ReviewService {
       );
     }
 
-    return this.dataSource.transaction(async (transactionalEntityManager) => {
+    return this.dataSource.transaction(async transactionalEntityManager => {
       const [product, user] = await Promise.all([
         transactionalEntityManager.findOneOrFail(Product, {
           where: { id: productId },
@@ -192,9 +186,7 @@ export class ReviewService {
         (total, rev) => total.plus(new Decimal(rev.rating)),
         new Decimal(0),
       );
-      product.averageRating = ratingTotal
-        .div(product.reviews.length)
-        .toFixed(2);
+      product.averageRating = ratingTotal.div(product.reviews.length).toFixed(2);
 
       await transactionalEntityManager.save(product);
 

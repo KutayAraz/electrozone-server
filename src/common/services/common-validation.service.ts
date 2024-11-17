@@ -30,9 +30,7 @@ export class CommonValidationService {
 
   validatePrice(product: Product, addedPrice: string): void {
     this.validateProduct(product);
-    const priceDifference = new Decimal(product.price)
-      .minus(new Decimal(addedPrice))
-      .abs();
+    const priceDifference = new Decimal(product.price).minus(new Decimal(addedPrice)).abs();
     if (priceDifference.greaterThan(0.03)) {
       throw new AppError(
         ErrorType.PRODUCT_PRICE_CHANGED,
@@ -44,10 +42,7 @@ export class CommonValidationService {
   validateStock(product: Product): void {
     this.validateProduct(product);
     if (product.stock <= 0) {
-      throw new AppError(
-        ErrorType.OUT_OF_STOCK,
-        `${product.productName} is out of stock.`,
-      );
+      throw new AppError(ErrorType.OUT_OF_STOCK, `${product.productName} is out of stock.`);
     }
   }
 
@@ -63,10 +58,7 @@ export class CommonValidationService {
 
   validateSessionId(sessionId: string) {
     if (typeof sessionId !== "string" || sessionId.trim().length === 0) {
-      throw new AppError(
-        ErrorType.INVALID_SESSION,
-        "Invalid session identifier provided",
-      );
+      throw new AppError(ErrorType.INVALID_SESSION, "Invalid session identifier provided");
     }
   }
 }

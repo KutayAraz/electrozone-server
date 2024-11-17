@@ -1,11 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  OneToMany,
-  OneToOne,
-  PrimaryGeneratedColumn,
-} from "typeorm";
+import { Column, Entity, JoinColumn, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { User } from "./User.entity";
 import { CartItem } from "./CartItem.entity";
 
@@ -24,7 +17,7 @@ export class Cart {
   @JoinColumn()
   user: User;
 
-  @OneToMany(() => CartItem, (cartItem) => cartItem.cart, {
+  @OneToMany(() => CartItem, cartItem => cartItem.cart, {
     nullable: true,
   })
   cartItems: CartItem[];

@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseIntPipe,
-  Post,
-  Query,
-} from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from "@nestjs/common";
 import { ProductService } from "../services/product.service";
 import { Public } from "src/common/decorators/public.decorator";
 import { SearchResult } from "../types/search-result.type";
@@ -17,7 +9,7 @@ import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 
 @Controller("product")
 export class ProductController {
-  constructor(private productService: ProductService) { }
+  constructor(private productService: ProductService) {}
 
   @Public()
   @Get("/most-wishlisted")
@@ -44,8 +36,8 @@ export class ProductController {
   }
 
   @Public()
-  @Get(':id/suggested-products')
-  async getSuggestedProducts(@Param('id') productId: number): Promise<SuggestedProducts> {
+  @Get(":id/suggested-products")
+  async getSuggestedProducts(@Param("id") productId: number): Promise<SuggestedProducts> {
     return await this.productService.getSuggestedProducts(productId);
   }
 
@@ -63,8 +55,10 @@ export class ProductController {
     @Query("subcategories") subcategoriesString?: string,
   ): Promise<SearchResult> {
     const searchQuery = decodeURIComponent(encodedSearchQuery);
-    const brands = brandString ? brandString.split(' ').map(decodeURIComponent) : undefined;
-    const subcategories = subcategoriesString ? subcategoriesString.split(' ').map(decodeURIComponent) : undefined;
+    const brands = brandString ? brandString.split(" ").map(decodeURIComponent) : undefined;
+    const subcategories = subcategoriesString
+      ? subcategoriesString.split(" ").map(decodeURIComponent)
+      : undefined;
 
     const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
     return this.productService.findBySearch(
@@ -75,16 +69,20 @@ export class ProductController {
       stockStatus,
       priceRange,
       brands,
-      subcategories);
+      subcategories,
+    );
   }
 
   @Post()
   async alterProduct(
     @UserUuid() userUuid: string,
     @Body("productId") productId: number,
-    @Body("updates") updates: {
-      newPrice?: string, newStock?: number
-    }) {
-    return await this.productService.updateProductPriceAndStock(userUuid, productId, updates)
+    @Body("updates")
+    updates: {
+      newPrice?: string;
+      newStock?: number;
+    },
+  ) {
+    return await this.productService.updateProductPriceAndStock(userUuid, productId, updates);
   }
 }

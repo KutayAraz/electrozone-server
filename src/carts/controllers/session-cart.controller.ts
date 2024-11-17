@@ -8,47 +8,47 @@ import { QuantityChange } from "../types/quantity-change.type";
 
 @Controller("cart/session")
 export class SessionCartController {
-    constructor(private readonly sessionCartService: SessionCartService) {}
+  constructor(private readonly sessionCartService: SessionCartService) {}
 
-    @Public()
-    @Get()
-    async getSessionCart(@Session() session: Record<string, any>): Promise<CartResponse>  {
-        return this.sessionCartService.getSessionCart(session.id);
-    }
+  @Public()
+  @Get()
+  async getSessionCart(@Session() session: Record<string, any>): Promise<CartResponse> {
+    return this.sessionCartService.getSessionCart(session.id);
+  }
 
-    @Public()
-    @Post()
-    async addToSessionCart(
-        @Session() session: Record<string, any>,
-        @Body() cartItem: AddToCartDto,
-    ): Promise<QuantityChange> {
-        return await this.sessionCartService.addToSessionCart(
-            session.id, 
-            cartItem.productId, 
-            cartItem.quantity
-        );
-    }
+  @Public()
+  @Post()
+  async addToSessionCart(
+    @Session() session: Record<string, any>,
+    @Body() cartItem: AddToCartDto,
+  ): Promise<QuantityChange> {
+    return await this.sessionCartService.addToSessionCart(
+      session.id,
+      cartItem.productId,
+      cartItem.quantity,
+    );
+  }
 
-    @Public()
-    @Delete("item/:productId")
-    async removeFromSessionCart(
-        @Session() session: Record<string, any>,
-        @Param("productId") productId: number,
-    ): Promise<CartResponse> {
-        return await this.sessionCartService.removeFromSessionCart(session.id, productId);
-    }
+  @Public()
+  @Delete("item/:productId")
+  async removeFromSessionCart(
+    @Session() session: Record<string, any>,
+    @Param("productId") productId: number,
+  ): Promise<CartResponse> {
+    return await this.sessionCartService.removeFromSessionCart(session.id, productId);
+  }
 
-    @Public()
-    @Delete("clear")
-    async clearSessionCart(@Session() session: Record<string, any>): Promise<CartResponse> {
-        return await this.sessionCartService.clearSessionCart(session.id);
-    }
+  @Public()
+  @Delete("clear")
+  async clearSessionCart(@Session() session: Record<string, any>): Promise<CartResponse> {
+    return await this.sessionCartService.clearSessionCart(session.id);
+  }
 
-    @Patch("merge")
-    async mergeCarts(
-        @UserUuid() userUuid: string,
-        @Session() session: Record<string, any>
-    ): Promise<CartResponse> {
-        return await this.sessionCartService.mergeCarts(userUuid, session.id);
-    }
+  @Patch("merge")
+  async mergeCarts(
+    @UserUuid() userUuid: string,
+    @Session() session: Record<string, any>,
+  ): Promise<CartResponse> {
+    return await this.sessionCartService.mergeCarts(userUuid, session.id);
+  }
 }

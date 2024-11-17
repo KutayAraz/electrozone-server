@@ -20,10 +20,10 @@ export class Order {
   @CreateDateColumn()
   orderDate: Date;
 
-  @ManyToOne(() => User, (user) => user.orders)
+  @ManyToOne(() => User, user => user.orders)
   user: User;
 
-  @OneToMany(() => OrderItem, (orderItem) => orderItem.order, { cascade: true })
+  @OneToMany(() => OrderItem, orderItem => orderItem.order, { cascade: true })
   orderItems: OrderItem[];
 
   @Column({ unique: true, nullable: true })

@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, Min } from "class-validator";
 
 export class CommonQueryParamsDto {
   @IsOptional()
@@ -13,8 +13,8 @@ export class CommonQueryParamsDto {
   limit?: number;
 
   @IsOptional()
-  @IsEnum(['in_stock', 'all'])
-  stockStatus?: 'in_stock' | 'all';
+  @IsEnum(["in_stock", "all"])
+  stockStatus?: "in_stock" | "all";
 
   @IsOptional()
   @IsNumber()

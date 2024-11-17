@@ -36,7 +36,7 @@ export class OrderService {
     private readonly cartUtilityService: CartUtilityService,
     private readonly orderUtilityService: OrderUtilityService,
     private dataSource: DataSource,
-  ) { }
+  ) {}
 
   /**
    * Initiates the checkout process by creating a snapshot of the current cart state
@@ -60,10 +60,7 @@ export class OrderService {
         cartResponse = await this.buyNowCartService.getBuyNowCart(userUuid);
         break;
       default:
-        throw new AppError(
-          ErrorType.INVALID_CHECKOUT_TYPE,
-          "Invalid checkout type",
-        );
+        throw new AppError(ErrorType.INVALID_CHECKOUT_TYPE, "Invalid checkout type");
     }
 
     if (cartResponse.cartItems.length === 0) {
@@ -91,11 +88,7 @@ export class OrderService {
     };
   }
 
-  async processOrder(
-    userUuid: string,
-    checkoutSnapshotId: string,
-    idempotencyKey: string,
-  ) {
+  async processOrder(userUuid: string, checkoutSnapshotId: string, idempotencyKey: string) {
     // Check if this order was already processed using idempotency key
     const existingOrder = await this.orderValidationService.validateIdempotency(
       idempotencyKey,
@@ -121,10 +114,7 @@ export class OrderService {
         this.commonValidationService.validateUser(user);
 
         // Get or create user's cart for cleanup later
-        const cart = await this.cartUtilityService.findOrCreateCart(
-          userUuid,
-          transactionManager,
-        );
+        const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
 
         // Create order and order items, update product stock
         const { savedOrder, updatedProducts, orderItemsEntities } =
@@ -132,7 +122,7 @@ export class OrderService {
             user,
             idempotencyKey,
             snapshot.cartItems,
-            transactionManager
+            transactionManager,
           );
 
         await this.orderUtilityService.handleLowStockProducts(updatedProducts);
@@ -144,7 +134,11 @@ export class OrderService {
         // Clear the cart based on checkout type
         switch (snapshot.checkoutType) {
           case CheckoutType.NORMAL:
-            await this.orderUtilityService.handleNormalCartCleanup(cart, snapshot.cartItems, transactionManager)
+            await this.orderUtilityService.handleNormalCartCleanup(
+              cart,
+              snapshot.cartItems,
+              transactionManager,
+            );
             break;
           case CheckoutType.SESSION:
             await this.sessionCartService.clearSessionCart(userUuid);
@@ -162,7 +156,7 @@ export class OrderService {
   }
 
   async cancelOrder(userUuid: string, orderId: number) {
-    return this.dataSource.transaction(async (transactionManager) => {
+    return this.dataSource.transaction(async transactionManager => {
       const order = await this.orderValidationService.validateUserOrder(
         userUuid,
         orderId,
@@ -177,7 +171,7 @@ export class OrderService {
       }
 
       await Promise.all(
-        order.orderItems.map(async (orderItem) => {
+        order.orderItems.map(async orderItem => {
           const product = await transactionManager.findOneBy(Product, {
             id: orderItem.product.id,
           });
@@ -192,9 +186,9 @@ export class OrderService {
   }
 
   @CacheResult({
-    prefix: 'order-id',
+    prefix: "order-id",
     ttl: 1800,
-    paramKeys: ['userUuid', 'orderId']
+    paramKeys: ["userUuid", "orderId"],
   })
   async getOrderById(userUuid: string, orderId: number) {
     const user = await this.userRepository.findOne({
@@ -210,14 +204,12 @@ export class OrderService {
 
     this.commonValidationService.validateUser(user);
 
-    const order = user.orders.find((o) => o.id === orderId);
+    const order = user.orders.find(o => o.id === orderId);
     this.orderValidationService.validateOrder(order);
 
     const transformedOrderItems = order.orderItems.map(this.orderUtilityService.transformOrderItem);
 
-    const isCancellable = this.orderValidationService.isOrderCancellable(
-      order.orderDate,
-    );
+    const isCancellable = this.orderValidationService.isOrderCancellable(order.orderDate);
 
     return {
       id: order.id,
@@ -237,7 +229,7 @@ export class OrderService {
   @CacheResult({
     prefix: "order-user",
     ttl: 86400,
-    paramKeys: ["userUuid", "skip", "take"]
+    paramKeys: ["userUuid", "skip", "take"],
   })
   async getOrdersForUser(userUuid: string, skip: number, take: number) {
     const orders = await this.orderRepository.find({

@@ -1,10 +1,4 @@
-import {
-  Column,
-  Entity,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from "typeorm";
+import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Review } from "./Review.entity";
 import { Subcategory } from "./Subcategory.entity";
 import { ProductImage } from "./ProductImage.entity";
@@ -44,21 +38,21 @@ export class Product {
   @Column({ default: 0 })
   wishlisted: number;
 
-  @OneToMany(() => Review, (review) => review.product)
+  @OneToMany(() => Review, review => review.product)
   reviews: Review[];
 
-  @OneToMany(() => ProductImage, (productImage) => productImage.product)
+  @OneToMany(() => ProductImage, productImage => productImage.product)
   productImages: ProductImage[];
 
-  @ManyToOne(() => Subcategory, (subcategory) => subcategory.products)
+  @ManyToOne(() => Subcategory, subcategory => subcategory.products)
   subcategory: Subcategory;
 
-  @OneToMany(() => Wishlist, (wishlist) => wishlist.product)
+  @OneToMany(() => Wishlist, wishlist => wishlist.product)
   wishlists: Wishlist[];
 
-  @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
+  @OneToMany(() => OrderItem, orderItem => orderItem.product)
   orderItems: OrderItem[];
 
-  @OneToMany(() => CartItem, (cartItem) => cartItem.product)
+  @OneToMany(() => CartItem, cartItem => cartItem.product)
   cartItems: CartItem[];
 }

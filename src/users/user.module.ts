@@ -12,10 +12,7 @@ import { UserController } from "./controllers/user.controller";
 import { UserService } from "./services/user.service";
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User, Wishlist, Cart]),
-    JwtModule.register({}),
-  ],
+  imports: [TypeOrmModule.forFeature([User, Wishlist, Cart]), JwtModule.register({})],
   controllers: [UserController, AuthController],
   providers: [UserService, AuthService, AuthUtilityService, AtStrategy, RtStrategy],
 })

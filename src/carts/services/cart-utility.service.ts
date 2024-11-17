@@ -10,14 +10,9 @@ import Decimal from "decimal.js";
 
 @Injectable()
 export class CartUtilityService {
-  constructor(
-    private readonly commonValidationService: CommonValidationService,
-  ) {}
+  constructor(private readonly commonValidationService: CommonValidationService) {}
 
-  async findOrCreateCart(
-    userUuid: string,
-    transactionManager: EntityManager,
-  ): Promise<Cart> {
+  async findOrCreateCart(userUuid: string, transactionManager: EntityManager): Promise<Cart> {
     const cart = await transactionManager.findOne(Cart, {
       where: { user: { uuid: userUuid } },
       relations: ["user"],

@@ -11,9 +11,7 @@ export class ReviewController {
 
   @Public()
   @Get(":productId")
-  async getProductReviews(
-    @Param("productId") productId: string,
-  ): Promise<ProductReviewsResponse> {
+  async getProductReviews(@Param("productId") productId: string): Promise<ProductReviewsResponse> {
     return await this.reviewService.getProductReviews(parseInt(productId));
   }
 
@@ -22,10 +20,7 @@ export class ReviewController {
     @UserUuid() userUuid: string,
     @Param("productId") productId: string,
   ): Promise<boolean> {
-    return await this.reviewService.checkReviewEligibility(
-      parseInt(productId),
-      userUuid,
-    );
+    return await this.reviewService.checkReviewEligibility(parseInt(productId), userUuid);
   }
 
   @Post(":productId")

@@ -26,10 +26,12 @@ import { RedisModule } from "./redis/redis.module";
       useFactory: databaseConfig,
     }),
     RedisModule,
-    ThrottlerModule.forRoot([{
-      ttl: 60000,  // Time to live for the records in miliseconds
-      limit: 50,  // Maximum number of requests within the TTL
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // Time to live for the records in miliseconds
+        limit: 50, // Maximum number of requests within the TTL
+      },
+    ]),
     UserModule,
     CategoriesModule,
     ProductModule,
@@ -50,18 +52,17 @@ import { RedisModule } from "./redis/redis.module";
     },
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard
-    }
+      useClass: ThrottlerGuard,
+    },
   ],
 })
-
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(SessionMiddleware)
       .forRoutes(
-        { path: 'cart/session', method: RequestMethod.ALL },
-        { path: 'order/initiate-order', method: RequestMethod.POST }
+        { path: "cart/session", method: RequestMethod.ALL },
+        { path: "order/initiate-order", method: RequestMethod.POST },
       );
   }
 }

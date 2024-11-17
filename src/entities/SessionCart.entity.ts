@@ -15,7 +15,7 @@ export class SessionCart {
   @Column("varchar", { length: 10, default: 0.0 })
   cartTotal: string;
 
-  @OneToMany(() => CartItem, (cartItem) => cartItem.sessionCart, {
+  @OneToMany(() => CartItem, cartItem => cartItem.sessionCart, {
     nullable: true,
   })
   cartItems: CartItem[];

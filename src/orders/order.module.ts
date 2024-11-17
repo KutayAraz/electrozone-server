@@ -22,8 +22,17 @@ import { OrderUtilityService } from "./services/order-utility.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, User, Product, Cart, CartItem, SessionCart, BuyNowSessionCart]),
-    CartModule
+    TypeOrmModule.forFeature([
+      Order,
+      OrderItem,
+      User,
+      Product,
+      Cart,
+      CartItem,
+      SessionCart,
+      BuyNowSessionCart,
+    ]),
+    CartModule,
   ],
   controllers: [OrderController],
   providers: [
@@ -35,7 +44,7 @@ import { OrderUtilityService } from "./services/order-utility.service";
     SessionCartService,
     CartService,
     CartItemService,
-    OrderUtilityService
+    OrderUtilityService,
   ],
 })
-export class OrderModule { }
+export class OrderModule {}

@@ -15,20 +15,20 @@ import { RedisService } from "src/redis/redis.service";
 
 @Injectable()
 export class CartService {
-  private readonly logger = new Logger(CartService.name)
+  private readonly logger = new Logger(CartService.name);
 
   constructor(
     private readonly cartItemService: CartItemService,
     private readonly cartUtilityService: CartUtilityService,
     private readonly commonValidationService: CommonValidationService,
     private readonly dataSource: DataSource,
-    private readonly redisService: RedisService
-  ) { }
+    private readonly redisService: RedisService,
+  ) {}
 
   @CacheResult({
-    prefix: 'cart-user',
+    prefix: "cart-user",
     ttl: 3600,
-    paramKeys: ['userUuid']
+    paramKeys: ["userUuid"],
   })
   async getUserCart(
     userUuid: string,
@@ -36,11 +36,8 @@ export class CartService {
   ): Promise<CartResponse> {
     const manager = transactionalEntityManager || this.dataSource.manager;
 
-    return manager.transaction(async (transactionManager) => {
-      let cart = await this.cartUtilityService.findOrCreateCart(
-        userUuid,
-        transactionManager,
-      );
+    return manager.transaction(async transactionManager => {
+      let cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
 
       // Update the cart items and notify user of any changes to product price or stock change
       const { cartItems, removedCartItems, priceChanges, quantityChanges } =
@@ -55,10 +52,7 @@ export class CartService {
         }, new Decimal(0))
         .toFixed(2);
 
-      const totalQuantity = cartItems.reduce(
-        (total, product) => total + product.quantity,
-        0,
-      );
+      const totalQuantity = cartItems.reduce((total, product) => total + product.quantity, 0);
 
       // Update cart in database
       await transactionManager.update(Cart, cart.id, {
@@ -88,13 +82,10 @@ export class CartService {
 
     const manager = transactionalEntityManager || this.dataSource.manager;
 
-    return manager.transaction(async (transactionalEntityManager) => {
+    return manager.transaction(async transactionalEntityManager => {
       const [user, cart, product] = await Promise.all([
         transactionalEntityManager.findOne(User, { where: { uuid: userUuid } }),
-        this.cartUtilityService.findOrCreateCart(
-          userUuid,
-          transactionalEntityManager,
-        ),
+        this.cartUtilityService.findOrCreateCart(userUuid, transactionalEntityManager),
         transactionalEntityManager.findOne(Product, {
           where: { id: productId },
         }),
@@ -126,7 +117,7 @@ export class CartService {
 
     const manager = transactionalEntityManager || this.dataSource.manager;
 
-    return manager.transaction(async (transactionManager) => {
+    return manager.transaction(async transactionManager => {
       // Find both cart and cartItem in parallel execution
       const [cart, cartItem] = await Promise.all([
         this.cartUtilityService.findOrCreateCart(userUuid, transactionManager),
@@ -152,12 +143,7 @@ export class CartService {
         const product = await transactionManager.findOne(Product, {
           where: { id: productId },
         });
-        await this.cartItemService.addCartItem(
-          cart,
-          product,
-          quantity,
-          transactionManager,
-        );
+        await this.cartItemService.addCartItem(cart, product, quantity, transactionManager);
       }
 
       // Invalidate cache after updating quantity
@@ -168,16 +154,10 @@ export class CartService {
     });
   }
 
-  async removeCartItem(
-    userUuid: string,
-    productId: number,
-  ): Promise<CartResponse> {
-    return this.dataSource.transaction(async (transactionalEntityManager) => {
+  async removeCartItem(userUuid: string, productId: number): Promise<CartResponse> {
+    return this.dataSource.transaction(async transactionalEntityManager => {
       const [cart, cartItemToRemove] = await Promise.all([
-        this.cartUtilityService.findOrCreateCart(
-          userUuid,
-          transactionalEntityManager,
-        ),
+        this.cartUtilityService.findOrCreateCart(userUuid, transactionalEntityManager),
         transactionalEntityManager.findOne(CartItem, {
           where: {
             cart: { user: { uuid: userUuid } },
@@ -186,11 +166,7 @@ export class CartService {
         }),
       ]);
 
-      await this.cartItemService.removeCartItem(
-        cart,
-        cartItemToRemove,
-        transactionalEntityManager,
-      );
+      await this.cartItemService.removeCartItem(cart, cartItemToRemove, transactionalEntityManager);
 
       // Invalidate cache after removing item
       await this.invalidateUserCartCache(userUuid);
@@ -200,13 +176,13 @@ export class CartService {
   }
 
   async clearCart(userUuid: string): Promise<CartResponse> {
-    return this.dataSource.transaction(async (transactionalEntityManager) => {
+    return this.dataSource.transaction(async transactionalEntityManager => {
       const cart = await this.cartUtilityService.findOrCreateCart(
         userUuid,
         transactionalEntityManager,
       );
 
-      cart.cartTotal = new Decimal(0).toFixed(2);;
+      cart.cartTotal = new Decimal(0).toFixed(2);
       cart.totalQuantity = 0;
       cart.cartItems = [];
 
@@ -226,11 +202,11 @@ export class CartService {
   // Helper method to invalidate user cart cache
   private async invalidateUserCartCache(userUuid: string): Promise<void> {
     try {
-      const cacheKey = this.redisService.generateKey('cart-user', { userUuid });
+      const cacheKey = this.redisService.generateKey("cart-user", { userUuid });
       await this.redisService.del(cacheKey);
       this.logger.debug(`Invalidated cache keys for user ${userUuid}`);
     } catch (error) {
-      this.logger.error('Failed to invalidate user caches:', error);
+      this.logger.error("Failed to invalidate user caches:", error);
     }
   }
 }

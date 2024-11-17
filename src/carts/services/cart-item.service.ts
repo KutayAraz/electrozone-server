@@ -55,9 +55,7 @@ export class CartItemService {
         oldQuantity: currentQuantity + quantity,
         newQuantity,
         reason:
-          newQuantity === 10
-            ? ErrorType.QUANTITY_LIMIT_EXCEEDED
-            : ErrorType.STOCK_LIMIT_EXCEEDED,
+          newQuantity === 10 ? ErrorType.QUANTITY_LIMIT_EXCEEDED : ErrorType.STOCK_LIMIT_EXCEEDED,
       };
     }
 
@@ -66,18 +64,14 @@ export class CartItemService {
     // If it was already in cart, update the existing cartItem
     if (cartItem) {
       cartItem.quantity = newQuantity;
-      cartItem.amount = new Decimal(newQuantity)
-        .mul(new Decimal(product.price))
-        .toFixed(2);
+      cartItem.amount = new Decimal(newQuantity).mul(new Decimal(product.price)).toFixed(2);
       cartItem.addedPrice = product.price;
     } else {
       // Create a new CartItem
       cartItem = transactionManager.create(CartItem, {
         product,
         quantity: newQuantity,
-        amount: new Decimal(newQuantity)
-          .mul(new Decimal(product.price))
-          .toFixed(2),
+        amount: new Decimal(newQuantity).mul(new Decimal(product.price)).toFixed(2),
         addedPrice: product.price,
       });
 
@@ -109,9 +103,7 @@ export class CartItemService {
     this.commonValidationService.validateProduct(cartItem.product);
 
     cart.totalQuantity -= cartItem.quantity;
-    cart.cartTotal = new Decimal(cart.cartTotal)
-      .mul(cartItem.amount)
-      .toFixed(2);
+    cart.cartTotal = new Decimal(cart.cartTotal).mul(cartItem.amount).toFixed(2);
 
     await transactionManager.save(cart);
     await transactionManager.remove(cartItem);
@@ -126,28 +118,18 @@ export class CartItemService {
     transactionManager: EntityManager,
   ): Promise<CartItem> {
     // Make sure the requested quantity is available in stock
-    this.commonValidationService.validateStockAvailability(
-      cartItem.product,
-      quantity,
-    );
+    this.commonValidationService.validateStockAvailability(cartItem.product, quantity);
 
     const oldQuantity = cartItem.quantity;
-    const oldAmount = new Decimal(oldQuantity)
-      .mul(cartItem.product.price)
-      .toFixed(2);
-    const newAmount = new Decimal(quantity)
-      .mul(cartItem.product.price)
-      .toFixed(2);
+    const oldAmount = new Decimal(oldQuantity).mul(cartItem.product.price).toFixed(2);
+    const newAmount = new Decimal(quantity).mul(cartItem.product.price).toFixed(2);
 
     cartItem.quantity = quantity;
     cartItem.amount = newAmount;
 
     // Update the cart
     cart.totalQuantity += quantity - oldQuantity;
-    cart.cartTotal = new Decimal(cart.cartTotal)
-      .plus(newAmount)
-      .minus(oldAmount)
-      .toFixed(2);
+    cart.cartTotal = new Decimal(cart.cartTotal).plus(newAmount).minus(oldAmount).toFixed(2);
 
     await transactionManager.save(cartItem);
     await transactionManager.save(cart);
@@ -191,16 +173,16 @@ export class CartItemService {
 
     // Process each cart item concurrently
     await Promise.all(
-      cartItems.map(async (cartItem) => {
+      cartItems.map(async cartItem => {
         if (cartItem.product.stock > 0) {
           // Update the cart item if the product is in stock
-          const { updatedCartItem, quantityChange, priceChange } =
-            await this.updateCartItem(cartItem, transactionManager);
+          const { updatedCartItem, quantityChange, priceChange } = await this.updateCartItem(
+            cartItem,
+            transactionManager,
+          );
 
           // Add the updated cart item to the formatted items list
-          formattedCartItems.push(
-            this.cartUtilityService.formatCartItem(updatedCartItem),
-          );
+          formattedCartItems.push(this.cartUtilityService.formatCartItem(updatedCartItem));
 
           // Record any quantity or price changes
           if (quantityChange) quantityChanges.push(quantityChange);
@@ -245,9 +227,7 @@ export class CartItemService {
         newQuantity: quantity,
         // Add the reason for quantity change to the object
         reason:
-          quantity === 10
-            ? ErrorType.QUANTITY_LIMIT_EXCEEDED
-            : ErrorType.STOCK_LIMIT_EXCEEDED,
+          quantity === 10 ? ErrorType.QUANTITY_LIMIT_EXCEEDED : ErrorType.STOCK_LIMIT_EXCEEDED,
       };
       await transactionManager.update(CartItem, cartItem.id, {
         quantity,
@@ -256,11 +236,7 @@ export class CartItemService {
     }
 
     // Check if the product price has changed by comparing the added price and current price
-    if (
-      addedPrice !== null &&
-      addedPrice !== undefined &&
-      currentPrice !== addedPrice
-    ) {
+    if (addedPrice !== null && addedPrice !== undefined && currentPrice !== addedPrice) {
       priceChange = {
         productName: cartItem.product.productName,
         oldPrice: addedPrice,

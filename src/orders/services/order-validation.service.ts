@@ -12,9 +12,7 @@ import { FormattedCartItem } from "src/carts/types/formatted-cart-product.type";
 
 @Injectable()
 export class OrderValidationService {
-  constructor(
-    private readonly commonValidationService: CommonValidationService,
-  ) { }
+  constructor(private readonly commonValidationService: CommonValidationService) {}
 
   validateCheckoutSession(snapshot: CheckoutSnapshot, userUuid: string): void {
     if (!snapshot) {
@@ -49,10 +47,7 @@ export class OrderValidationService {
     return await orderRepo.findOne({ where: { idempotencyKey } });
   }
 
-  async validateOrderItem(
-    orderItem: OrderItem,
-    transactionManager: EntityManager,
-  ) {
+  async validateOrderItem(orderItem: OrderItem, transactionManager: EntityManager) {
     const product = await transactionManager.findOneBy(Product, {
       id: orderItem.productId,
     });
@@ -60,10 +55,7 @@ export class OrderValidationService {
     this.commonValidationService.validateProduct(product);
     this.commonValidationService.validatePrice(product, orderItem.price);
     this.commonValidationService.validateQuantity(orderItem.quantity);
-    this.commonValidationService.validateStockAvailability(
-      product,
-      orderItem.quantity,
-    );
+    this.commonValidationService.validateStockAvailability(product, orderItem.quantity);
 
     return product;
   }
@@ -89,20 +81,14 @@ export class OrderValidationService {
           transactionManager,
         );
 
-        const orderItemTotal = new Decimal(cartItem.price)
-          .times(cartItem.quantity)
-          .toFixed(2);
+        const orderItemTotal = new Decimal(cartItem.price).times(cartItem.quantity).toFixed(2);
 
         return { validatedOrderItem: cartItem, product, orderItemTotal };
       }),
     );
   }
 
-  async validateUserOrder(
-    userUuid: string,
-    orderId: number,
-    ordersRepo: Repository<Order>,
-  ) {
+  async validateUserOrder(userUuid: string, orderId: number, ordersRepo: Repository<Order>) {
     const order = await ordersRepo.findOne({
       where: { id: orderId },
       relations: ["user", "orderItems"],
@@ -127,10 +113,7 @@ export class OrderValidationService {
 
   validateOrder(order: Order) {
     if (!order) {
-      throw new AppError(
-        ErrorType.ORDER_NOT_FOUND,
-        `Order with id of ${order.id} is not found`,
-      );
+      throw new AppError(ErrorType.ORDER_NOT_FOUND, `Order with id of ${order.id} is not found`);
     }
   }
 }

@@ -16,7 +16,7 @@ import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 
 @Controller("user")
 export class UserController {
-  constructor(private userService: UserService) { }
+  constructor(private userService: UserService) {}
 
   @UseInterceptors(ClassSerializerInterceptor)
   @Get("/profile")
@@ -26,10 +26,7 @@ export class UserController {
 
   @Patch("/profile")
   @UseInterceptors(ClassSerializerInterceptor)
-  async updateUser(
-    @UserUuid() userUuid: string,
-    @Body() input: UpdateUserDto,
-  ) {
+  async updateUser(@UserUuid() userUuid: string, @Body() input: UpdateUserDto) {
     return await this.userService.updateUserProfile(userUuid, input);
   }
 

@@ -12,9 +12,7 @@ import { OrderDirection } from "./enums/order-direction.enum";
 export class SubcategoryService {
   private readonly logger = new Logger(SubcategoryService.name);
 
-  constructor(
-    @InjectRepository(Product) private productsRepo: Repository<Product>,
-  ) { }
+  constructor(@InjectRepository(Product) private productsRepo: Repository<Product>) {}
 
   // Builds the base query for product retrieval, applying filters based on the provided parameters
   private createBaseQuery(params: ProductQueryParams): SelectQueryBuilder<Product> {
@@ -38,7 +36,7 @@ export class SubcategoryService {
       .leftJoin("subcategory.category", "category")
       .where("subcategory.subcategory = :subcategory", { subcategory });
 
-    // Apply additional filters based on query parameters  
+    // Apply additional filters based on query parameters
     if (stockStatus === "in_stock") {
       query = query.andWhere("product.stock > 0");
     }
@@ -64,7 +62,7 @@ export class SubcategoryService {
     skip: number,
     limit: number,
     orderByField: string,
-    orderDirection: 'ASC' | 'DESC'
+    orderDirection: "ASC" | "DESC",
   ): Promise<ProductQueryResult> {
     const count = await query.getCount();
 
@@ -92,7 +90,7 @@ export class SubcategoryService {
   async getProducts(
     params: ProductQueryParams,
     orderByField: string,
-    orderDirection: 'ASC' | 'DESC'
+    orderDirection: "ASC" | "DESC",
   ): Promise<ProductQueryResult> {
     const query = this.createBaseQuery(params);
     return this.executeQuery(query, params.skip, params.limit, orderByField, orderDirection);
@@ -101,7 +99,7 @@ export class SubcategoryService {
   @CacheResult({
     prefix: "subcategory-brands",
     ttl: 10800,
-    paramKeys: ["subcategory"]
+    paramKeys: ["subcategory"],
   })
   async getAllBrands(subcategory: string): Promise<string[]> {
     const brands = await this.productsRepo
@@ -118,7 +116,7 @@ export class SubcategoryService {
   @CacheResult({
     prefix: "subcategory-price-range",
     ttl: 10800,
-    paramKeys: ["subcategory", "brand"]
+    paramKeys: ["subcategory", "brand"],
   })
   async getPriceRange(subcategory: string, brand?: string): Promise<{ min: number; max: number }> {
     let query = this.productsRepo
@@ -144,7 +142,7 @@ export class SubcategoryService {
   async getProductsWithOrder(
     params: ProductQueryParams,
     orderBy: ProductOrderBy,
-    orderDirection: 'ASC' | 'DESC'
+    orderDirection: "ASC" | "DESC",
   ): Promise<ProductQueryResult> {
     return this.getProducts(params, orderBy, orderDirection);
   }
@@ -152,7 +150,7 @@ export class SubcategoryService {
   @CacheResult({
     prefix: "subcategory-featured",
     ttl: 10800,
-    paramKeys: ["params"]
+    paramKeys: ["params"],
   })
   async getFeaturedProducts(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
@@ -161,7 +159,7 @@ export class SubcategoryService {
   @CacheResult({
     prefix: "subcategory-best-rated",
     ttl: 10800,
-    paramKeys: ["params"]
+    paramKeys: ["params"],
   })
   async getProductsBasedOnRating(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.RATING, OrderDirection.DESC);
@@ -170,7 +168,7 @@ export class SubcategoryService {
   @CacheResult({
     prefix: "subcategory-asc-price",
     ttl: 10800,
-    paramKeys: ["params"]
+    paramKeys: ["params"],
   })
   async getProductsByPriceAsc(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.PRICE, OrderDirection.ASC);
@@ -179,7 +177,7 @@ export class SubcategoryService {
   @CacheResult({
     prefix: "subcategory-desc-prices",
     ttl: 10800,
-    paramKeys: ["params"]
+    paramKeys: ["params"],
   })
   async getProductsByPriceDesc(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.PRICE, OrderDirection.DESC);
@@ -188,7 +186,7 @@ export class SubcategoryService {
   @CacheResult({
     prefix: "subcategory-top-selling",
     ttl: 10800,
-    paramKeys: ["params"]
+    paramKeys: ["params"],
   })
   async getTopSelling(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.SOLD, OrderDirection.DESC);
@@ -197,7 +195,7 @@ export class SubcategoryService {
   @CacheResult({
     prefix: "subcategory-top-wishlisted",
     ttl: 10800,
-    paramKeys: ["params"]
+    paramKeys: ["params"],
   })
   async getTopWishlistedProducts(params: ProductQueryParams): Promise<ProductQueryResult> {
     return this.getProductsWithOrder(params, ProductOrderBy.WISHLISTED, OrderDirection.DESC);

@@ -7,9 +7,9 @@ export class Wishlist {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, (user) => user.wishlists)
+  @ManyToOne(() => User, user => user.wishlists)
   user: User;
 
-  @ManyToOne(() => Product, (product) => product.wishlisted)
+  @ManyToOne(() => Product, product => product.wishlisted)
   product: Product;
 }
