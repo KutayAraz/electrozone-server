@@ -12,12 +12,15 @@ import Decimal from "decimal.js";
 import { RedisService } from "src/redis/redis.service";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
+import { UserRole } from "src/users/types/user-role.enum";
+import { UserService } from "src/users/services/user.service";
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectRepository(Product) private readonly productsRepo: Repository<Product>,
     private readonly commonValidationService: CommonValidationService,
+    private readonly userService: UserService,
     private readonly redisService: RedisService
   ) { }
 
@@ -352,10 +355,14 @@ export class ProductService {
     });
   }
 
-  async updateProductPriceAndStock(productId: number, updates: {
-    newPrice?: string;
-    newStock?: number
-  }) {
+  async updateProductPriceAndStock(
+    userUuid: string,
+    productId: number, updates: {
+      newPrice?: string;
+      newStock?: number
+    }) {
+    await this.isAuthorizedToAlter(userUuid);
+
     return await this.productsRepo.manager.transaction(async transactionalEntityManager => {
       const product = await transactionalEntityManager
         .findOneBy(Product, { id: productId });
@@ -384,6 +391,16 @@ export class ProductService {
 
 
   async isAuthorizedToAlter(userUuid: string) {
+    const user = await this.userService.findByUuid(userUuid);
 
+    if (!user) {
+      throw new AppError(ErrorType.USER_NOT_FOUND, 'User not found');
+    }
+
+    if (![UserRole.ADMIN, UserRole.PRODUCT_MANAGER].includes(user.role)) {
+      throw new AppError(ErrorType.UNAUTHORIZED, 'User not authorized to modify products');
+    }
+
+    return true;
   }
 }

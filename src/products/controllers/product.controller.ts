@@ -13,6 +13,7 @@ import { SearchResult } from "../types/search-result.type";
 import { TopProduct } from "../types/top-product.type";
 import { ProductDetails } from "../types/product-details.type";
 import { SuggestedProducts } from "../types/suggested-products.type";
+import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 
 @Controller("product")
 export class ProductController {
@@ -77,13 +78,13 @@ export class ProductController {
       subcategories);
   }
 
-  @Public()
   @Post()
   async alterProduct(
+    @UserUuid() userUuid: string,
     @Body("productId") productId: number,
     @Body("updates") updates: {
       newPrice?: string, newStock?: number
     }) {
-    return await this.productService.updateProductPriceAndStock(productId, updates)
+    return await this.productService.updateProductPriceAndStock(userUuid, productId, updates)
   }
 }

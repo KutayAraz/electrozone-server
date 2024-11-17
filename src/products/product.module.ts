@@ -15,6 +15,7 @@ import { ReviewController } from "./controllers/review.controller";
 import { ReviewService } from "./services/review.service";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { WishlistController } from "./controllers/wishlist.controller";
+import { UserService } from "src/users/services/user.service";
 
 @Module({
   imports: [
@@ -29,6 +30,6 @@ import { WishlistController } from "./controllers/wishlist.controller";
     ]),
   ],
   controllers: [ProductController, ReviewController, WishlistController],
-  providers: [ProductService, ReviewService, SubcategoryService, WishlistService, CommonValidationService],
+  providers: [ProductService, ReviewService, SubcategoryService, WishlistService, UserService, CommonValidationService],
 })
-export class ProductModule {}
+export class ProductModule { }

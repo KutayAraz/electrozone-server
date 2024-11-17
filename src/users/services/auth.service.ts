@@ -13,6 +13,7 @@ import { ErrorType } from "src/common/errors/error-type";
 import { AuthUtilityService } from "./auth-utility.service";
 import { UserService } from "./user.service";
 import { Tokens } from "../types/tokens.type";
+import { UserRole } from "../types/user-role.enum";
 
 @Injectable()
 export class AuthService {
@@ -66,6 +67,7 @@ export class AuthService {
       // Create new user with capitalized name fields
       const user = transactionalEntityManager.create(User, {
         ...createUserDto,
+        role: UserRole.CUSTOMER,
         password: await this.authUtilityService.hashPassword(createUserDto.password),
         firstName: this.authUtilityService.capitalizeFirstLetterOfEachWord(createUserDto.firstName),
         lastName: this.authUtilityService.capitalizeFirstLetterOfEachWord(createUserDto.lastName),
