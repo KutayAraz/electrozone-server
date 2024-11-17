@@ -1,10 +1,10 @@
 import {
+  Body,
   Controller,
   Get,
-  HttpException,
-  HttpStatus,
   Param,
   ParseIntPipe,
+  Post,
   Query,
 } from "@nestjs/common";
 import { ProductService } from "../services/product.service";
@@ -75,5 +75,15 @@ export class ProductController {
       priceRange,
       brands,
       subcategories);
+  }
+
+  @Public()
+  @Post()
+  async alterProduct(
+    @Body("productId") productId: number,
+    @Body("updates") updates: {
+      newPrice?: string, newStock?: number
+    }) {
+    return await this.productService.updateProductPriceAndStock(productId, updates)
   }
 }

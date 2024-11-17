@@ -8,12 +8,17 @@ import { SuggestedProducts } from "../types/suggested-products.type";
 import { TopProduct } from "../types/top-product.type";
 import { SearchResult } from "../types/search-result.type";
 import { CacheResult } from "src/redis/cache-result.decorator";
+import Decimal from "decimal.js";
+import { RedisService } from "src/redis/redis.service";
+import { AppError } from "src/common/errors/app-error";
+import { ErrorType } from "src/common/errors/error-type";
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectRepository(Product) private readonly productsRepo: Repository<Product>,
-    private readonly commonValidationService: CommonValidationService
+    private readonly commonValidationService: CommonValidationService,
+    private readonly redisService: RedisService
   ) { }
 
   @CacheResult({
@@ -328,5 +333,57 @@ export class ProductService {
       availableSubcategories: uniqueSubcategories.map(subcat => subcat.subcategory),
       priceRange: priceRangeResult
     };
+  }
+
+  async updateProductPrice(productId: number, newPrice: string) {
+    return await this.productsRepo.manager.transaction(async transactionalEntityManager => {
+      const product = await transactionalEntityManager
+        .findOneBy(Product, { id: productId });
+
+      if (!product) {
+        throw new Error('Product not found');
+      }
+
+      product.price = new Decimal(newPrice).toString();
+      await transactionalEntityManager.save(Product, product);
+      await this.redisService.invalidateProductCache(productId);
+
+      return product;
+    });
+  }
+
+  async updateProductPriceAndStock(productId: number, updates: {
+    newPrice?: string;
+    newStock?: number
+  }) {
+    return await this.productsRepo.manager.transaction(async transactionalEntityManager => {
+      const product = await transactionalEntityManager
+        .findOneBy(Product, { id: productId });
+
+      if (!product) {
+        throw new AppError(ErrorType.PRODUCT_NOT_FOUND, 'Product not found');
+      }
+
+      if (updates.newPrice) {
+        product.price = new Decimal(updates.newPrice).toString();
+      }
+
+      if (typeof updates.newStock === 'number') {
+        if (updates.newStock < 0) {
+          throw new Error('Stock cannot be negative');
+        }
+        product.stock = updates.newStock;
+      }
+
+      await transactionalEntityManager.save(Product, product);
+      await this.redisService.invalidateProductCache(productId);
+
+      return product;
+    });
+  }
+
+
+  async isAuthorizedToAlter(userUuid: string) {
+
   }
 }
