@@ -3,9 +3,10 @@ import { Response } from 'express';
 import { EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from 'src/entities/User.entity';
-import { Tokens, JwtPayload } from '../types';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtPayload } from '../types/jwt-payload.type';
+import { Tokens } from '../types/tokens.type';
 
 @Injectable()
 export class AuthUtilityService {

@@ -5,7 +5,6 @@ import { ChangePasswordDto } from "../dtos/update-password.dto";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
-import { Tokens } from "../types";
 import { SignUserDto } from "../dtos/sign-user.dto";
 import { Response } from "express";
 import { Cart } from "src/entities/Cart.entity";
@@ -13,6 +12,7 @@ import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { AuthUtilityService } from "./auth-utility.service";
 import { UserService } from "./user.service";
+import { Tokens } from "../types/tokens.type";
 
 @Injectable()
 export class AuthService {

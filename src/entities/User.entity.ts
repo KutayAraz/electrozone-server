@@ -11,6 +11,7 @@ import { Exclude } from "class-transformer";
 import { Review } from "./Review.entity";
 import { Wishlist } from "./Wishlist.entity";
 import { v4 as uuidv4 } from 'uuid';
+import { UserRole } from "src/users/types/user-role.enum";
 
 @Entity({ name: "users" })
 export class User {
@@ -42,6 +43,13 @@ export class User {
 
   @Column({ nullable: true })
   hashedRt: string;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.CUSTOMER
+  })
+  role: UserRole;
 
   @OneToMany(() => Order, (order) => order.user)
   orders: Order[];
