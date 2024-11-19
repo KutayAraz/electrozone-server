@@ -16,9 +16,7 @@ import { CacheResult } from "src/redis/cache-result.decorator";
 @Injectable()
 export class ReviewService {
   constructor(
-    @InjectRepository(Product)
-    @InjectRepository(Review)
-    private readonly reviewsRepo: Repository<Review>,
+    @InjectRepository(Review) private readonly reviewsRepo: Repository<Review>,
     @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
     private readonly dataSource: DataSource,
   ) {}
@@ -46,7 +44,7 @@ export class ReviewService {
       ])
       .innerJoin("review.user", "user")
       .orderBy("review.reviewDate", "DESC")
-      .where("review.productId = :productId", { productId })
+      .where("review.product = :productId", { productId })
       .skip(skip)
       .take(limit)
       .getMany();
