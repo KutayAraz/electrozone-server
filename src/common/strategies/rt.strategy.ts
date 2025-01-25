@@ -27,18 +27,27 @@ export class RtStrategy extends PassportStrategy(Strategy, "jwt-refresh") {
   async validate(req: Request, payload: JwtPayload): Promise<JwtPayloadWithRt> {
     const refreshToken = req.cookies?.refresh_token;
 
-    if (!refreshToken) {
-      throw new AppError(ErrorType.FORBIDDEN, "Refresh token malformed", HttpStatus.FORBIDDEN);
-    }
-
     if (!payload.sub) {
-      throw new AppError(ErrorType.UNAUTHORIZED, "Invalid token payload", HttpStatus.UNAUTHORIZED);
+      throw new AppError(ErrorType.UNAUTHORIZED, "Invalid refresh token", HttpStatus.UNAUTHORIZED);
     }
 
     // Check if the user still exists
     const user = await this.userService.findByUuid(payload.sub);
     if (!user) {
-      throw new AppError(ErrorType.UNAUTHORIZED, "User no longer exists", HttpStatus.UNAUTHORIZED);
+      throw new AppError(
+        ErrorType.USER_NOT_FOUND,
+        "User no longer exists",
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    // Verify that the refresh token hasn't been revoked
+    if (!user.hashedRt) {
+      throw new AppError(
+        ErrorType.SESSION_EXPIRED,
+        "Session is no longer valid",
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     return {
