@@ -39,9 +39,30 @@ export class AuthUtilityService {
   setRefreshTokenCookie(res: Response, token: string): void {
     res.cookie("refresh_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // or use "none"
-      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: 5 * 24 * 60 * 60 * 1000, // 5 days
+      path: "/auth",
+    });
+  }
+
+  setAccessTokenCookie(res: Response, token: string): void {
+    res.cookie("access_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+  }
+
+  clearAuthCookies(res: Response): void {
+    res.cookie("access_token", "", {
+      httpOnly: true,
+      expires: new Date(0),
+    });
+    res.cookie("refresh_token", "", {
+      httpOnly: true,
+      expires: new Date(0),
     });
   }
 

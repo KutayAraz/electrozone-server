@@ -55,7 +55,7 @@ export class AuthService {
     });
   }
 
-  async signUp(createUserDto: CreateUserDto): Promise<Tokens & Partial<User>> {
+  async signUp(createUserDto: CreateUserDto, res: Response): Promise<Tokens & Partial<User>> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       // Validate password match
       if (createUserDto.password !== createUserDto.retypedPassword) {
@@ -99,8 +99,12 @@ export class AuthService {
         transactionalEntityManager,
       );
 
+      // Set both cookies
+      this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);
+      this.authUtilityService.setAccessTokenCookie(res, tokens.access_token);
+
       // Remove sensitive data before returning user info
-      const { password, hashedRt, ...result } = user;
+      const { password, hashedRt, role, ...result } = user;
       return { ...result, ...tokens };
     });
   }
@@ -108,7 +112,7 @@ export class AuthService {
   async signIn(
     dto: SignUserDto,
     res: Response,
-  ): Promise<Partial<User> & { access_token: string; cartItemCount: number }> {
+  ): Promise<Partial<User> & { cartItemCount: number }> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       const user = await transactionalEntityManager.findOne(User, { where: { email: dto.email } });
 
@@ -135,7 +139,10 @@ export class AuthService {
         tokens.refresh_token,
         transactionalEntityManager,
       );
+
+      // Set both cookies
       this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);
+      this.authUtilityService.setAccessTokenCookie(res, tokens.access_token);
 
       // Get cart item count
       const cart = await transactionalEntityManager.findOne(Cart, {
@@ -145,11 +152,10 @@ export class AuthService {
       const cartItemCount = cart ? cart.totalQuantity : 0;
 
       // Remove sensitive data before returning user info
-      const { password, hashedRt, id, uuid, ...result } = user;
+      const { password, hashedRt, id, uuid, role, ...result } = user;
 
       return {
         ...result,
-        access_token: tokens.access_token,
         cartItemCount,
       };
     });
@@ -159,13 +165,13 @@ export class AuthService {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       // Clear the refresh token hash in the database
       await transactionalEntityManager.update(User, { uuid: userUuid }, { hashedRt: null });
-      // Clear the refresh token cookie
-      res.clearCookie("refresh_token");
+      // Clear both cookies
+      this.authUtilityService.clearAuthCookies(res);
       return true;
     });
   }
 
-  async refreshTokens(userUuid: string, rt: string, res: Response): Promise<Tokens> {
+  async refreshTokens(userUuid: string, rt: string, res: Response): Promise<void> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       const user = await transactionalEntityManager.findOne(User, { where: { uuid: userUuid } });
 
@@ -187,8 +193,7 @@ export class AuthService {
 
       // Set the new refresh token in the cookie
       this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);
-
-      return tokens;
+      this.authUtilityService.setAccessTokenCookie(res, tokens.access_token);
     });
   }
 }

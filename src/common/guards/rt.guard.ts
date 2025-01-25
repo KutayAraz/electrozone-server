@@ -28,8 +28,6 @@ export class RtGuard extends AuthGuard("jwt-refresh") {
   handleRequest(err: any, user: any, info: any) {
     // Only need to handle unexpected errors here
     // Token validation errors are handled by the strategy
-
-    console.log("RT GUARD", err, user, info);
     if (err || !user) {
       throw new AppError(ErrorType.UNAUTHORIZED, "Invalid session", HttpStatus.UNAUTHORIZED);
     }

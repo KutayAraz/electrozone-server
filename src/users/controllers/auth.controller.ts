@@ -18,10 +18,9 @@ import { AuthService } from "../services/auth.service";
 import { SignUserDto } from "../dtos/sign-user.dto";
 import { Throttle } from "@nestjs/throttler";
 import { Public } from "src/common/decorators/public.decorator";
-import { AtGuard } from "src/common/guards/at.guard";
 import { RtGuard } from "src/common/guards/rt.guard";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
-import { RefreshTokenUserUuid } from "src/common/decorators/user-uuid-from-cookie.decorator";
+import { RefreshTokenUserUuid } from "src/common/decorators/refresh-token-user-uuid";
 
 @Controller("auth")
 @UseInterceptors(ClassSerializerInterceptor)
@@ -32,8 +31,8 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post("signup")
   @HttpCode(HttpStatus.CREATED)
-  signUp(@Body() dto: CreateUserDto) {
-    return this.authService.signUp(dto);
+  signUp(@Body() dto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
+    return this.authService.signUp(dto, res);
   }
 
   @Public()
@@ -41,8 +40,7 @@ export class AuthController {
   @Post("signin")
   @HttpCode(HttpStatus.OK)
   async signIn(@Body() dto: SignUserDto, @Res({ passthrough: true }) res: Response) {
-    const user = await this.authService.signIn(dto, res);
-    return user;
+    return await this.authService.signIn(dto, res);
   }
 
   @Public()
@@ -51,10 +49,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
     const refreshToken = req.cookies?.refresh_token;
-
     const result = await this.authService.logout(refreshToken, res);
-
-    res.cookie("refresh_token", "", { httpOnly: true, expires: new Date(0) });
     res.send({ success: result });
   }
 
@@ -75,11 +70,7 @@ export class AuthController {
     @Res() res: Response,
   ) {
     const refreshToken = request.cookies?.refresh_token;
-
-    const tokens = await this.authService.refreshTokens(userUuid, refreshToken, res);
-
-    res.json({
-      access_token: tokens.access_token,
-    });
+    await this.authService.refreshTokens(userUuid, refreshToken, res);
+    res.json({ success: true });
   }
 }
