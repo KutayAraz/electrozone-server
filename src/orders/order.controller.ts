@@ -53,9 +53,11 @@ export class OrderController {
   @SkipThrottle()
   getOrdersForUser(
     @UserUuid() userUuid: string,
-    @Query("skip", ParseIntPipe) skip: number = 0,
-    @Query("limit", ParseIntPipe) take: number = 10,
+    @Query("skip", new ParseIntPipe({ optional: true })) skip?: number,
+    @Query("limit", new ParseIntPipe({ optional: true })) take?: number,
   ) {
+    skip = skip || 0;
+    take = take || 10;
     return this.orderService.getOrdersForUser(userUuid, skip, take);
   }
 
