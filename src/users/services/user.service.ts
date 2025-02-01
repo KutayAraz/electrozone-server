@@ -43,7 +43,7 @@ export class UserService {
   })
   async findByEmail(
     email: string,
-  ): Promise<Omit<User, "password" | "hashedRt" | "generateUuid" | "uuid" | "id">> {
+  ): Promise<Omit<User, "password" | "hashedRt" | "generateUuid" | "uuid" | "id" | "role">> {
     const user = await this.usersRepo.findOne({
       where: { email },
     });
@@ -52,7 +52,7 @@ export class UserService {
       throw new AppError(ErrorType.USER_NOT_FOUND, "User not found", HttpStatus.NOT_FOUND);
     }
 
-    const { password, hashedRt, id, uuid, ...result } = user;
+    const { password, hashedRt, id, uuid, role, ...result } = user;
     return result;
   }
 
