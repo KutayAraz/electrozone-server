@@ -2,25 +2,25 @@ import {
   Body,
   ClassSerializerInterceptor,
   Controller,
-  Patch,
-  Post,
-  UseGuards,
-  UseInterceptors,
   HttpCode,
   HttpStatus,
-  Res,
+  Patch,
+  Post,
   Req,
+  Res,
+  UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { Response, Request } from "express";
+import { Throttle } from "@nestjs/throttler";
+import { Request, Response } from "express";
+import { Public } from "src/common/decorators/public.decorator";
+import { RefreshTokenUserUuid } from "src/common/decorators/refresh-token-user-uuid";
+import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { RtGuard } from "src/common/guards/rt.guard";
 import { CreateUserDto } from "../dtos/create-user.dto";
+import { SignUserDto } from "../dtos/sign-user.dto";
 import { ChangePasswordDto } from "../dtos/update-password.dto";
 import { AuthService } from "../services/auth.service";
-import { SignUserDto } from "../dtos/sign-user.dto";
-import { Throttle } from "@nestjs/throttler";
-import { Public } from "src/common/decorators/public.decorator";
-import { RtGuard } from "src/common/guards/rt.guard";
-import { UserUuid } from "src/common/decorators/user-uuid.decorator";
-import { RefreshTokenUserUuid } from "src/common/decorators/refresh-token-user-uuid";
 
 @Controller("auth")
 @UseInterceptors(ClassSerializerInterceptor)
@@ -29,18 +29,18 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
-  @Post("signup")
+  @Post("register")
   @HttpCode(HttpStatus.CREATED)
-  signUp(@Body() dto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
-    return this.authService.signUp(dto, res);
+  register(@Body() dto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
+    return this.authService.register(dto, res);
   }
 
   @Public()
   @Throttle({ default: { limit: 15, ttl: 3600000 } })
-  @Post("signin")
+  @Post("login")
   @HttpCode(HttpStatus.OK)
-  async signIn(@Body() dto: SignUserDto, @Res({ passthrough: true }) res: Response) {
-    return await this.authService.signIn(dto, res);
+  async login(@Body() dto: SignUserDto, @Res({ passthrough: true }) res: Response) {
+    return await this.authService.login(dto, res);
   }
 
   @Public()
@@ -54,8 +54,8 @@ export class AuthController {
   }
 
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
-  @Patch("/update-password")
-  async updateUserPassword(@UserUuid() userUuid: string, @Body() input: ChangePasswordDto) {
+  @Patch("/change-password")
+  async changePassword(@UserUuid() userUuid: string, @Body() input: ChangePasswordDto) {
     return await this.authService.changePassword(userUuid, input);
   }
 

@@ -1,19 +1,19 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { CreateUserDto } from "../dtos/create-user.dto";
-import { User } from "src/entities/User.entity";
-import { ChangePasswordDto } from "../dtos/update-password.dto";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
-import { SignUserDto } from "../dtos/sign-user.dto";
 import { Response } from "express";
-import { Cart } from "src/entities/Cart.entity";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
-import { AuthUtilityService } from "./auth-utility.service";
-import { UserService } from "./user.service";
+import { Cart } from "src/entities/Cart.entity";
+import { User } from "src/entities/User.entity";
+import { Repository } from "typeorm";
+import { CreateUserDto } from "../dtos/create-user.dto";
+import { SignUserDto } from "../dtos/sign-user.dto";
+import { ChangePasswordDto } from "../dtos/update-password.dto";
 import { Tokens } from "../types/tokens.type";
 import { UserRole } from "../types/user-role.enum";
+import { AuthUtilityService } from "./auth-utility.service";
+import { UserService } from "./user.service";
 
 @Injectable()
 export class AuthService {
@@ -55,7 +55,7 @@ export class AuthService {
     });
   }
 
-  async signUp(createUserDto: CreateUserDto, res: Response): Promise<Tokens & Partial<User>> {
+  async register(createUserDto: CreateUserDto, res: Response): Promise<Tokens & Partial<User>> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       // Validate password match
       if (createUserDto.password !== createUserDto.retypedPassword) {
@@ -109,10 +109,7 @@ export class AuthService {
     });
   }
 
-  async signIn(
-    dto: SignUserDto,
-    res: Response,
-  ): Promise<Partial<User> & { cartItemCount: number }> {
+  async login(dto: SignUserDto, res: Response): Promise<Partial<User> & { cartItemCount: number }> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       const user = await transactionalEntityManager.findOne(User, { where: { email: dto.email } });
 
