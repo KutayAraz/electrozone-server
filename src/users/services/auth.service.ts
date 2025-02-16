@@ -88,7 +88,11 @@ export class AuthService {
       await transactionalEntityManager.save(user);
 
       // Create an empty cart for the new user
-      const cart = transactionalEntityManager.create(Cart, { user, totalQuantity: 0 });
+      const cart = transactionalEntityManager.create(Cart, {
+        user,
+        totalQuantity: 0,
+        cartTotal: "0.00",
+      });
       await transactionalEntityManager.save(cart);
 
       // Generate tokens and update refresh token hash
