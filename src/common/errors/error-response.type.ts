@@ -1,6 +1,6 @@
 export interface StandardErrorResponse {
   statusCode: number;
-  error: string;
+  type: string;
   message: string;
   details?: Record<string, any>;
 }

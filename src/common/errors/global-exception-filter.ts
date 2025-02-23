@@ -1,17 +1,15 @@
 import {
+  ArgumentsHost,
   Catch,
   ExceptionFilter,
-  Logger,
-  ArgumentsHost,
-  HttpStatus,
   HttpException,
-  UnauthorizedException,
+  HttpStatus,
+  Logger,
 } from "@nestjs/common";
-import { AppError } from "./app-error";
 import { Response } from "express";
 import { QueryFailedError } from "typeorm";
+import { AppError } from "./app-error";
 import { StandardErrorResponse } from "./error-response.type";
-import { ErrorType } from "./error-type";
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -35,7 +33,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof AppError) {
       return {
         statusCode: exception.statusCode,
-        error: exception.type,
+        type: exception.type,
         message: exception.message,
         details: exception.details,
       };
@@ -45,7 +43,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const response = exception.getResponse() as string | object;
       return {
         statusCode: exception.getStatus(),
-        error: exception.name,
+        type: exception.name,
         message:
           typeof response === "string" ? response : (response as any).message || exception.message,
         details: typeof response === "object" ? response : undefined,
@@ -55,7 +53,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof QueryFailedError) {
       return {
         statusCode: HttpStatus.BAD_REQUEST,
-        error: "Database Error",
+        type: "Database Error",
         message: "A database error occurred",
         details: { originalError: exception.message },
       };
@@ -64,7 +62,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // Default case for unknown errors
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      error: "Internal Server Error",
+      type: "Internal Server Error",
       message: "An unexpected error occurred",
     };
   }
