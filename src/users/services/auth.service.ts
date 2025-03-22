@@ -4,7 +4,6 @@ import * as bcrypt from "bcrypt";
 import { Response } from "express";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
-import { Cart } from "src/entities/Cart.entity";
 import { User } from "src/entities/User.entity";
 import { Repository } from "typeorm";
 import { CreateUserDto } from "../dtos/create-user.dto";
@@ -87,14 +86,6 @@ export class AuthService {
 
       await transactionalEntityManager.save(user);
 
-      // Create an empty cart for the new user
-      const cart = transactionalEntityManager.create(Cart, {
-        user,
-        totalQuantity: 0,
-        cartTotal: "0.00",
-      });
-      await transactionalEntityManager.save(cart);
-
       // Generate tokens and update refresh token hash
       const tokens = await this.authUtilityService.getTokens(user);
       await this.authUtilityService.updateRtHash(
@@ -113,7 +104,7 @@ export class AuthService {
     });
   }
 
-  async login(dto: SignUserDto, res: Response): Promise<Partial<User> & { cartItemCount: number }> {
+  async login(dto: SignUserDto, res: Response): Promise<Partial<User>> {
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
       const user = await transactionalEntityManager.findOne(User, { where: { email: dto.email } });
 
@@ -145,19 +136,11 @@ export class AuthService {
       this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);
       this.authUtilityService.setAccessTokenCookie(res, tokens.access_token);
 
-      // Get cart item count
-      const cart = await transactionalEntityManager.findOne(Cart, {
-        where: { user: { id: user.id } },
-      });
-
-      const cartItemCount = cart ? cart.totalQuantity : 0;
-
       // Remove sensitive data before returning user info
       const { password, hashedRt, id, uuid, role, ...result } = user;
 
       return {
         ...result,
-        cartItemCount,
       };
     });
   }

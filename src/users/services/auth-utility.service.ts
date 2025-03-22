@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { Response } from "express";
-import { EntityManager } from "typeorm";
-import * as bcrypt from "bcrypt";
-import { User } from "src/entities/User.entity";
-import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
+import { Response } from "express";
+import { User } from "src/entities/User.entity";
+import { EntityManager } from "typeorm";
 import { JwtPayload } from "../types/jwt-payload.type";
 import { Tokens } from "../types/tokens.type";
 
