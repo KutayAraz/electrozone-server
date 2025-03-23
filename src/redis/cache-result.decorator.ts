@@ -11,7 +11,7 @@ export interface CacheOptions {
 export function CacheResult(options: CacheOptions) {
   const injectRedisService = Inject(RedisService);
 
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (target: any, _propertyKey: string, descriptor: PropertyDescriptor) {
     injectRedisService(target, "redisService");
     const originalMethod = descriptor.value;
     descriptor.value = async function (...args: any[]) {
