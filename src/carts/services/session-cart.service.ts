@@ -1,20 +1,21 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import Decimal from "decimal.js";
+import { AppError } from "src/common/errors/app-error";
+import { ErrorType } from "src/common/errors/error-type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { SessionCart } from "src/entities/SessionCart.entity";
+import { CacheResult } from "src/redis/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
 import { DataSource, EntityManager, Repository } from "typeorm";
+import { CartOperationResponse } from "../types/cart-operation-response.type";
+import { CartResponse } from "../types/cart-response.type";
+import { QuantityChange } from "../types/quantity-change.type";
 import { CartItemService } from "./cart-item.service";
 import { CartUtilityService } from "./cart-utility.service";
 import { CartService } from "./cart.service";
-import { AppError } from "src/common/errors/app-error";
-import { ErrorType } from "src/common/errors/error-type";
-import { CartResponse } from "../types/cart-response.type";
-import { QuantityChange } from "../types/quantity-change.type";
-import Decimal from "decimal.js";
-import { CacheResult } from "src/redis/cache-result.decorator";
-import { RedisService } from "src/redis/redis.service";
 
 @Injectable()
 export class SessionCartService {
@@ -62,11 +63,20 @@ export class SessionCartService {
         .toFixed(2);
       const totalQuantity = cartItems.reduce((total, product) => total + product.quantity, 0);
 
-      // Update cart in database
-      await transactionManager.update(SessionCart, cart.id, {
-        cartTotal,
-        totalQuantity,
-      });
+      // Check if any changes were detected that warrant cache invalidation
+      const hasChanges =
+        (removedCartItems && removedCartItems.length > 0) ||
+        (priceChanges && priceChanges.length > 0) ||
+        (quantityChanges && quantityChanges.length > 0);
+
+      // If changes were detected, invalidate the cache after this request completes
+      if (hasChanges) {
+        process.nextTick(() => {
+          this.invalidateSessionCartCache(sessionId).catch(err => {
+            this.logger.error(`Failed to invalidate cache after cart changes: ${err.message}`);
+          });
+        });
+      }
 
       return {
         cartTotal,
@@ -79,12 +89,33 @@ export class SessionCartService {
     });
   }
 
+  @CacheResult({
+    prefix: "session-cart-count",
+    ttl: 3600,
+    paramKeys: ["sessionId"],
+  })
+  async getSessionCartCount(sessionId: string): Promise<{ count: number }> {
+    try {
+      this.commonValidationService.validateSessionId(sessionId);
+
+      const cart = await this.dataSource.manager.findOne(SessionCart, {
+        where: { sessionId },
+        select: ["totalQuantity"],
+      });
+
+      return { count: cart?.totalQuantity || 0 };
+    } catch (error) {
+      this.logger.error(`Failed to get cart count for session ${sessionId}:`, error);
+      return { count: 0 };
+    }
+  }
+
   async addToSessionCart(
     sessionId: string,
     productId: number,
     quantity: number,
     transactionalEntityManager?: EntityManager,
-  ): Promise<QuantityChange> {
+  ): Promise<CartOperationResponse> {
     this.commonValidationService.validateSessionId(sessionId);
     this.commonValidationService.validateQuantity(quantity);
 
@@ -103,8 +134,10 @@ export class SessionCartService {
         transactionManager,
       );
 
-      // Return the quantity change
-      return quantityChange;
+      return {
+        success: true,
+        quantityChanges: quantityChange ? [quantityChange] : undefined,
+      };
     });
   }
 
@@ -113,7 +146,7 @@ export class SessionCartService {
     productId: number,
     quantity: number,
     transactionalEntityManager?: EntityManager,
-  ): Promise<CartResponse> {
+  ): Promise<CartOperationResponse> {
     this.commonValidationService.validateSessionId(sessionId);
     this.commonValidationService.validateQuantity(quantity);
 
@@ -129,38 +162,54 @@ export class SessionCartService {
         }),
       ]);
 
+      let quantityChanges: QuantityChange[] = [];
+      let priceChanges = [];
+
       // If cartItem exists, update its quantity
       if (cartItem) {
-        if (cartItem) {
-          await this.cartItemService.updateCartItemQuantity(
-            sessionCart,
-            cartItem,
-            quantity,
-            transactionManager,
-          );
-        } else {
-          // If cartItem doesn't exist, treat it as a new item addition
-          const product = await this.productRepository.findOne({
-            where: { id: productId },
-          });
-          await this.cartItemService.addCartItem(
-            sessionCart,
-            product,
-            quantity,
-            transactionManager,
-          );
-        }
+        const { updatedCartItem, quantityChange, priceChange } =
+          await this.cartItemService.updateCartItem(cartItem, transactionManager);
 
-        // Invalidate cache after adding product
-        await this.invalidateSessionCartCache(sessionId);
+        await this.cartItemService.updateCartItemQuantity(
+          sessionCart,
+          cartItem,
+          quantity,
+          transactionManager,
+        );
 
-        // Return updated cart information
-        return await this.getSessionCart(sessionId, transactionManager);
+        if (quantityChange) quantityChanges.push(quantityChange);
+        if (priceChange) priceChanges.push(priceChange);
+      } else {
+        // If cartItem doesn't exist, treat it as a new item addition
+        const product = await this.productRepository.findOne({
+          where: { id: productId },
+        });
+
+        const quantityChange = await this.cartItemService.addCartItem(
+          sessionCart,
+          product,
+          quantity,
+          transactionManager,
+        );
+
+        if (quantityChange) quantityChanges.push(quantityChange);
       }
+
+      // Invalidate cache after updating quantity
+      await this.invalidateSessionCartCache(sessionId);
+
+      return {
+        success: true,
+        quantityChanges: quantityChanges.length > 0 ? quantityChanges : undefined,
+        priceChanges: priceChanges.length > 0 ? priceChanges : undefined,
+      };
     });
   }
 
-  async removeFromSessionCart(sessionId: string, productId: number): Promise<CartResponse> {
+  async removeFromSessionCart(
+    sessionId: string,
+    productId: number,
+  ): Promise<CartOperationResponse> {
     this.commonValidationService.validateSessionId(sessionId);
 
     return this.dataSource.transaction(async transactionManager => {
@@ -187,7 +236,7 @@ export class SessionCartService {
       // Invalidate cache after removing product
       await this.invalidateSessionCartCache(sessionId);
 
-      return this.getSessionCart(sessionId, transactionManager);
+      return { success: true };
     });
   }
 
@@ -253,10 +302,11 @@ export class SessionCartService {
       // Invalidate cache for both session-cart and user-cart after merging carts
       await this.invalidateSessionCartCache(sessionId);
       try {
-        const cacheKey = this.redisService.generateKey("cart-user", {
-          userUuid,
-        });
-        await this.redisService.del(cacheKey);
+        const cacheKeys = [
+          this.redisService.generateKey("cart-user", { userUuid }),
+          this.redisService.generateKey("cart-count", { userUuid }),
+        ];
+        await Promise.all(cacheKeys.map(key => this.redisService.del(key)));
         this.logger.debug(`Invalidated cache keys for user ${userUuid}`);
       } catch (error) {
         this.logger.error("Failed to invalidate user caches:", error);
@@ -270,7 +320,7 @@ export class SessionCartService {
   async clearSessionCart(
     sessionId: string,
     transactionalEntityManager?: EntityManager,
-  ): Promise<CartResponse> {
+  ): Promise<CartOperationResponse> {
     this.commonValidationService.validateSessionId(sessionId);
 
     const manager = transactionalEntityManager || this.dataSource.manager;
@@ -298,9 +348,7 @@ export class SessionCartService {
       await this.invalidateSessionCartCache(sessionId);
 
       return {
-        cartTotal: sessionCart.cartTotal,
-        totalQuantity: sessionCart.totalQuantity,
-        cartItems: [],
+        success: true,
       };
     });
   }
@@ -308,13 +356,15 @@ export class SessionCartService {
   // Helper method to invalidate session cart cache
   private async invalidateSessionCartCache(sessionId: string): Promise<void> {
     try {
-      const cacheKey = this.redisService.generateKey("session-cart", {
-        sessionId,
-      });
-      await this.redisService.del(cacheKey);
-      this.logger.debug(`Invalidated cache keys for user ${sessionId}`);
+      const cacheKeys = [
+        this.redisService.generateKey("session-cart", { sessionId }),
+        this.redisService.generateKey("session-cart-count", { sessionId }),
+      ];
+
+      await Promise.all(cacheKeys.map(key => this.redisService.del(key)));
+      this.logger.debug(`Invalidated cache keys for session ${sessionId}`);
     } catch (error) {
-      this.logger.error("Failed to invalidate user caches:", error);
+      this.logger.error("Failed to invalidate session caches:", error);
     }
   }
 }

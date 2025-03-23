@@ -4,8 +4,8 @@ import { Public } from "src/common/decorators/public.decorator";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { AddToCartDto } from "../dtos/add-to-cart.dto";
 import { SessionCartService } from "../services/session-cart.service";
+import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
-import { QuantityChange } from "../types/quantity-change.type";
 
 @Controller("cart/session")
 export class SessionCartController {
@@ -17,12 +17,18 @@ export class SessionCartController {
     return this.sessionCartService.getSessionCart(session.id);
   }
 
+  @SkipThrottle()
+  @Get("count")
+  async getSessionCartCount(@UserUuid() userUuid: string): Promise<{ count: number }> {
+    return await this.sessionCartService.getSessionCartCount(userUuid);
+  }
+
   @Public()
   @Post()
   async addToSessionCart(
     @Session() session: Record<string, any>,
     @Body() cartItem: AddToCartDto,
-  ): Promise<QuantityChange> {
+  ): Promise<CartOperationResponse> {
     return await this.sessionCartService.addToSessionCart(
       session.id,
       cartItem.productId,
@@ -35,7 +41,7 @@ export class SessionCartController {
   async updateItemQuantity(
     @Session() session: Record<string, any>,
     @Body() cartItem: AddToCartDto,
-  ): Promise<CartResponse> {
+  ): Promise<CartOperationResponse> {
     return await this.sessionCartService.updateCartItemQuantity(
       session.id,
       cartItem.productId,
@@ -48,13 +54,13 @@ export class SessionCartController {
   async removeFromSessionCart(
     @Session() session: Record<string, any>,
     @Param("productId") productId: number,
-  ): Promise<CartResponse> {
+  ): Promise<CartOperationResponse> {
     return await this.sessionCartService.removeFromSessionCart(session.id, productId);
   }
 
   @Public()
   @Delete("clear")
-  async clearSessionCart(@Session() session: Record<string, any>): Promise<CartResponse> {
+  async clearSessionCart(@Session() session: Record<string, any>): Promise<CartOperationResponse> {
     return await this.sessionCartService.clearSessionCart(session.id);
   }
 
