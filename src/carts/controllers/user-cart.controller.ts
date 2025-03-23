@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Delete, Param } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { AddToCartDto } from "../dtos/add-to-cart.dto";
 import { CartService } from "../services/cart.service";
+import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
-import { QuantityChange } from "../types/quantity-change.type";
 
 @Controller("cart/user")
 export class UserCartController {
@@ -16,11 +16,17 @@ export class UserCartController {
   }
 
   @SkipThrottle()
+  @Get("count")
+  async getCartItemCount(@UserUuid() userUuid: string): Promise<{ count: number }> {
+    return await this.cartService.getCartItemCount(userUuid);
+  }
+
+  @SkipThrottle()
   @Post("item")
   async addProductToCart(
     @UserUuid() userUuid: string,
     @Body() cartItem: AddToCartDto,
-  ): Promise<QuantityChange> {
+  ): Promise<CartOperationResponse> {
     return await this.cartService.addProductToCart(userUuid, cartItem.productId, cartItem.quantity);
   }
 
@@ -29,7 +35,7 @@ export class UserCartController {
   async updateItemQuantity(
     @UserUuid() userUuid: string,
     @Body() cartItem: AddToCartDto,
-  ): Promise<CartResponse> {
+  ): Promise<CartOperationResponse> {
     return await this.cartService.updateCartItemQuantity(
       userUuid,
       cartItem.productId,
@@ -42,12 +48,12 @@ export class UserCartController {
   async removeCartItem(
     @UserUuid() userUuid: string,
     @Param("productId") productId: number,
-  ): Promise<CartResponse> {
+  ): Promise<CartOperationResponse> {
     return await this.cartService.removeCartItem(userUuid, productId);
   }
 
   @Delete("clear")
-  async clearCart(@UserUuid() userUuid: string): Promise<CartResponse> {
+  async clearCart(@UserUuid() userUuid: string): Promise<CartOperationResponse> {
     return await this.cartService.clearCart(userUuid);
   }
 }
