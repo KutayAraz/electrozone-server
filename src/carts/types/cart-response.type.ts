@@ -1,4 +1,4 @@
-import { FormattedCartItem } from "./formatted-cart-product.type";
+import { FormattedCartItem } from "./formatted-cart-item.type";
 import { PriceChange } from "./price-change.type";
 import { QuantityChange } from "./quantity-change.type";
 

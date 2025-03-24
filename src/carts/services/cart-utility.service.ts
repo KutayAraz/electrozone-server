@@ -1,12 +1,12 @@
 import { Injectable } from "@nestjs/common";
+import Decimal from "decimal.js";
+import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
+import { SessionCart } from "src/entities/SessionCart.entity";
 import { User } from "src/entities/User.entity";
 import { EntityManager } from "typeorm";
-import { CommonValidationService } from "src/common/services/common-validation.service";
-import { FormattedCartItem } from "../types/formatted-cart-product.type";
-import { SessionCart } from "src/entities/SessionCart.entity";
-import Decimal from "decimal.js";
+import { FormattedCartItem } from "../types/formatted-cart-item.type";
 
 @Injectable()
 export class CartUtilityService {
