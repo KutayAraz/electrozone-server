@@ -1,17 +1,17 @@
 import { Injectable } from "@nestjs/common";
-import { EntityManager } from "typeorm";
-import { PriceChange } from "../types/price-change.type";
+import Decimal from "decimal.js";
 import { ErrorType } from "src/common/errors/error-type";
-import { CartItem } from "src/entities/CartItem.entity";
-import { QuantityChange } from "../types/quantity-change.type";
-import { FormattedCartItem } from "../types/formatted-cart-product.type";
-import { CartUtilityService } from "./cart-utility.service";
-import { CartIdentifier } from "../types/cart-identifier.type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Cart } from "src/entities/Cart.entity";
+import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { SessionCart } from "src/entities/SessionCart.entity";
-import Decimal from "decimal.js";
+import { EntityManager } from "typeorm";
+import { CartIdentifier } from "../types/cart-identifier.type";
+import { FormattedCartItem } from "../types/formatted-cart-item.type";
+import { PriceChange } from "../types/price-change.type";
+import { QuantityChange } from "../types/quantity-change.type";
+import { CartUtilityService } from "./cart-utility.service";
 
 @Injectable()
 export class CartItemService {

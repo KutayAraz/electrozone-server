@@ -1,29 +1,32 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
+import { BuyNowCartService } from "src/carts/services/buy-now-cart.service";
+import { CartUtilityService } from "src/carts/services/cart-utility.service";
+import { CartService } from "src/carts/services/cart.service";
+import { SessionCartService } from "src/carts/services/session-cart.service";
+import { CartResponse } from "src/carts/types/cart-response.type";
+import { AppError } from "src/common/errors/app-error";
+import { ErrorType } from "src/common/errors/error-type";
+import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.detail";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
-import { Repository, DataSource, EntityManager } from "typeorm";
-import { OrderValidationService } from "./order-validation.service";
-import { ErrorType } from "src/common/errors/error-type";
-import { CommonValidationService } from "src/common/services/common-validation.service";
-import { CartService } from "src/carts/services/cart.service";
-import { AppError } from "src/common/errors/app-error";
-import { CartResponse } from "src/carts/types/cart-response.type";
-import { BuyNowCartService } from "src/carts/services/buy-now-cart.service";
-import { CheckoutType } from "../types/checkoutType.enum";
+import { CacheResult } from "src/redis/cache-result.decorator";
+import { DataSource, EntityManager, Repository } from "typeorm";
 import { IsolationLevel } from "typeorm/driver/types/IsolationLevel";
 import { v4 as uuidv4 } from "uuid";
-import { SessionCartService } from "src/carts/services/session-cart.service";
-import { CartUtilityService } from "src/carts/services/cart-utility.service";
-import { CacheResult } from "src/redis/cache-result.decorator";
+import { CheckoutSnapshot } from "../types/checkout-snapshot.type";
+import { CheckoutType } from "../types/checkoutType.enum";
 import { OrderUtilityService } from "./order-utility.service";
+import { OrderValidationService } from "./order-validation.service";
 
 @Injectable()
 export class OrderService {
-  // Stores checkout session data temporarily in memory
-  private checkoutSnapshots = [];
+  private readonly logger = new Logger(OrderService.name);
+
+  private checkoutSnapshots = new Map<string, CheckoutSnapshot>();
 
   constructor(
     @InjectRepository(Order) private orderRepository: Repository<Order>,
@@ -71,7 +74,7 @@ export class OrderService {
 
     // Store cart snapshot with metadata
     // This snapshot will be used to verify cart consistency during order processing
-    this.checkoutSnapshots[checkoutSnapshotId] = {
+    this.checkoutSnapshots.set(checkoutSnapshotId, {
       id: checkoutSnapshotId,
       userUuid,
       cartItems: cartResponse.cartItems,
@@ -80,7 +83,7 @@ export class OrderService {
       createdAt: new Date(),
       checkoutType,
       sessionId: checkoutType === CheckoutType.SESSION ? sessionId : undefined,
-    };
+    });
 
     return {
       checkoutSnapshotId,
@@ -100,7 +103,7 @@ export class OrderService {
     }
 
     // Retrieve and validate checkout snapshot
-    const snapshot = this.checkoutSnapshots[checkoutSnapshotId];
+    const snapshot = this.checkoutSnapshots.get(checkoutSnapshotId);
     this.orderValidationService.validateCheckoutSession(snapshot, userUuid);
 
     // Process order in a transaction with REPEATABLE READ isolation
@@ -148,7 +151,7 @@ export class OrderService {
         }
 
         // Clear checkout session
-        delete this.checkoutSnapshots[checkoutSnapshotId];
+        this.checkoutSnapshots.delete(checkoutSnapshotId);
 
         return savedOrder.id;
       },
@@ -247,5 +250,26 @@ export class OrderService {
     });
 
     return orders.map(this.orderUtilityService.transformOrder);
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  cleanupAgedSnapshots() {
+    const now = new Date();
+    const maxAgeMs = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
+    let removedCount = 0;
+
+    for (const id in this.checkoutSnapshots) {
+      const snapshot = this.checkoutSnapshots.get(id);
+      const ageMs = now.getTime() - snapshot.createdAt.getTime();
+
+      if (ageMs > maxAgeMs) {
+        this.checkoutSnapshots.delete(id);
+        removedCount++;
+      }
+    }
+
+    if (removedCount > 0) {
+      this.logger.log(`Removed ${removedCount} expired checkout snapshots (older than 12 hours)`);
+    }
   }
 }

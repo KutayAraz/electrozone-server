@@ -1,18 +1,19 @@
 import { MiddlewareConsumer, Module, RequestMethod, ValidationPipe } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { CategoriesModule } from "./categories/category.module";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { OrderModule } from "./orders/order.module";
 import { APP_GUARD, APP_PIPE } from "@nestjs/core";
-import { CartModule } from "./carts/cart.module";
-import databaseConfig from "./config/database.config";
+import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
-import { SubcategoryModule } from "./subcategories/subcategory.module";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { CartModule } from "./carts/cart.module";
+import { CategoriesModule } from "./categories/category.module";
 import { AtGuard } from "./common/guards/at.guard";
-import { UserModule } from "./users/user.module";
-import { ProductModule } from "./products/product.module";
 import { SessionMiddleware } from "./common/middleware/session.middleware";
+import databaseConfig from "./config/database.config";
+import { OrderModule } from "./orders/order.module";
+import { ProductModule } from "./products/product.module";
 import { RedisModule } from "./redis/redis.module";
+import { SubcategoryModule } from "./subcategories/subcategory.module";
+import { UserModule } from "./users/user.module";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { RedisModule } from "./redis/redis.module";
       useFactory: databaseConfig,
     }),
     RedisModule,
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // Time to live for the records in miliseconds

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import Decimal from "decimal.js";
+import { FormattedCartItem } from "src/carts/types/formatted-cart-item.type";
 import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Order } from "src/entities/Order.entity";
@@ -8,9 +9,8 @@ import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { RedisService } from "src/redis/redis.service";
 import { EntityManager, In } from "typeorm";
-import { OrderValidationService } from "./order-validation.service";
-import { FormattedCartItem } from "src/carts/types/formatted-cart-product.type";
 import { ValidatedOrderItem } from "../types/validated-order-item.type";
+import { OrderValidationService } from "./order-validation.service";
 
 @Injectable()
 export class OrderUtilityService {
@@ -139,7 +139,7 @@ export class OrderUtilityService {
   // Cleans up cart items after successful order placement
   async handleNormalCartCleanup(
     cart: Cart,
-    cartItems: CartItem[],
+    cartItems: FormattedCartItem[],
     transactionManager: EntityManager,
   ) {
     // Find all current cart items that match the ordered products
@@ -168,7 +168,7 @@ export class OrderUtilityService {
   }
 
   // Categorizes cart items for cleanup after order placement
-  categorizeCartItems(currentCartItems: CartItem[], snapshotCartItems: CartItem[]) {
+  categorizeCartItems(currentCartItems: CartItem[], snapshotCartItems: FormattedCartItem[]) {
     const itemsToRemove: CartItem[] = [];
     const itemsToUpdate: CartItem[] = [];
 

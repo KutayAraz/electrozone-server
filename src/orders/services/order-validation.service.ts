@@ -1,14 +1,14 @@
-import { Injectable, HttpStatus } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
+import Decimal from "decimal.js";
+import { FormattedCartItem } from "src/carts/types/formatted-cart-item.type";
+import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
+import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Order } from "src/entities/Order.entity";
 import { Product } from "src/entities/Product.entity";
-import { Repository, EntityManager } from "typeorm";
-import { AppError } from "src/common/errors/app-error";
-import { CommonValidationService } from "src/common/services/common-validation.service";
-import { OrderItem } from "../types/order-item.type";
+import { EntityManager, Repository } from "typeorm";
 import { CheckoutSnapshot } from "../types/checkout-snapshot.type";
-import Decimal from "decimal.js";
-import { FormattedCartItem } from "src/carts/types/formatted-cart-product.type";
+import { OrderItem } from "../types/order-item.type";
 
 @Injectable()
 export class OrderValidationService {
