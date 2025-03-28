@@ -63,7 +63,7 @@ export class AppModule {
     consumer
       .apply(SessionMiddleware)
       .forRoutes(
-        { path: "cart/session", method: RequestMethod.ALL },
+        { path: "cart/session/*", method: RequestMethod.ALL },
         { path: "order/initiate-order", method: RequestMethod.POST },
       );
   }
