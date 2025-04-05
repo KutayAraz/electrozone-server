@@ -20,8 +20,8 @@ export class SessionCartController {
   @SkipThrottle()
   @Public()
   @Get("count")
-  async getSessionCartCount(@UserUuid() userUuid: string): Promise<{ count: number }> {
-    return await this.sessionCartService.getSessionCartCount(userUuid);
+  async getSessionCartCount(@Session() session: Record<string, any>): Promise<{ count: number }> {
+    return await this.sessionCartService.getSessionCartCount(session.id);
   }
 
   @Public()
