@@ -6,7 +6,7 @@ export class AppError extends Error {
     public type: ErrorType,
     public message: string,
     public statusCode: HttpStatus = HttpStatus.BAD_REQUEST,
-    public details?: Record<string, any>,
+    public details?: string,
   ) {
     super(message);
     this.name = "AppError";

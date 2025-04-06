@@ -46,7 +46,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         type: exception.name,
         message:
           typeof response === "string" ? response : (response as any).message || exception.message,
-        details: typeof response === "object" ? response : undefined,
+        details:
+          typeof response === "object"
+            ? JSON.stringify(response) // Convert object to string when it's an object
+            : typeof response === "string"
+              ? response
+              : undefined,
       };
     }
 
@@ -55,7 +60,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: HttpStatus.BAD_REQUEST,
         type: "Database Error",
         message: "A database error occurred",
-        details: { originalError: exception.message },
+        details: exception.message,
       };
     }
 
