@@ -1,13 +1,12 @@
 import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { User } from "src/entities/User.entity";
-import { Repository } from "typeorm";
-import { UpdateUserDto } from "../dtos/update-user.dto";
-import { Wishlist } from "src/entities/Wishlist.entity";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
+import { User } from "src/entities/User.entity";
 import { CacheResult } from "src/redis/cache-result.decorator";
 import { RedisService } from "src/redis/redis.service";
+import { Repository } from "typeorm";
+import { UpdateUserDto } from "../dtos/update-user.dto";
 
 @Injectable()
 export class UserService {
@@ -92,8 +91,8 @@ export class UserService {
   private async invalidateUserCaches(userUuid: string, email: string): Promise<void> {
     try {
       const keysToInvalidate = [
-        this.redisService.generateKey("user-by-uuid", { userUuid }),
-        this.redisService.generateKey("user-by-email", { email }),
+        this.redisService.generateKey("user-uuid", { userUuid }),
+        this.redisService.generateKey("user-email", { email }),
       ];
 
       await Promise.all(keysToInvalidate.map(key => this.redisService.del(key)));
