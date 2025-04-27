@@ -10,7 +10,7 @@ import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Order } from "src/entities/Order.entity";
-import { OrderItem } from "src/entities/OrderItem.detail";
+import { OrderItem } from "src/entities/OrderItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { CacheResult } from "src/redis/cache-result.decorator";
@@ -93,6 +93,7 @@ export class OrderService {
 
   async processOrder(userUuid: string, checkoutSnapshotId: string, idempotencyKey: string) {
     // Check if this order was already processed using idempotency key
+
     const existingOrder = await this.orderValidationService.validateIdempotency(
       idempotencyKey,
       this.dataSource.getRepository(Order),
@@ -104,6 +105,8 @@ export class OrderService {
 
     // Retrieve and validate checkout snapshot
     const snapshot = this.checkoutSnapshots.get(checkoutSnapshotId);
+
+    console.log("snapshots are", this.checkoutSnapshots);
     this.orderValidationService.validateCheckoutSession(snapshot, userUuid);
 
     // Process order in a transaction with REPEATABLE READ isolation
@@ -175,16 +178,30 @@ export class OrderService {
 
       await Promise.all(
         order.orderItems.map(async orderItem => {
-          const product = await transactionManager.findOneBy(Product, {
-            id: orderItem.product.id,
-          });
+          const product = orderItem.product;
+
+          if (!product) {
+            console.warn(
+              `Product not found for orderItem ${orderItem.id}. Skipping inventory update.`,
+            );
+            return; // Skip this item and continue with others
+          }
+
+          // Update product inventory and sales count
           product.sold -= orderItem.quantity;
           product.stock += orderItem.quantity;
-          await transactionManager.save(Product, product);
+
+          try {
+            await transactionManager.save(Product, product);
+          } catch (error) {
+            console.error(`Failed to update product ${product.id} inventory: ${error.message}`);
+          }
         }),
       );
 
       await transactionManager.remove(order);
+
+      return { success: true, message: "Order cancelled successfully" };
     });
   }
 

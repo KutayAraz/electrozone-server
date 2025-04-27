@@ -91,7 +91,7 @@ export class OrderValidationService {
   async validateUserOrder(userUuid: string, orderId: number, ordersRepo: Repository<Order>) {
     const order = await ordersRepo.findOne({
       where: { id: orderId },
-      relations: ["user", "orderItems"],
+      relations: ["user", "orderItems", "orderItems.product"],
     });
 
     this.validateOrder(order);
