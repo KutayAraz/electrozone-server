@@ -27,11 +27,11 @@ export class AuthService {
       const user = await this.userService.findByUuid(userUuid);
 
       // Check if the old password is correct
-      if (await bcrypt.compare(updatedPasswordData.oldPassword, user.password)) {
+      if (!(await bcrypt.compare(updatedPasswordData.oldPassword, user.password))) {
         throw new AppError(
           ErrorType.INVALID_CURRENT_PASSWORD,
           "Current password is incorrect",
-          HttpStatus.UNAUTHORIZED,
+          HttpStatus.BAD_REQUEST,
         );
       }
 
