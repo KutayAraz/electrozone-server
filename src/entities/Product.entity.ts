@@ -1,10 +1,10 @@
 import { Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { CartItem } from "./CartItem.entity";
+import { OrderItem } from "./OrderItem.entity";
+import { ProductImage } from "./ProductImage.entity";
 import { Review } from "./Review.entity";
 import { Subcategory } from "./Subcategory.entity";
-import { ProductImage } from "./ProductImage.entity";
-import { OrderItem } from "./OrderItem.detail";
 import { Wishlist } from "./Wishlist.entity";
-import { CartItem } from "./CartItem.entity";
 
 @Entity({ name: "products" })
 export class Product {

@@ -6,8 +6,8 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
+import { OrderItem } from "./OrderItem.entity";
 import { User } from "./User.entity";
-import { OrderItem } from "./OrderItem.detail";
 
 @Entity({ name: "orders" })
 export class Order {
@@ -23,7 +23,10 @@ export class Order {
   @ManyToOne(() => User, user => user.orders)
   user: User;
 
-  @OneToMany(() => OrderItem, orderItem => orderItem.order, { cascade: true })
+  @OneToMany(() => OrderItem, orderItem => orderItem.order, {
+    cascade: true,
+    onDelete: "CASCADE",
+  })
   orderItems: OrderItem[];
 
   @Column({ unique: true, nullable: true })

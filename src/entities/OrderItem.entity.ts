@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, Column } from "typeorm";
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { Order } from "./Order.entity";
 import { Product } from "./Product.entity";
 
@@ -16,7 +16,9 @@ export class OrderItem {
   @Column("varchar", { length: 10 })
   totalPrice: string;
 
-  @ManyToOne(() => Order, order => order.orderItems)
+  @ManyToOne(() => Order, order => order.orderItems, {
+    onDelete: "CASCADE",
+  })
   order: Order;
 
   @ManyToOne(() => Product, product => product.orderItems)

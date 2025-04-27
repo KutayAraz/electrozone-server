@@ -4,7 +4,7 @@ import { FormattedCartItem } from "src/carts/types/formatted-cart-item.type";
 import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Order } from "src/entities/Order.entity";
-import { OrderItem } from "src/entities/OrderItem.detail";
+import { OrderItem } from "src/entities/OrderItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { RedisService } from "src/redis/redis.service";
