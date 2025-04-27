@@ -1,21 +1,25 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { AppError } from "src/common/errors/app-error";
+import { ErrorType } from "src/common/errors/error-type";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist.entity";
-import { Repository, DataSource } from "typeorm";
-import { WishlistItem } from "../types/wishlist-product.type";
-import { AppError } from "src/common/errors/app-error";
-import { ErrorType } from "src/common/errors/error-type";
-import { WishlistToggleResult } from "../types/wishlist-toggle-result.type";
 import { CacheResult } from "src/redis/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
+import { DataSource, Repository } from "typeorm";
+import { WishlistItem } from "../types/wishlist-product.type";
+import { WishlistToggleResult } from "../types/wishlist-toggle-result.type";
 
 @Injectable()
 export class WishlistService {
+  private readonly logger = new Logger(WishlistService.name);
+
   constructor(
     @InjectRepository(Wishlist)
     private readonly wishlistRepo: Repository<Wishlist>,
     private readonly dataSource: DataSource,
+    private readonly redisService: RedisService,
   ) {}
 
   @CacheResult({
@@ -45,6 +49,8 @@ export class WishlistService {
         "category.category",
       ])
       .getRawMany();
+
+    console.log("user Wishlist", userWishlist);
 
     // Map the raw query result to the WishlistItem type
     return userWishlist.map(wishlist => {
@@ -126,10 +132,28 @@ export class WishlistService {
       // Update the product's wishlisted count
       await transactionalEntityManager.save(product);
 
+      await this.invalidateWishlistCaches(userUuid, productId);
+
       return {
         action,
         productId,
       };
     });
+  }
+
+  private async invalidateWishlistCaches(userUuid: string, productId?: number): Promise<void> {
+    try {
+      const cacheKeys = [this.redisService.generateKey("wishlist-user", { userUuid })];
+
+      // If productId is provided, also invalidate the specific check cache
+      if (productId) {
+        cacheKeys.push(this.redisService.generateKey("wishlist-check", { productId, userUuid }));
+      }
+
+      await Promise.all(cacheKeys.map(key => this.redisService.del(key)));
+      this.logger.debug(`Invalidated wishlist cache keys for user ${userUuid}`);
+    } catch (error) {
+      this.logger.error("Failed to invalidate wishlist caches:", error);
+    }
   }
 }
