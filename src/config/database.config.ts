@@ -1,18 +1,18 @@
-import { TypeOrmModuleOptions } from "@nestjs/typeorm";
 import { ConfigService } from "@nestjs/config";
+import { TypeOrmModuleOptions } from "@nestjs/typeorm";
+import { BuyNowSessionCart } from "src/entities/BuyNowSessionCart.entity";
 import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Category } from "src/entities/Category.entity";
 import { Order } from "src/entities/Order.entity";
-import { OrderItem } from "src/entities/OrderItem.detail";
+import { OrderItem } from "src/entities/OrderItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { ProductImage } from "src/entities/ProductImage.entity";
 import { Review } from "src/entities/Review.entity";
+import { SessionCart } from "src/entities/SessionCart.entity";
 import { Subcategory } from "src/entities/Subcategory.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist.entity";
-import { SessionCart } from "src/entities/SessionCart.entity";
-import { BuyNowSessionCart } from "src/entities/BuyNowSessionCart.entity";
 
 export default (config: ConfigService): TypeOrmModuleOptions => ({
   type: "mysql",
