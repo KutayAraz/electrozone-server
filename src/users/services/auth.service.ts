@@ -61,10 +61,15 @@ export class AuthService {
         throw new AppError(ErrorType.PASSWORD_MISMATCH, "Your new password does not match");
       }
 
+      if (!this.authUtilityService.isPasswordStrong(createUserDto.password)) {
+        throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "Password is not strong enough");
+      }
+
       // Check if user already exists
       const existingUser = await transactionalEntityManager.findOne(User, {
         where: { email: createUserDto.email },
       });
+
       if (existingUser) {
         throw new AppError(
           ErrorType.USER_ALREADY_EXISTS,

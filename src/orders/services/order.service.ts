@@ -286,7 +286,7 @@ export class OrderService {
     }
 
     if (removedCount > 0) {
-      this.logger.log(`Removed ${removedCount} expired checkout snapshots (older than 12 hours)`);
+      this.logger.log(`Removed ${removedCount} expired checkout snapshots (older than 3 hours)`);
     }
   }
 }
