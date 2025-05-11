@@ -12,8 +12,8 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
-import { OrderService } from "./services/order.service";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { OrderService } from "./services/order.service";
 import { CheckoutType } from "./types/checkoutType.enum";
 
 @Controller("order")
@@ -38,7 +38,7 @@ export class OrderController {
   @Post("process-order")
   async processOrder(
     @UserUuid() userUuid: string,
-    @Body("checkoutSnapshot") checkoutSnapshotId: string,
+    @Body("checkoutSnapshotId") checkoutSnapshotId: string,
     @Body("idempotencyKey") idempotencyKey: string,
   ) {
     const orderId = await this.orderService.processOrder(

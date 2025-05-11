@@ -12,6 +12,7 @@ import { RedisService } from "src/redis/redis.service";
 import { DataSource, EntityManager, Repository } from "typeorm";
 import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
+import { FormattedCartItem } from "../types/formatted-cart-item.type";
 import { QuantityChange } from "../types/quantity-change.type";
 import { CartItemService } from "./cart-item.service";
 import { CartUtilityService } from "./cart-utility.service";
@@ -31,62 +32,97 @@ export class SessionCartService {
     private readonly redisService: RedisService,
   ) {}
 
-  @CacheResult({
-    prefix: "session-cart",
-    ttl: 3600,
-    paramKeys: ["sessionId"],
-  })
   async getSessionCart(
     sessionId: string,
     transactionalEntityManager?: EntityManager,
   ): Promise<CartResponse> {
     this.commonValidationService.validateSessionId(sessionId);
     const manager = transactionalEntityManager || this.dataSource.manager;
+    const cacheKey = this.redisService.generateKey("session-cart", { sessionId });
 
-    return manager.transaction(async transactionManager => {
-      let cart = await this.cartUtilityService.findOrCreateSessionCart(
-        sessionId,
-        transactionManager,
-      );
+    // Try to get the core cart data from cache
+    const cachedCartData = await this.redisService.get<{
+      cartTotal: string;
+      totalQuantity: number;
+      cartItems: FormattedCartItem[];
+    }>(cacheKey);
 
-      // Update the cart items and notify user of any changes to product price or stock change
-      const { cartItems, removedCartItems, priceChanges, quantityChanges } =
-        await this.cartItemService.fetchAndUpdateCartItems(transactionManager, {
-          sessionCartId: cart.id,
-        });
+    if (cachedCartData) {
+      // We have cached cart data, but need to calculate notifications
+      return manager.transaction(async transactionManager => {
+        let cart = await this.cartUtilityService.findOrCreateSessionCart(
+          sessionId,
+          transactionManager,
+        );
 
-      // Recalculate cart total and quantity
-      const cartTotal = cartItems
-        .reduce((total, product) => {
-          return total.plus(new Decimal(product.amount));
-        }, new Decimal(0))
-        .toFixed(2);
-      const totalQuantity = cartItems.reduce((total, product) => total + product.quantity, 0);
-
-      // Check if any changes were detected that warrant cache invalidation
-      const hasChanges =
-        (removedCartItems && removedCartItems.length > 0) ||
-        (priceChanges && priceChanges.length > 0) ||
-        (quantityChanges && quantityChanges.length > 0);
-
-      // If changes were detected, invalidate the cache after this request completes
-      if (hasChanges) {
-        process.nextTick(() => {
-          this.invalidateSessionCartCache(sessionId).catch(err => {
-            this.logger.error(`Failed to invalidate cache after cart changes: ${err.message}`);
+        // Check for any changes/notifications
+        const { removedCartItems, priceChanges, quantityChanges } =
+          await this.cartItemService.fetchAndUpdateCartItems(transactionManager, {
+            sessionCartId: cart.id,
           });
-        });
-      }
 
-      return {
-        cartTotal,
-        totalQuantity,
-        cartItems,
-        removedCartItems,
-        priceChanges,
-        quantityChanges,
-      };
-    });
+        // If there are changes, invalidate the cache for next time
+        const hasChanges =
+          (removedCartItems && removedCartItems.length > 0) ||
+          (priceChanges && priceChanges.length > 0) ||
+          (quantityChanges && quantityChanges.length > 0);
+
+        if (hasChanges) {
+          process.nextTick(() => {
+            this.invalidateSessionCartCache(sessionId).catch(err => {
+              this.logger.error(`Failed to invalidate cache after cart changes: ${err.message}`);
+            });
+          });
+        }
+
+        // Return cached data + fresh notifications
+        return {
+          ...cachedCartData,
+          removedCartItems,
+          priceChanges,
+          quantityChanges,
+        };
+      });
+    } else {
+      // No cache hit, need to calculate everything
+      return manager.transaction(async transactionManager => {
+        let cart = await this.cartUtilityService.findOrCreateSessionCart(
+          sessionId,
+          transactionManager,
+        );
+
+        // Get the cart items and any notification data
+        const { cartItems, removedCartItems, priceChanges, quantityChanges } =
+          await this.cartItemService.fetchAndUpdateCartItems(transactionManager, {
+            sessionCartId: cart.id,
+          });
+
+        // Calculate totals
+        const cartTotal = cartItems
+          .reduce((total, product) => {
+            return total.plus(new Decimal(product.amount));
+          }, new Decimal(0))
+          .toFixed(2);
+
+        const totalQuantity = cartItems.reduce((total, product) => total + product.quantity, 0);
+
+        // Cache only the core data
+        const coreCartData = {
+          cartTotal,
+          totalQuantity,
+          cartItems,
+        };
+
+        await this.redisService.trackProductReference(cacheKey, coreCartData, 3600);
+
+        return {
+          ...coreCartData,
+          removedCartItems,
+          priceChanges,
+          quantityChanges,
+        };
+      });
+    }
   }
 
   @CacheResult({

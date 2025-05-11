@@ -106,7 +106,6 @@ export class OrderService {
     // Retrieve and validate checkout snapshot
     const snapshot = this.checkoutSnapshots.get(checkoutSnapshotId);
 
-    console.log("snapshots are", this.checkoutSnapshots);
     this.orderValidationService.validateCheckoutSession(snapshot, userUuid);
 
     // Process order in a transaction with REPEATABLE READ isolation
