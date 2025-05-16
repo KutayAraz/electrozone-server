@@ -13,7 +13,6 @@ import { DataSource, EntityManager, Repository } from "typeorm";
 import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
 import { FormattedCartItem } from "../types/formatted-cart-item.type";
-import { QuantityChange } from "../types/quantity-change.type";
 import { CartItemService } from "./cart-item.service";
 import { CartUtilityService } from "./cart-utility.service";
 import { CartService } from "./cart.service";
@@ -198,37 +197,21 @@ export class SessionCartService {
         }),
       ]);
 
-      let quantityChanges: QuantityChange[] = [];
-      let priceChanges = [];
-
       // If cartItem exists, update its quantity
       if (cartItem) {
-        const { updatedCartItem, quantityChange, priceChange } =
-          await this.cartItemService.updateCartItem(cartItem, transactionManager);
-
         await this.cartItemService.updateCartItemQuantity(
           sessionCart,
           cartItem,
           quantity,
           transactionManager,
         );
-
-        if (quantityChange) quantityChanges.push(quantityChange);
-        if (priceChange) priceChanges.push(priceChange);
       } else {
         // If cartItem doesn't exist, treat it as a new item addition
         const product = await this.productRepository.findOne({
           where: { id: productId },
         });
 
-        const quantityChange = await this.cartItemService.addCartItem(
-          sessionCart,
-          product,
-          quantity,
-          transactionManager,
-        );
-
-        if (quantityChange) quantityChanges.push(quantityChange);
+        await this.cartItemService.addCartItem(sessionCart, product, quantity, transactionManager);
       }
 
       // Invalidate cache after updating quantity
@@ -236,8 +219,6 @@ export class SessionCartService {
 
       return {
         success: true,
-        quantityChanges: quantityChanges.length > 0 ? quantityChanges : undefined,
-        priceChanges: priceChanges.length > 0 ? priceChanges : undefined,
       };
     });
   }

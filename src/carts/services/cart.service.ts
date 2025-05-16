@@ -11,8 +11,6 @@ import { DataSource, EntityManager } from "typeorm";
 import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
 import { FormattedCartItem } from "../types/formatted-cart-item.type";
-import { PriceChange } from "../types/price-change.type";
-import { QuantityChange } from "../types/quantity-change.type";
 import { CartItemService } from "./cart-item.service";
 import { CartUtilityService } from "./cart-utility.service";
 
@@ -194,36 +192,21 @@ export class CartService {
         }),
       ]);
 
-      let quantityChanges: QuantityChange[] = [];
-      let priceChanges: PriceChange[] = [];
-
       // If cartItem exists, update its quantity
       if (cartItem) {
-        const { updatedCartItem, quantityChange, priceChange } =
-          await this.cartItemService.updateCartItem(cartItem, transactionManager);
-
         await this.cartItemService.updateCartItemQuantity(
           cart,
           cartItem,
           quantity,
           transactionManager,
         );
-
-        if (quantityChange) quantityChanges.push(quantityChange);
-        if (priceChange) priceChanges.push(priceChange);
       } else {
         // If cartItem doesn't exist, treat it as a new item addition
         const product = await transactionManager.findOne(Product, {
           where: { id: productId },
         });
-        const quantityChange = await this.cartItemService.addCartItem(
-          cart,
-          product,
-          quantity,
-          transactionManager,
-        );
 
-        if (quantityChange) quantityChanges.push(quantityChange);
+        await this.cartItemService.addCartItem(cart, product, quantity, transactionManager);
       }
 
       // Invalidate cache after updating quantity
@@ -231,8 +214,6 @@ export class CartService {
 
       return {
         success: true,
-        quantityChanges: quantityChanges.length > 0 ? quantityChanges : undefined,
-        priceChanges: priceChanges.length > 0 ? priceChanges : undefined,
       };
     });
   }
@@ -246,6 +227,7 @@ export class CartService {
             cart: { user: { uuid: userUuid } },
             product: { id: productId },
           },
+          relations: ["product"],
         }),
       ]);
 

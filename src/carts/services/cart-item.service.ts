@@ -61,11 +61,11 @@ export class CartItemService {
 
     const quantityToAdd = newQuantity - currentQuantity;
 
-    // If it was already in cart, update the existing cartItem
+    // If it was already in cart, update the existing cartItem quantity and amount
+    // Do not update added price to get the notification on get cart functions
     if (cartItem) {
       cartItem.quantity = newQuantity;
       cartItem.amount = new Decimal(newQuantity).mul(new Decimal(product.price)).toFixed(2);
-      cartItem.addedPrice = product.price;
     } else {
       // Create a new CartItem
       cartItem = transactionManager.create(CartItem, {
@@ -103,7 +103,7 @@ export class CartItemService {
     this.commonValidationService.validateProduct(cartItem.product);
 
     cart.totalQuantity -= cartItem.quantity;
-    cart.cartTotal = new Decimal(cart.cartTotal).mul(cartItem.amount).toFixed(2);
+    cart.cartTotal = new Decimal(cart.cartTotal).minus(cartItem.amount).toFixed(2);
 
     await transactionManager.save(cart);
     await transactionManager.remove(cartItem);
