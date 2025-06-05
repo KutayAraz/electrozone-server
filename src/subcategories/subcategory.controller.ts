@@ -1,13 +1,13 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { SubcategoryService } from "./subcategory.service";
 import { SkipThrottle } from "@nestjs/throttler";
+import { Public } from "src/common/decorators/public.decorator";
+import { SubcategoryService } from "./subcategory.service";
+import { ProductQueryResult } from "./types/product-query-result.type";
 import {
   CommonQueryParams,
   ProcessedQueryParams,
   ProductQueryParams,
 } from "./types/product-query.interface";
-import { ProductQueryResult } from "./types/product-query-result.type";
-import { Public } from "src/common/decorators/public.decorator";
 
 @Controller("subcategory")
 export class SubcategoryController {
@@ -49,7 +49,7 @@ export class SubcategoryController {
   async getPriceRange(
     @Param("name") name: string,
     @Query("brand") brand?: string,
-  ): Promise<{ min: number; max: number }> {
+  ): Promise<{ min: string; max: string }> {
     return await this.subcategoryService.getPriceRange(name, brand);
   }
 

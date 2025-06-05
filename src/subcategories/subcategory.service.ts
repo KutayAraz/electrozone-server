@@ -1,12 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Product } from "src/entities/Product.entity";
+import { CacheResult } from "src/redis/cache-result.decorator";
 import { Repository, SelectQueryBuilder } from "typeorm";
+import { OrderDirection } from "./enums/order-direction.enum";
+import { ProductQueryResult } from "./types/product-query-result.type";
 import { ProductOrderBy, ProductQueryParams } from "./types/product-query.interface";
 import { RawProduct } from "./types/raw-product.type";
-import { ProductQueryResult } from "./types/product-query-result.type";
-import { CacheResult } from "src/redis/cache-result.decorator";
-import { OrderDirection } from "./enums/order-direction.enum";
 
 @Injectable()
 export class SubcategoryService {
@@ -118,11 +118,11 @@ export class SubcategoryService {
     ttl: 10800,
     paramKeys: ["subcategory", "brand"],
   })
-  async getPriceRange(subcategory: string, brand?: string): Promise<{ min: number; max: number }> {
+  async getPriceRange(subcategory: string, brand?: string): Promise<{ min: string; max: string }> {
     let query = this.productsRepo
       .createQueryBuilder("product")
-      .select("MIN(product.price)", "min")
-      .addSelect("MAX(product.price)", "max")
+      .select("MIN(CAST(product.price AS DECIMAL(10,2)))", "min")
+      .addSelect("MAX(CAST(product.price AS DECIMAL(10,2)))", "max")
       .leftJoin("product.subcategory", "subcategory")
       .where("subcategory.subcategory = :subcategory", { subcategory });
 
@@ -132,8 +132,8 @@ export class SubcategoryService {
 
     const result = await query.getRawOne();
     return {
-      min: result.min,
-      max: result.max,
+      min: result.min ? result.min.toString() : "0",
+      max: result.max ? result.max.toString() : "0",
     };
   }
 
