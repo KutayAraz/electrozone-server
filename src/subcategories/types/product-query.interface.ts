@@ -1,10 +1,10 @@
 export interface CommonQueryParams {
   skip?: string;
   limit?: string;
-  stockStatus?: string;
-  minPriceQuery?: string;
-  maxPriceQuery?: string;
-  brandString?: string;
+  stock_status?: string;
+  min_price?: string;
+  max_price?: string;
+  brands?: string;
 }
 
 export interface ProcessedQueryParams {

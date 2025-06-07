@@ -1,9 +1,9 @@
-import { HttpStatus, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import Decimal from "decimal.js";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { AppError } from "../errors/app-error";
 import { ErrorType } from "../errors/error-type";
-import Decimal from "decimal.js";
 
 @Injectable()
 export class CommonValidationService {

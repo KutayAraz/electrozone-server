@@ -1,19 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Product } from "src/entities/Product.entity";
-import { Brackets, Repository } from "typeorm";
-import { CommonValidationService } from "src/common/services/common-validation.service";
-import { ProductDetails } from "../types/product-details.type";
-import { SuggestedProducts } from "../types/suggested-products.type";
-import { TopProduct } from "../types/top-product.type";
-import { SearchResult } from "../types/search-result.type";
-import { CacheResult } from "src/redis/cache-result.decorator";
 import Decimal from "decimal.js";
-import { RedisService } from "src/redis/redis.service";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
-import { UserRole } from "src/users/types/user-role.enum";
+import { CommonValidationService } from "src/common/services/common-validation.service";
+import { Product } from "src/entities/Product.entity";
+import { CacheResult } from "src/redis/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
 import { UserService } from "src/users/services/user.service";
+import { UserRole } from "src/users/types/user-role.enum";
+import { Brackets, Repository } from "typeorm";
+import { ProductDetails } from "../types/product-details.type";
+import { SearchResult } from "../types/search-result.type";
+import { SuggestedProducts } from "../types/suggested-products.type";
+import { TopProduct } from "../types/top-product.type";
 
 @Injectable()
 export class ProductService {
@@ -250,9 +250,9 @@ export class ProductService {
       .leftJoinAndSelect("product.subcategory", "subcategory")
       .leftJoinAndSelect("subcategory.category", "category");
 
-    // Apply the same base search criteria as your main query
+    // Apply the same base search criteria as main query
     // This is necessary to ensure consistency between the datasets
-    // (Notice we're cloning the baseQuery to avoid altering it directly)
+    // (Cloning the baseQuery to avoid altering it directly)
     const brandsQuery = baseQuery.clone();
     const subcategoriesQuery = baseQuery.clone();
     const priceRangeQuery = baseQuery.clone();
@@ -280,20 +280,20 @@ export class ProductService {
     applyCommonWhere(priceRangeQuery);
 
     const priceRangeResult = await priceRangeQuery
-      .select("MIN(product.price)", "min")
-      .addSelect("MAX(product.price)", "max")
+      .select("MIN(CAST(product.price AS DECIMAL(10,2)))", "min")
+      .addSelect("MAX(CAST(product.price AS DECIMAL(10,2)))", "max")
       .getRawOne();
 
     // Select distinct brands
     const uniqueBrands = await brandsQuery
       .select("DISTINCT product.brand", "brand")
-      .orderBy("product.brand", "ASC") // Optional, for ordered results
+      .orderBy("product.brand", "ASC")
       .getRawMany();
 
     // Select distinct subcategories
     const uniqueSubcategories = await subcategoriesQuery
       .select("DISTINCT subcategory.subcategory", "subcategory")
-      .orderBy("subcategory.subcategory", "ASC") // Optional, for ordered results
+      .orderBy("subcategory.subcategory", "ASC")
       .getRawMany();
 
     // Now, apply filters and pagination to the main query
@@ -301,7 +301,7 @@ export class ProductService {
 
     // Apply additional filters outside of the initial search brackets to ensure they are always applied
     if (priceRange) {
-      baseQuery.andWhere("product.price BETWEEN :min AND :max", {
+      baseQuery.andWhere("CAST(product.price AS DECIMAL(10,2)) BETWEEN :min AND :max", {
         min: priceRange.min,
         max: priceRange.max,
       });
@@ -325,13 +325,13 @@ export class ProductService {
     if (sort) {
       switch (sort) {
         case "price_ascending":
-          baseQuery.orderBy("product.price", "ASC");
+          baseQuery.orderBy("CAST(product.price AS DECIMAL(10,2))", "ASC");
           break;
         case "price_descending":
-          baseQuery.orderBy("product.price", "DESC");
+          baseQuery.orderBy("CAST(product.price AS DECIMAL(10,2))", "DESC");
           break;
         case "top_rated":
-          baseQuery.orderBy("product.avgRating", "DESC");
+          baseQuery.orderBy("product.averageRating", "DESC");
           break;
       }
     }
@@ -345,8 +345,8 @@ export class ProductService {
     return {
       products,
       productQuantity: count,
-      availableBrands: uniqueBrands.map(brand => brand.brand),
-      availableSubcategories: uniqueSubcategories.map(subcat => subcat.subcategory),
+      brands: uniqueBrands.map(brand => brand.brand),
+      subcategories: uniqueSubcategories.map(subcat => subcat.subcategory),
       priceRange: priceRangeResult,
     };
   }
