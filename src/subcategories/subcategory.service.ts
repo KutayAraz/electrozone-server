@@ -43,10 +43,14 @@ export class SubcategoryService {
 
     if (priceRange) {
       if (priceRange.min !== undefined) {
-        query = query.andWhere("product.price >= :minPrice", { minPrice: priceRange.min });
+        query = query.andWhere("CAST(product.price AS DECIMAL(10,2)) >= :minPrice", {
+          minPrice: priceRange.min,
+        });
       }
       if (priceRange.max !== undefined) {
-        query = query.andWhere("product.price <= :maxPrice", { maxPrice: priceRange.max });
+        query = query.andWhere("CAST(product.price AS DECIMAL(10,2)) <= :maxPrice", {
+          maxPrice: priceRange.max,
+        });
       }
     }
 
@@ -66,8 +70,13 @@ export class SubcategoryService {
   ): Promise<ProductQueryResult> {
     const count = await query.getCount();
 
+    let orderField = orderByField;
+    if (orderByField === ProductOrderBy.PRICE || orderByField === "product.price") {
+      orderField = "CAST(product.price AS DECIMAL(10,2))";
+    }
+
     const rawProducts = await query
-      .orderBy(orderByField, orderDirection)
+      .orderBy(orderField, orderDirection)
       .offset(skip)
       .limit(limit)
       .getRawMany();

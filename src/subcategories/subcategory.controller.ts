@@ -14,20 +14,26 @@ export class SubcategoryController {
   constructor(private subcategoryService: SubcategoryService) {}
 
   private parseCommonParams(queryParams: CommonQueryParams): ProcessedQueryParams {
-    const { skip, limit, stockStatus, minPriceQuery, maxPriceQuery, brandString } = queryParams;
+    const { skip, limit, stock_status, min_price, max_price, brands } = queryParams;
     const parsedSkip = skip ? parseInt(skip, 10) : 0;
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
     let priceRange: { min?: number; max?: number } | undefined;
 
-    if (minPriceQuery || maxPriceQuery) {
+    if (min_price || max_price) {
       priceRange = {};
-      if (minPriceQuery) priceRange.min = parseFloat(minPriceQuery);
-      if (maxPriceQuery) priceRange.max = parseFloat(maxPriceQuery);
+      if (min_price) priceRange.min = parseFloat(min_price);
+      if (max_price) priceRange.max = parseFloat(max_price);
     }
 
-    const brands = brandString ? brandString.split(" ").map(decodeURIComponent) : undefined;
+    const brandsArray = brands ? brands.split(" ").map(decodeURIComponent) : undefined;
 
-    return { skip: parsedSkip, limit: parsedLimit, stockStatus, priceRange, brands };
+    return {
+      skip: parsedSkip,
+      limit: parsedLimit,
+      stockStatus: stock_status,
+      priceRange,
+      brands: brandsArray,
+    };
   }
 
   private prepareProductQueryParams(
@@ -58,11 +64,11 @@ export class SubcategoryController {
   @Get(":name")
   async getProducts(
     @Param("name") name: string,
-    @Query("sort_by") sortBy: string = "featured",
+    @Query("sort") sort: string = "featured",
     @Query() queryParams: CommonQueryParams,
   ): Promise<ProductQueryResult> {
     const params = this.prepareProductQueryParams(name, queryParams);
-    switch (sortBy) {
+    switch (sort) {
       case "featured":
         return await this.subcategoryService.getFeaturedProducts(params);
       case "rating":
