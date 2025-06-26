@@ -163,8 +163,33 @@ export class OrderUtilityService {
 
     // Update quantities for partially purchased items
     if (itemsToUpdate.length > 0) {
+      for (const item of itemsToUpdate) {
+        // Update the cart item's amount based on new quantity
+        item.amount = new Decimal(item.quantity).mul(item.product.price).toFixed(2);
+      }
       await transactionManager.save(CartItem, itemsToUpdate);
     }
+
+    // Fetch all remaining cart items to recalculate totals
+    const remainingCartItems = await transactionManager.find(CartItem, {
+      where: { cart: { id: cart.id } },
+      relations: ["product"],
+    });
+
+    // Recalculate cart totals from scratch
+    let totalQuantity = 0;
+    let cartTotal = new Decimal(0);
+
+    for (const cartItem of remainingCartItems) {
+      totalQuantity += cartItem.quantity;
+      cartTotal = cartTotal.plus(cartItem.amount);
+    }
+
+    // Update cart with new totals
+    cart.totalQuantity = totalQuantity;
+    cart.cartTotal = cartTotal.toFixed(2);
+
+    await transactionManager.save(cart);
   }
 
   // Categorizes cart items for cleanup after order placement

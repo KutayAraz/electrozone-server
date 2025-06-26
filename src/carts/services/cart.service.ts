@@ -263,7 +263,7 @@ export class CartService {
   }
 
   // Helper method to invalidate user cart cache
-  private async invalidateUserCartCache(userUuid: string): Promise<void> {
+  async invalidateUserCartCache(userUuid: string): Promise<void> {
     try {
       const cacheKeys = [
         this.redisService.generateKey("cart-user", { userUuid }),

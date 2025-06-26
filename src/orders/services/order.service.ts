@@ -60,7 +60,7 @@ export class OrderService {
         cartResponse = await this.sessionCartService.getSessionCart(sessionId);
         break;
       case CheckoutType.BUY_NOW:
-        cartResponse = await this.buyNowCartService.getBuyNowCart(userUuid);
+        cartResponse = await this.buyNowCartService.getBuyNowCart(sessionId);
         break;
       default:
         throw new AppError(ErrorType.INVALID_CHECKOUT_TYPE, "Invalid checkout type");
@@ -91,7 +91,12 @@ export class OrderService {
     };
   }
 
-  async processOrder(userUuid: string, checkoutSnapshotId: string, idempotencyKey: string) {
+  async processOrder(
+    userUuid: string,
+    checkoutSnapshotId: string,
+    idempotencyKey: string,
+    sessionId?: string,
+  ) {
     // Check if this order was already processed using idempotency key
 
     const existingOrder = await this.orderValidationService.validateIdempotency(
@@ -144,9 +149,11 @@ export class OrderService {
               snapshot.cartItems,
               transactionManager,
             );
+
+            await this.cartService.invalidateUserCartCache(userUuid);
             break;
           case CheckoutType.SESSION:
-            await this.sessionCartService.clearSessionCart(userUuid);
+            await this.sessionCartService.clearSessionCart(sessionId);
             break;
           case CheckoutType.BUY_NOW:
             break;
