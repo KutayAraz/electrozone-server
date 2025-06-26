@@ -38,6 +38,7 @@ export class OrderController {
   @Post("process-order")
   async processOrder(
     @UserUuid() userUuid: string,
+    @Session() session: Record<string, any>,
     @Body("checkoutSnapshotId") checkoutSnapshotId: string,
     @Body("idempotencyKey") idempotencyKey: string,
   ) {
@@ -45,6 +46,7 @@ export class OrderController {
       userUuid,
       checkoutSnapshotId,
       idempotencyKey,
+      session?.id,
     );
     return { orderId };
   }
