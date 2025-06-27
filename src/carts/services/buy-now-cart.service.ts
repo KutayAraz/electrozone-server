@@ -1,16 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import Decimal from "decimal.js";
+import { ErrorType } from "src/common/errors/error-type";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { BuyNowSessionCart } from "src/entities/BuyNowSessionCart.entity";
-import { DataSource, EntityManager, Repository } from "typeorm";
-import { Product } from "src/entities/Product.entity";
-import { ErrorType } from "src/common/errors/error-type";
 import { CartItem } from "src/entities/CartItem.entity";
+import { Product } from "src/entities/Product.entity";
+import { DataSource, EntityManager, Repository } from "typeorm";
+import { CartOperationResponse } from "../types/cart-operation-response.type";
+import { CartResponse } from "../types/cart-response.type";
 import { PriceChange } from "../types/price-change.type";
 import { QuantityChange } from "../types/quantity-change.type";
 import { CartUtilityService } from "./cart-utility.service";
-import { CartResponse } from "../types/cart-response.type";
-import Decimal from "decimal.js";
 
 @Injectable()
 export class BuyNowCartService {
@@ -23,7 +24,11 @@ export class BuyNowCartService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async createBuyNowCart(sessionId: string, productId: number, quantity: number): Promise<void> {
+  async createBuyNowCart(
+    sessionId: string,
+    productId: number,
+    quantity: number,
+  ): Promise<CartOperationResponse> {
     this.commonValidationService.validateSessionId(sessionId);
     this.commonValidationService.validateQuantity(quantity);
 
@@ -49,6 +54,8 @@ export class BuyNowCartService {
       buyNowCart.total = new Decimal(product.price).mul(quantity).toFixed(2);
 
       await transactionManager.save(buyNowCart);
+
+      return { success: true };
     });
   }
 
@@ -57,16 +64,14 @@ export class BuyNowCartService {
 
     const buyNowCart = await this.buyNowCartRepository.findOne({
       where: { sessionId },
-      relations: ["product"],
+      relations: ["product", "product.subcategory", "product.subcategory.category"],
     });
 
     if (!buyNowCart) {
       return null;
     }
 
-    const product = await this.productRepository.findOne({
-      where: { id: buyNowCart.product.id },
-    });
+    const product = buyNowCart.product;
 
     // Verify if product still exists and is in stock
     this.commonValidationService.validateProduct(product);

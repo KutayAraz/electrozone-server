@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Get, Delete, Session } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Post, Session } from "@nestjs/common";
 import { Public } from "src/common/decorators/public.decorator";
 import { BuyNowProductDto } from "../dtos/buy-now-product.dto";
 import { BuyNowCartService } from "../services/buy-now-cart.service";
+import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
 
 @Controller("cart/buy-now")
@@ -13,7 +14,7 @@ export class BuyNowCartController {
   async createBuyNowCart(
     @Session() session: Record<string, any>,
     @Body() buyNowDto: BuyNowProductDto,
-  ): Promise<void> {
+  ): Promise<CartOperationResponse> {
     return await this.buyNowCartService.createBuyNowCart(
       session.id,
       buyNowDto.productId,
