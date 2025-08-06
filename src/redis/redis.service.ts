@@ -1,6 +1,6 @@
+import { RedisService as NestRedisService } from "@liaoliaots/nestjs-redis";
 import { Injectable, Logger } from "@nestjs/common";
 import { Redis } from "ioredis";
-import { RedisService as NestRedisService } from "@liaoliaots/nestjs-redis";
 
 @Injectable()
 export class RedisService {
@@ -76,6 +76,36 @@ export class RedisService {
     } catch (error) {
       this.logger.error("Error setting multiple keys:", error);
       return entries.map(() => false);
+    }
+  }
+
+  async delPattern(pattern: string): Promise<number> {
+    try {
+      // Use SCAN to find all matching keys
+      const keys: string[] = [];
+      let cursor = "0";
+
+      do {
+        const [newCursor, foundKeys] = await this.redis.scan(
+          cursor,
+          "MATCH",
+          pattern,
+          "COUNT",
+          100,
+        );
+        cursor = newCursor;
+        keys.push(...foundKeys);
+      } while (cursor !== "0");
+
+      if (keys.length > 0) {
+        await this.redis.del(...keys);
+        this.logger.debug(`Deleted ${keys.length} keys matching pattern: ${pattern}`);
+      }
+
+      return keys.length;
+    } catch (error) {
+      this.logger.error(`Error deleting keys with pattern ${pattern}:`, error);
+      return 0;
     }
   }
 

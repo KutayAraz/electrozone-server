@@ -14,6 +14,7 @@ import { OrderItem } from "src/entities/OrderItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { CacheResult } from "src/redis/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
 import { DataSource, EntityManager, Repository } from "typeorm";
 import { IsolationLevel } from "typeorm/driver/types/IsolationLevel";
 import { v4 as uuidv4 } from "uuid";
@@ -38,6 +39,7 @@ export class OrderService {
     private readonly sessionCartService: SessionCartService,
     private readonly cartUtilityService: CartUtilityService,
     private readonly orderUtilityService: OrderUtilityService,
+    private readonly redisService: RedisService,
     private dataSource: DataSource,
   ) {}
 
@@ -162,6 +164,9 @@ export class OrderService {
         // Clear checkout session
         this.checkoutSnapshots.delete(checkoutSnapshotId);
 
+        // Invalidate order cache after successful order placement
+        await this.invalidateOrderCache(userUuid);
+
         return savedOrder.id;
       },
     );
@@ -206,6 +211,10 @@ export class OrderService {
       );
 
       await transactionManager.remove(order);
+
+      // Invalidate order cache after successful cancellation
+      // This invalidates both the order-user cache and the specific order-id cache
+      await this.invalidateOrderCache(userUuid, orderId);
 
       return { success: true, message: "Order cancelled successfully" };
     });
@@ -293,6 +302,26 @@ export class OrderService {
 
     if (removedCount > 0) {
       this.logger.log(`Removed ${removedCount} expired checkout snapshots (older than 3 hours)`);
+    }
+  }
+
+  async invalidateOrderCache(userUuid: string, orderId?: number): Promise<void> {
+    try {
+      // Delete all order-user cache entries for this user
+      // This will match any key that starts with order-user and contains the userUuid
+      await this.redisService.delPattern(`order-user:*"userUuid":"${userUuid}"*`);
+
+      // If orderId is provided (for cancellation), also invalidate that specific order cache
+      if (orderId) {
+        const orderCacheKey = this.redisService.generateKey("order-id", { userUuid, orderId });
+        await this.redisService.del(orderCacheKey);
+      }
+
+      this.logger.debug(
+        `Invalidated order cache for user ${userUuid}${orderId ? ` and order ${orderId}` : ""}`,
+      );
+    } catch (error) {
+      this.logger.error(`Failed to invalidate order cache for user ${userUuid}:`, error);
     }
   }
 }
