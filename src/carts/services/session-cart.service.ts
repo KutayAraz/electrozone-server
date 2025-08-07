@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
 import Decimal from "decimal.js";
 import { AppError } from "src/common/errors/app-error";
@@ -9,7 +10,7 @@ import { Product } from "src/entities/Product.entity";
 import { SessionCart } from "src/entities/SessionCart.entity";
 import { CacheResult } from "src/redis/cache-result.decorator";
 import { RedisService } from "src/redis/redis.service";
-import { DataSource, EntityManager, Repository } from "typeorm";
+import { DataSource, EntityManager, LessThan, Repository } from "typeorm";
 import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
 import { FormattedCartItem } from "../types/formatted-cart-item.type";
@@ -389,6 +390,26 @@ export class SessionCartService {
       this.logger.debug(`Invalidated cache keys for session ${sessionId}`);
     } catch (error) {
       this.logger.error("Failed to invalidate session caches:", error);
+    }
+  }
+
+  /**
+   * Cleanup old session carts daily at 5 AM
+   * Deletes session carts older than 14 days (2x session lifetime for safety)
+   */
+  @Cron("0 5 * * *")
+  async cleanupOldSessionCarts(): Promise<void> {
+    try {
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      const result = await this.dataSource.manager.delete(SessionCart, {
+        updatedAt: LessThan(fourteenDaysAgo),
+      });
+
+      this.logger.log(`Cleaned up ${result.affected || 0} session carts older than 14 days`);
+    } catch (error) {
+      this.logger.error(`Failed to cleanup old session carts: ${error.message}`);
     }
   }
 }

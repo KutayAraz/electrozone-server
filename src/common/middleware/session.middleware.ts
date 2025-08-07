@@ -1,5 +1,5 @@
 import { Injectable, NestMiddleware } from "@nestjs/common";
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import * as session from "express-session";
 
 @Injectable()
@@ -11,10 +11,12 @@ export class SessionMiddleware implements NestMiddleware {
       secret: "secret",
       resave: false,
       saveUninitialized: true,
+      rolling: true,
       cookie: {
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
       },
       name: "sessionId",
     });

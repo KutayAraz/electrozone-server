@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from "typeorm";
 import { CartItem } from "./CartItem.entity";
 
 @Entity({ name: "session_carts" })
@@ -17,6 +24,14 @@ export class SessionCart {
 
   @OneToMany(() => CartItem, cartItem => cartItem.sessionCart, {
     nullable: true,
+    cascade: true, // Add cascade to auto-delete cart items
+    onDelete: "CASCADE",
   })
   cartItems: CartItem[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date; // Track last activity
 }
