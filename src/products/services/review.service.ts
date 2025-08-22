@@ -1,23 +1,25 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import Decimal from "decimal.js";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { Order } from "src/entities/Order.entity";
 import { Product } from "src/entities/Product.entity";
 import { Review } from "src/entities/Review.entity";
 import { User } from "src/entities/User.entity";
+import { CacheResult } from "src/redis/cache-result.decorator";
+import { RedisService } from "src/redis/redis.service";
 import { DataSource, Repository } from "typeorm";
 import { ProductReviewsResponse } from "../types/product-reviews-response.type";
-import { TransformedReview } from "../types/transformed-review.type";
 import { RatingDistribution } from "../types/rating-distribution.type";
-import Decimal from "decimal.js";
-import { CacheResult } from "src/redis/cache-result.decorator";
+import { TransformedReview } from "../types/transformed-review.type";
 
 @Injectable()
 export class ReviewService {
   constructor(
     @InjectRepository(Review) private readonly reviewsRepo: Repository<Review>,
     @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
+    private readonly redisService: RedisService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -113,9 +115,9 @@ export class ReviewService {
   }
 
   @CacheResult({
-    prefix: "review-ratings",
+    prefix: "review-eligibility",
     ttl: 1800,
-    paramKeys: ["productId"],
+    paramKeys: ["productId", "userUuid"],
   })
   async checkReviewEligibility(productId: number, userUuid: string): Promise<boolean> {
     // Check if the user has ordered the product
@@ -190,5 +192,22 @@ export class ReviewService {
 
       return product.averageRating;
     });
+  }
+
+  async invalidateReviewEligibilityCache(userUuid: string, productIds: number[]): Promise<void> {
+    try {
+      // Invalidate review eligibility cache for each product the user just ordered
+      const cacheKeys = productIds.map(productId =>
+        this.redisService.generateKey("review-eligibility", { productId, userUuid }),
+      );
+
+      await Promise.all(cacheKeys.map(key => this.redisService.del(key)));
+
+      console.log(
+        `Invalidated review eligibility cache for user ${userUuid} and ${productIds.length} products`,
+      );
+    } catch (error) {
+      console.error(`Failed to invalidate review eligibility cache for user ${userUuid}:`, error);
+    }
   }
 }
