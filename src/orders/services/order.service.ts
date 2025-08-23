@@ -13,6 +13,7 @@ import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
+import { ReviewService } from "src/products/services/review.service";
 import { CacheResult } from "src/redis/cache-result.decorator";
 import { RedisService } from "src/redis/redis.service";
 import { DataSource, EntityManager, Repository } from "typeorm";
@@ -39,6 +40,7 @@ export class OrderService {
     private readonly sessionCartService: SessionCartService,
     private readonly cartUtilityService: CartUtilityService,
     private readonly orderUtilityService: OrderUtilityService,
+    private readonly reviewService: ReviewService,
     private readonly redisService: RedisService,
     private dataSource: DataSource,
   ) {}
@@ -167,6 +169,10 @@ export class OrderService {
         // Invalidate order cache after successful order placement
         await this.invalidateOrderCache(userUuid);
 
+        // Invalidate review eligibility cache for ordered products
+        const productIds = snapshot.cartItems.map(item => item.id);
+        await this.reviewService.invalidateReviewEligibilityCache(userUuid, productIds);
+
         return savedOrder.id;
       },
     );
@@ -215,6 +221,10 @@ export class OrderService {
       // Invalidate order cache after successful cancellation
       // This invalidates both the order-user cache and the specific order-id cache
       await this.invalidateOrderCache(userUuid, orderId);
+
+      // Invalidate review eligibility cache for canceled products
+      const productIds = order.orderItems.map(orderItem => orderItem.product.id);
+      await this.reviewService.invalidateReviewEligibilityCache(userUuid, productIds);
 
       return { success: true, message: "Order cancelled successfully" };
     });

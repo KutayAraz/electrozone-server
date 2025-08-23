@@ -13,8 +13,10 @@ import { CartItem } from "src/entities/CartItem.entity";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.entity";
 import { Product } from "src/entities/Product.entity";
+import { Review } from "src/entities/Review.entity";
 import { SessionCart } from "src/entities/SessionCart.entity";
 import { User } from "src/entities/User.entity";
+import { ReviewService } from "src/products/services/review.service";
 import { OrderController } from "./order.controller";
 import { OrderUtilityService } from "./services/order-utility.service";
 import { OrderValidationService } from "./services/order-validation.service";
@@ -31,6 +33,7 @@ import { OrderService } from "./services/order.service";
       CartItem,
       SessionCart,
       BuyNowSessionCart,
+      Review,
     ]),
     CartModule,
   ],
@@ -45,6 +48,7 @@ import { OrderService } from "./services/order.service";
     CartService,
     CartItemService,
     OrderUtilityService,
+    ReviewService,
   ],
 })
 export class OrderModule {}
