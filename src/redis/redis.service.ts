@@ -11,6 +11,15 @@ export class RedisService {
     this.redis = this.redisService.getOrThrow();
   }
 
+  /**
+   * Underlying ioredis client, for consumers that need to talk to Redis
+   * directly rather than through the caching helpers below: the express-session
+   * store, which uses its own serialization, and the health check's ping.
+   */
+  getClient(): Redis {
+    return this.redis;
+  }
+
   async get<T>(key: string): Promise<T | null> {
     try {
       const cachedValue = await this.redis.get(key);
@@ -20,11 +29,14 @@ export class RedisService {
         return JSON.parse(cachedValue) as T;
       } catch (parseError) {
         this.logger.warn(`Failed to parse cached value for key ${key}:`, parseError);
+
         await this.del(key); // Automatically clean up invalid cache entries
+
         return null;
       }
     } catch (error) {
       this.logger.error(`Error retrieving cache key ${key}:`, error);
+
       return null;
     }
   }
@@ -43,6 +55,7 @@ export class RedisService {
       return true;
     } catch (error) {
       this.logger.error(`Error setting cache key ${key}:`, error);
+
       return false;
     }
   }
@@ -50,9 +63,11 @@ export class RedisService {
   async del(key: string): Promise<boolean> {
     try {
       await this.redis.del(key);
+
       return true;
     } catch (error) {
       this.logger.error(`Error deleting cache key ${key}:`, error);
+
       return false;
     }
   }
@@ -60,9 +75,11 @@ export class RedisService {
   async mget<T>(keys: string[]): Promise<(T | null)[]> {
     try {
       const values = await Promise.all(keys.map(key => this.get<T>(key)));
+
       return values;
     } catch (error) {
       this.logger.error("Error retrieving multiple keys:", error);
+
       return keys.map(() => null);
     }
   }
@@ -72,9 +89,11 @@ export class RedisService {
       const results = await Promise.all(
         entries.map(({ key, value, ttl }) => this.set(key, value, ttl)),
       );
+
       return results;
     } catch (error) {
       this.logger.error("Error setting multiple keys:", error);
+
       return entries.map(() => false);
     }
   }
@@ -105,6 +124,7 @@ export class RedisService {
       return keys.length;
     } catch (error) {
       this.logger.error(`Error deleting keys with pattern ${pattern}:`, error);
+
       return 0;
     }
   }
