@@ -8,6 +8,7 @@ import { SessionCartService } from "src/carts/services/session-cart.service";
 import { CartResponse } from "src/carts/types/cart-response.type";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
+import { getErrorMessage } from "src/common/errors/get-error-message";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.entity";
@@ -211,7 +212,9 @@ export class OrderService {
           try {
             await transactionManager.save(Product, product);
           } catch (error) {
-            console.error(`Failed to update product ${product.id} inventory: ${error.message}`);
+            console.error(
+              `Failed to update product ${product.id} inventory: ${getErrorMessage(error)}`,
+            );
           }
         }),
       );

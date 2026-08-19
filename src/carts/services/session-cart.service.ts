@@ -4,6 +4,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import Decimal from "decimal.js";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
+import { getErrorMessage } from "src/common/errors/get-error-message";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
@@ -70,7 +71,9 @@ export class SessionCartService {
         if (hasChanges) {
           process.nextTick(() => {
             this.invalidateSessionCartCache(sessionId).catch(err => {
-              this.logger.error(`Failed to invalidate cache after cart changes: ${err.message}`);
+              this.logger.error(
+                `Failed to invalidate cache after cart changes: ${getErrorMessage(err)}`,
+              );
             });
           });
         }
@@ -409,7 +412,7 @@ export class SessionCartService {
 
       this.logger.log(`Cleaned up ${result.affected || 0} session carts older than 14 days`);
     } catch (error) {
-      this.logger.error(`Failed to cleanup old session carts: ${error.message}`);
+      this.logger.error(`Failed to cleanup old session carts: ${getErrorMessage(error)}`);
     }
   }
 }

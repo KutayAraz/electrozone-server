@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import Decimal from "decimal.js";
+import { getErrorMessage } from "src/common/errors/get-error-message";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
@@ -60,7 +61,9 @@ export class CartService {
         if (hasChanges) {
           process.nextTick(() => {
             this.invalidateUserCartCache(userUuid).catch(err => {
-              this.logger.error(`Failed to invalidate cache after cart changes: ${err.message}`);
+              this.logger.error(
+                `Failed to invalidate cache after cart changes: ${getErrorMessage(err)}`,
+              );
             });
           });
         }
