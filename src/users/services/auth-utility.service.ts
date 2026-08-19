@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { Response } from "express";
+import { baseCookieOptions, REFRESH_TOKEN_PATH } from "src/config/cookie.config";
 import { User } from "src/entities/User.entity";
 import { EntityManager } from "typeorm";
 import { JwtPayload } from "../types/jwt-payload.type";
@@ -38,31 +39,26 @@ export class AuthUtilityService {
 
   setRefreshTokenCookie(res: Response, token: string): void {
     res.cookie("refresh_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      ...baseCookieOptions(),
       maxAge: 5 * 24 * 60 * 60 * 1000, // 5 days
-      path: "/auth",
+      path: REFRESH_TOKEN_PATH,
     });
   }
 
   setAccessTokenCookie(res: Response, token: string): void {
     res.cookie("access_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      ...baseCookieOptions(),
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
   }
 
   clearAuthCookies(res: Response): void {
-    res.cookie("access_token", "", {
-      httpOnly: true,
-      expires: new Date(0),
-    });
-    res.cookie("refresh_token", "", {
-      httpOnly: true,
-      expires: new Date(0),
+    // A cookie is identified by name, domain and path, and the browser only
+    // removes it when the clearing attributes match those it was set with.
+    res.clearCookie("access_token", baseCookieOptions());
+    res.clearCookie("refresh_token", {
+      ...baseCookieOptions(),
+      path: REFRESH_TOKEN_PATH,
     });
   }
 
