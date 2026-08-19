@@ -9,6 +9,7 @@ import { CategoriesModule } from "./categories/category.module";
 import { AtGuard } from "./common/guards/at.guard";
 import { SessionMiddleware } from "./common/middleware/session.middleware";
 import databaseConfig from "./config/database.config";
+import { HealthModule } from "./health/health.module";
 import { OrderModule } from "./orders/order.module";
 import { ProductModule } from "./products/product.module";
 import { RedisModule } from "./redis/redis.module";
@@ -40,6 +41,7 @@ import { UserModule } from "./users/user.module";
     OrderModule,
     SubcategoryModule,
     CartModule,
+    HealthModule,
   ],
   providers: [
     {
