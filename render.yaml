@@ -1,0 +1,61 @@
+# Render blueprint: https://render.com/docs/blueprint-spec
+#
+# MySQL and Redis are not provisioned here -- Render offers neither on the free
+# plan. Point DB_* at a free managed MySQL (TiDB Cloud Serverless or Aiven) and
+# REDIS_URL at a free Upstash database, then set both in the Render dashboard.
+services:
+  - type: web
+    name: electrozone-server
+    runtime: node
+    plan: free
+    region: frankfurt
+
+    # --production=false is required, not cosmetic: NODE_ENV is set to
+    # production below, and yarn treats that as an implicit --production,
+    # which would skip devDependencies and leave the build without the Nest
+    # CLI or TypeScript.
+    buildCommand: yarn install --frozen-lockfile --production=false && yarn build
+    startCommand: node dist/main
+
+    # Liveness only, so platform probes cost no database or Redis calls.
+    # This is also the path to point a keep-warm pinger at.
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # bcrypt 5.1.1 predates Node 24, so its prebuilt binaries stop at older
+      # ABIs. Pinning to 22 avoids a source build during deploy.
+      - key: NODE_VERSION
+        value: "22"
+
+      # Database -- set in the dashboard, never committed.
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+
+      # Redis. A rediss:// URL enables TLS on its own and takes precedence
+      # over REDIS_HOST/REDIS_PORT.
+      - key: REDIS_URL
+        sync: false
+
+      # Secrets. Generate fresh values -- do not reuse development ones.
+      - key: AT_SECRET
+        sync: false
+      - key: RT_SECRET
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+
+      # Exact frontend origin, no trailing slash. CORS runs with
+      # credentials: true, so an inexact match fails preflight.
+      - key: FRONTEND_URL
+        sync: false
