@@ -29,11 +29,7 @@ export class ReviewService {
     ttl: 10800,
     paramKeys: ["productId", "skip", "limit"],
   })
-  async getProductReviews(
-    productId: number,
-    skip: number = 0,
-    limit: number = 5,
-  ): Promise<ProductReviewsResponse> {
+  async getProductReviews(productId: number, skip = 0, limit = 5): Promise<ProductReviewsResponse> {
     const reviews = await this.reviewsRepo
       .createQueryBuilder("review")
       .select([
@@ -45,7 +41,10 @@ export class ReviewService {
         "user.lastName",
       ])
       .innerJoin("review.user", "user")
+      // reviewDate alone is not unique, so paginating on it can repeat or skip
+      // reviews. Newest id first keeps the tie-break consistent with the sort.
       .orderBy("review.reviewDate", "DESC")
+      .addOrderBy("review.id", "DESC")
       .where("review.product = :productId", { productId })
       .skip(skip)
       .take(limit)

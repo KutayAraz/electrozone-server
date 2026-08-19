@@ -188,7 +188,11 @@ export class ProductService {
       .addSelect(["subcategory.subcategory"])
       .leftJoin("subcategory.category", "category")
       .addSelect(["category.category"])
+      // Ties on sold/wishlisted/averageRating are common, so without a
+      // tiebreaker which products make the top N is arbitrary and can change
+      // between identical requests.
       .orderBy(`product.${orderBy}`, "DESC")
+      .addOrderBy("product.id", "ASC")
       .take(take)
       .getMany();
 
@@ -335,6 +339,12 @@ export class ProductService {
           break;
       }
     }
+
+    // Applied unconditionally, for two reasons: the sort columns above are not
+    // unique, so tied rows could otherwise shift between pages and duplicate or
+    // hide products; and with no sort at all the order would be undefined,
+    // which breaks pagination just as badly.
+    baseQuery.addOrderBy("product.id", "ASC");
 
     // Get the count of filtered products
     const count = await baseQuery.getCount();

@@ -75,8 +75,13 @@ export class SubcategoryService {
       orderField = "CAST(product.price AS DECIMAL(10,2))";
     }
 
+    // The sort column is not unique, so rows that tie can be ordered differently
+    // between the LIMIT and the OFFSET query. That makes a product appear on two
+    // pages while another becomes unreachable. Ordering by id as well makes the
+    // sequence total, so paging over it is stable.
     const rawProducts = await query
       .orderBy(orderField, orderDirection)
+      .addOrderBy("product.id", "ASC")
       .offset(skip)
       .limit(limit)
       .getRawMany();
