@@ -7,12 +7,10 @@ import {
   Patch,
   UseInterceptors,
 } from "@nestjs/common";
-import { UpdateUserDto } from "../dtos/update-user.dto";
-import { UserDto } from "../dtos/user.dto";
-import { UserService } from "../services/user.service";
 import { Throttle } from "@nestjs/throttler";
-import { User } from "src/common/decorators/user.decorator";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { UpdateUserDto } from "../dtos/update-user.dto";
+import { UserService } from "../services/user.service";
 
 @Controller("user")
 export class UserController {
@@ -20,8 +18,8 @@ export class UserController {
 
   @UseInterceptors(ClassSerializerInterceptor)
   @Get("/profile")
-  async getCurrentUserProfile(@User() user: UserDto) {
-    return this.userService.findByEmail(user.email);
+  async getCurrentUserProfile(@UserUuid() userUuid: string) {
+    return this.userService.getProfile(userUuid);
   }
 
   @Patch("/profile")
