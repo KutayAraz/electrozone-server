@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import { createHash, timingSafeEqual } from "crypto";
 import { Response } from "express";
 import { baseCookieOptions, REFRESH_TOKEN_PATH } from "src/config/cookie.config";
 import { User } from "src/entities/User.entity";
@@ -63,8 +64,18 @@ export class AuthUtilityService {
   }
 
   async updateRtHash(userUuid: string, rt: string, manager: EntityManager): Promise<void> {
-    const hashedRt = await this.hashPassword(rt);
-    await manager.update(User, { uuid: userUuid }, { hashedRt });
+    await manager.update(User, { uuid: userUuid }, { hashedRt: this.hashRefreshToken(rt) });
+  }
+
+  hashRefreshToken(rt: string): string {
+    return createHash("sha256").update(rt).digest("hex");
+  }
+
+  refreshTokenMatches(rt: string, hashedRt: string): boolean {
+    const expected = Buffer.from(hashedRt, "hex");
+    const actual = Buffer.from(this.hashRefreshToken(rt), "hex");
+
+    return expected.length === actual.length && timingSafeEqual(expected, actual);
   }
 
   async hashPassword(password: string): Promise<string> {

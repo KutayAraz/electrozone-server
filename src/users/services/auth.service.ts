@@ -168,8 +168,7 @@ export class AuthService {
         throw new AppError(ErrorType.ACCESS_DENIED, "Access denied", HttpStatus.UNAUTHORIZED);
 
       // Validate the provided refresh token
-      const rtMatches = await bcrypt.compare(rt, user.hashedRt);
-      if (!rtMatches)
+      if (!this.authUtilityService.refreshTokenMatches(rt, user.hashedRt))
         throw new AppError(ErrorType.ACCESS_DENIED, "Access denied", HttpStatus.UNAUTHORIZED);
 
       // Generate new tokens
