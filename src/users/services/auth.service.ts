@@ -22,36 +22,37 @@ export class AuthService {
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
   ) {}
 
-  async changePassword(userUuid: string, updatedPasswordData: ChangePasswordDto): Promise<User> {
-    return this.usersRepo.manager.transaction(async transactionalEntityManager => {
-      const user = await this.userService.findByUuid(userUuid);
+  async changePassword(
+    userUuid: string,
+    updatedPasswordData: ChangePasswordDto,
+  ): Promise<{ isSuccess: boolean }> {
+    const user = await this.userService.findByUuid(userUuid);
 
-      // Check if the old password is correct
-      if (!(await bcrypt.compare(updatedPasswordData.oldPassword, user.password))) {
-        throw new AppError(
-          ErrorType.INVALID_CURRENT_PASSWORD,
-          "Current password is incorrect",
-          HttpStatus.BAD_REQUEST,
-        );
-      }
+    // Check if the old password is correct
+    if (!(await bcrypt.compare(updatedPasswordData.oldPassword, user.password))) {
+      throw new AppError(
+        ErrorType.INVALID_CURRENT_PASSWORD,
+        "Current password is incorrect",
+        HttpStatus.BAD_REQUEST,
+      );
+    }
 
-      // Validate new password
-      if (
-        updatedPasswordData.newPassword !== updatedPasswordData.newPasswordRetyped ||
-        updatedPasswordData.oldPassword === updatedPasswordData.newPassword
-      ) {
-        throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "New password is invalid");
-      }
+    // Validate new password
+    if (
+      updatedPasswordData.newPassword !== updatedPasswordData.newPasswordRetyped ||
+      updatedPasswordData.oldPassword === updatedPasswordData.newPassword
+    ) {
+      throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "New password is invalid");
+    }
 
-      if (!this.authUtilityService.isPasswordStrong(updatedPasswordData.newPassword)) {
-        throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "Password is not strong enough");
-      }
+    if (!this.authUtilityService.isPasswordStrong(updatedPasswordData.newPassword)) {
+      throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "Password is not strong enough");
+    }
 
-      // Hash and save new password
-      user.password = await this.authUtilityService.hashPassword(updatedPasswordData.newPassword);
+    const password = await this.authUtilityService.hashPassword(updatedPasswordData.newPassword);
+    await this.usersRepo.update({ uuid: userUuid }, { password });
 
-      return await transactionalEntityManager.save(User, user);
-    });
+    return { isSuccess: true };
   }
 
   async register(createUserDto: CreateUserDto, res: Response): Promise<Tokens & Partial<User>> {

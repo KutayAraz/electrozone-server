@@ -35,6 +35,7 @@ export class User {
   city: string;
 
   @Column({ nullable: true })
+  @Exclude()
   hashedRt: string;
 
   @Column({
