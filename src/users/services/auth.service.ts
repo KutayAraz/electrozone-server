@@ -150,14 +150,15 @@ export class AuthService {
     });
   }
 
-  async logout(userUuid: string, res: Response): Promise<boolean> {
-    return this.usersRepo.manager.transaction(async transactionalEntityManager => {
-      // Clear the refresh token hash in the database
-      await transactionalEntityManager.update(User, { uuid: userUuid }, { hashedRt: null });
-      // Clear both cookies
-      this.authUtilityService.clearAuthCookies(res);
-      return true;
-    });
+  async logout(refreshToken: string | undefined, res: Response): Promise<boolean> {
+    const userUuid = await this.authUtilityService.getUserUuidFromRefreshToken(refreshToken);
+
+    if (userUuid) {
+      await this.usersRepo.update({ uuid: userUuid }, { hashedRt: null });
+    }
+
+    this.authUtilityService.clearAuthCookies(res);
+    return true;
   }
 
   async refreshTokens(userUuid: string, rt: string, res: Response): Promise<void> {

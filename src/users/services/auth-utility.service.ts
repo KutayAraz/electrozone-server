@@ -78,6 +78,21 @@ export class AuthUtilityService {
     return expected.length === actual.length && timingSafeEqual(expected, actual);
   }
 
+  // Expired tokens are accepted: they still identify whose hash to clear on logout
+  async getUserUuidFromRefreshToken(rt: string | undefined): Promise<string | null> {
+    if (!rt) return null;
+
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(rt, {
+        secret: this.config.get<string>("RT_SECRET"),
+        ignoreExpiration: true,
+      });
+      return payload.sub ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async hashPassword(password: string): Promise<string> {
     return await bcrypt.hash(password, 12);
   }
