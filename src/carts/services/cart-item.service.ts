@@ -33,11 +33,12 @@ export class CartItemService {
     // Ensure the cart is saved to the database
     await transactionManager.save(cart);
 
+    const isSessionCart = cart instanceof SessionCart;
+
     let cartItem = await transactionManager.findOne(CartItem, {
-      where: [
-        { cart: { id: cart.id }, product: { id: product.id } },
-        { sessionCart: { id: cart.id }, product: { id: product.id } },
-      ],
+      where: isSessionCart
+        ? { sessionCart: { id: cart.id }, product: { id: product.id } }
+        : { cart: { id: cart.id }, product: { id: product.id } },
       relations: ["product"],
     });
 
@@ -45,7 +46,7 @@ export class CartItemService {
     const currentQuantity = cartItem ? cartItem.quantity : 0;
 
     // Make sure that quantity does not exceed 10
-    let newQuantity = Math.min(currentQuantity + quantity, 10, product.stock);
+    const newQuantity = Math.min(currentQuantity + quantity, 10, product.stock);
     let quantityChange: QuantityChange;
 
     // If quantity changed because it went over the limit, add it to quantityChanges array
@@ -76,7 +77,7 @@ export class CartItemService {
       });
 
       // Set the correct relation based on the cart type
-      if (cart instanceof SessionCart) {
+      if (isSessionCart) {
         cartItem.sessionCart = cart;
       } else {
         cartItem.cart = cart;
