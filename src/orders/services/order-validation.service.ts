@@ -42,9 +42,15 @@ export class OrderValidationService {
 
   async validateIdempotency(
     idempotencyKey: string,
+    userUuid: string,
     orderRepo: Repository<Order>,
   ): Promise<Order | null> {
-    return await orderRepo.findOne({ where: { idempotencyKey } });
+    // TypeORM ignores undefined values in `where`, which would match any order
+    if (!idempotencyKey) {
+      throw new AppError(ErrorType.INVALID_INPUT, "An idempotency key is required");
+    }
+
+    return await orderRepo.findOne({ where: { idempotencyKey, user: { uuid: userUuid } } });
   }
 
   async validateOrderItem(orderItem: OrderItem, transactionManager: EntityManager) {

@@ -106,6 +106,7 @@ export class OrderService {
 
     const existingOrder = await this.orderValidationService.validateIdempotency(
       idempotencyKey,
+      userUuid,
       this.dataSource.getRepository(Order),
     );
 

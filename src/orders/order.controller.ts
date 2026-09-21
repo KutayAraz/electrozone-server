@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { ProcessOrderDto } from "./dtos/process-order.dto";
 import { OrderService } from "./services/order.service";
 import { CheckoutType } from "./types/checkoutType.enum";
 
@@ -39,8 +40,7 @@ export class OrderController {
   async processOrder(
     @UserUuid() userUuid: string,
     @Session() session: Record<string, any>,
-    @Body("checkoutSnapshotId") checkoutSnapshotId: string,
-    @Body("idempotencyKey") idempotencyKey: string,
+    @Body() { checkoutSnapshotId, idempotencyKey }: ProcessOrderDto,
   ) {
     const orderId = await this.orderService.processOrder(
       userUuid,
