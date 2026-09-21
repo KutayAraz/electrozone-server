@@ -9,6 +9,7 @@ import { Product } from "src/entities/Product.entity";
 import { EntityManager, Repository } from "typeorm";
 import { CheckoutSnapshot } from "../types/checkout-snapshot.type";
 import { OrderItem } from "../types/order-item.type";
+import { ValidatedOrderItem } from "../types/validated-order-item.type";
 
 @Injectable()
 export class OrderValidationService {
@@ -54,8 +55,9 @@ export class OrderValidationService {
   }
 
   async validateOrderItem(orderItem: OrderItem, transactionManager: EntityManager) {
-    const product = await transactionManager.findOneBy(Product, {
-      id: orderItem.productId,
+    const product = await transactionManager.findOne(Product, {
+      where: { id: orderItem.productId },
+      lock: { mode: "pessimistic_write" },
     });
 
     this.commonValidationService.validateProduct(product);
@@ -69,29 +71,27 @@ export class OrderValidationService {
   async validateOrderItems(
     cartItems: FormattedCartItem[],
     transactionManager: EntityManager,
-  ): Promise<
-    Array<{
-      validatedOrderItem: FormattedCartItem;
-      product: Product;
-      orderItemTotal: string;
-    }>
-  > {
-    return await Promise.all(
-      cartItems.map(async (cartItem: FormattedCartItem) => {
-        const product = await this.validateOrderItem(
-          {
-            productId: cartItem.id,
-            price: cartItem.price,
-            quantity: cartItem.quantity,
-          },
-          transactionManager,
-        );
+  ): Promise<ValidatedOrderItem[]> {
+    // Locked in ascending id order so concurrent orders cannot deadlock
+    const sortedCartItems = [...cartItems].sort((a, b) => a.id - b.id);
+    const validatedItems: ValidatedOrderItem[] = [];
 
-        const orderItemTotal = new Decimal(cartItem.price).times(cartItem.quantity).toFixed(2);
+    for (const cartItem of sortedCartItems) {
+      const product = await this.validateOrderItem(
+        {
+          productId: cartItem.id,
+          price: cartItem.price,
+          quantity: cartItem.quantity,
+        },
+        transactionManager,
+      );
 
-        return { validatedOrderItem: cartItem, product, orderItemTotal };
-      }),
-    );
+      const orderItemTotal = new Decimal(cartItem.price).times(cartItem.quantity).toFixed(2);
+
+      validatedItems.push({ validatedOrderItem: cartItem, product, orderItemTotal });
+    }
+
+    return validatedItems;
   }
 
   async validateUserOrder(userUuid: string, orderId: number, ordersRepo: Repository<Order>) {

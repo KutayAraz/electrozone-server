@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BuyNowCartService } from "src/carts/services/buy-now-cart.service";
@@ -8,7 +8,6 @@ import { SessionCartService } from "src/carts/services/session-cart.service";
 import { CartResponse } from "src/carts/types/cart-response.type";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
-import { getErrorMessage } from "src/common/errors/get-error-message";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Order } from "src/entities/Order.entity";
 import { OrderItem } from "src/entities/OrderItem.entity";
@@ -181,11 +180,11 @@ export class OrderService {
   }
 
   async cancelOrder(userUuid: string, orderId: number) {
-    return this.dataSource.transaction(async transactionManager => {
+    const cancelledProductIds = await this.dataSource.transaction(async transactionManager => {
       const order = await this.orderValidationService.validateUserOrder(
         userUuid,
         orderId,
-        this.orderRepository,
+        transactionManager.getRepository(Order),
       );
 
       if (!this.orderValidationService.isOrderCancellable(order.orderDate)) {
@@ -195,43 +194,46 @@ export class OrderService {
         );
       }
 
-      await Promise.all(
-        order.orderItems.map(async orderItem => {
-          const product = orderItem.product;
+      // Deleting first locks the order row: a concurrent cancel finds nothing to delete
+      const { affected } = await transactionManager.delete(Order, { id: order.id });
 
-          if (!product) {
-            console.warn(
+      if (!affected) {
+        throw new AppError(
+          ErrorType.ORDER_NOT_FOUND,
+          "This order has already been cancelled",
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      // Same ascending id lock order as placing an order
+      const orderItems = order.orderItems
+        .filter(orderItem => {
+          if (!orderItem.product) {
+            this.logger.warn(
               `Product not found for orderItem ${orderItem.id}. Skipping inventory update.`,
             );
-            return; // Skip this item and continue with others
           }
+          return !!orderItem.product;
+        })
+        .sort((a, b) => a.product.id - b.product.id);
 
-          // Update product inventory and sales count
-          product.sold -= orderItem.quantity;
-          product.stock += orderItem.quantity;
+      for (const orderItem of orderItems) {
+        const productId = orderItem.product.id;
+        await transactionManager.increment(Product, { id: productId }, "stock", orderItem.quantity);
+        await transactionManager.decrement(Product, { id: productId }, "sold", orderItem.quantity);
+      }
 
-          try {
-            await transactionManager.save(Product, product);
-          } catch (error) {
-            console.error(
-              `Failed to update product ${product.id} inventory: ${getErrorMessage(error)}`,
-            );
-          }
-        }),
-      );
-
-      await transactionManager.remove(order);
-
-      // Invalidate order cache after successful cancellation
-      // This invalidates both the order-user cache and the specific order-id cache
-      await this.invalidateOrderCache(userUuid, orderId);
-
-      // Invalidate review eligibility cache for canceled products
-      const productIds = order.orderItems.map(orderItem => orderItem.product.id);
-      await this.reviewService.invalidateReviewEligibilityCache(userUuid, productIds);
-
-      return { success: true, message: "Order cancelled successfully" };
+      return orderItems.map(orderItem => orderItem.product.id);
     });
+
+    // Invalidate order cache after successful cancellation
+    // This invalidates both the order-user cache and the specific order-id cache
+    await this.invalidateOrderCache(userUuid, orderId);
+
+    // Invalidate review eligibility cache for canceled products
+    await this.reviewService.invalidateReviewEligibilityCache(userUuid, cancelledProductIds);
+
+    return { success: true, message: "Order cancelled successfully" };
   }
 
   @CacheResult({
