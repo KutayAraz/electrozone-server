@@ -11,7 +11,7 @@ import { Product } from "src/entities/Product.entity";
 import { SessionCart } from "src/entities/SessionCart.entity";
 import { CacheResult } from "src/redis/cache-result.decorator";
 import { RedisService } from "src/redis/redis.service";
-import { DataSource, EntityManager, LessThan, Repository } from "typeorm";
+import { DataSource, EntityManager, In, LessThan, Repository } from "typeorm";
 import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
 import { FormattedCartItem } from "../types/formatted-cart-item.type";
@@ -406,11 +406,31 @@ export class SessionCartService {
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-      const result = await this.dataSource.manager.delete(SessionCart, {
-        updatedAt: LessThan(fourteenDaysAgo),
+      const deletedCartCount = await this.dataSource.transaction(async transactionManager => {
+        const staleCarts = await transactionManager.find(SessionCart, {
+          select: ["id"],
+          where: { updatedAt: LessThan(fourteenDaysAgo) },
+        });
+
+        if (staleCarts.length === 0) return 0;
+
+        const staleCartIds = staleCarts.map(cart => cart.id);
+
+        // cart_items.sessionCartId has no ON DELETE CASCADE
+        await transactionManager
+          .createQueryBuilder()
+          .delete()
+          .from(CartItem)
+          .where("sessionCartId IN (:...staleCartIds)", { staleCartIds })
+          .execute();
+        const { affected } = await transactionManager.delete(SessionCart, {
+          id: In(staleCartIds),
+        });
+
+        return affected || 0;
       });
 
-      this.logger.log(`Cleaned up ${result.affected || 0} session carts older than 14 days`);
+      this.logger.log(`Cleaned up ${deletedCartCount} session carts older than 14 days`);
     } catch (error) {
       this.logger.error(`Failed to cleanup old session carts: ${getErrorMessage(error)}`);
     }
