@@ -6,6 +6,7 @@ import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { getErrorMessage } from "src/common/errors/get-error-message";
 import { CommonValidationService } from "src/common/services/common-validation.service";
+import { BuyNowSessionCart } from "src/entities/BuyNowSessionCart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { SessionCart } from "src/entities/SessionCart.entity";
@@ -397,8 +398,8 @@ export class SessionCartService {
   }
 
   /**
-   * Cleanup old session carts daily at 5 AM
-   * Deletes session carts older than 14 days (2x session lifetime for safety)
+   * Cleanup old session and buy-now carts daily at 5 AM
+   * Deletes carts older than 14 days (2x session lifetime for safety)
    */
   @Cron("0 5 * * *")
   async cleanupOldSessionCarts(): Promise<void> {
@@ -430,7 +431,14 @@ export class SessionCartService {
         return affected || 0;
       });
 
-      this.logger.log(`Cleaned up ${deletedCartCount} session carts older than 14 days`);
+      const deletedBuyNowCarts = await this.dataSource.manager.delete(BuyNowSessionCart, {
+        createdAt: LessThan(fourteenDaysAgo),
+      });
+
+      this.logger.log(
+        `Cleaned up ${deletedCartCount} session carts and ` +
+          `${deletedBuyNowCarts.affected || 0} buy-now carts older than 14 days`,
+      );
     } catch (error) {
       this.logger.error(`Failed to cleanup old session carts: ${getErrorMessage(error)}`);
     }
