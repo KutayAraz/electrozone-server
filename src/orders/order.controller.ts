@@ -39,14 +39,12 @@ export class OrderController {
   @Post("process-order")
   async processOrder(
     @UserUuid() userUuid: string,
-    @Session() session: Record<string, any>,
     @Body() { checkoutSnapshotId, idempotencyKey }: ProcessOrderDto,
   ) {
     const orderId = await this.orderService.processOrder(
       userUuid,
       checkoutSnapshotId,
       idempotencyKey,
-      session?.id,
     );
     return { orderId };
   }

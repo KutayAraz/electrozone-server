@@ -69,7 +69,6 @@ export class AppModule {
         { path: "cart/session", method: RequestMethod.ALL },
         { path: "cart/buy-now", method: RequestMethod.ALL },
         { path: "order/initiate-checkout", method: RequestMethod.POST },
-        { path: "order/process-order", method: RequestMethod.POST },
       );
   }
 }

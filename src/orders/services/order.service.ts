@@ -1,5 +1,4 @@
 import { HttpStatus, Injectable, Logger } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
 import { InjectRepository } from "@nestjs/typeorm";
 import { BuyNowCartService } from "src/carts/services/buy-now-cart.service";
 import { CartUtilityService } from "src/carts/services/cart-utility.service";
@@ -24,11 +23,11 @@ import { CheckoutType } from "../types/checkoutType.enum";
 import { OrderUtilityService } from "./order-utility.service";
 import { OrderValidationService } from "./order-validation.service";
 
+const CHECKOUT_SNAPSHOT_TTL_SECONDS = 15 * 60;
+
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger(OrderService.name);
-
-  private checkoutSnapshots = new Map<string, CheckoutSnapshot>();
 
   constructor(
     @InjectRepository(Order) private orderRepository: Repository<Order>,
@@ -78,7 +77,7 @@ export class OrderService {
 
     // Store cart snapshot with metadata
     // This snapshot will be used to verify cart consistency during order processing
-    this.checkoutSnapshots.set(checkoutSnapshotId, {
+    const snapshot: CheckoutSnapshot = {
       id: checkoutSnapshotId,
       userUuid,
       cartItems: cartResponse.cartItems,
@@ -87,7 +86,20 @@ export class OrderService {
       createdAt: new Date(),
       checkoutType,
       sessionId: checkoutType === CheckoutType.SESSION ? sessionId : undefined,
-    });
+    };
+
+    const stored = await this.redisService.set(
+      this.getSnapshotKey(checkoutSnapshotId),
+      snapshot,
+      CHECKOUT_SNAPSHOT_TTL_SECONDS,
+    );
+
+    if (!stored) {
+      throw new AppError(
+        ErrorType.NO_CHECKOUT_SESSION,
+        "Checkout could not be started. Please try again.",
+      );
+    }
 
     return {
       checkoutSnapshotId,
@@ -95,12 +107,7 @@ export class OrderService {
     };
   }
 
-  async processOrder(
-    userUuid: string,
-    checkoutSnapshotId: string,
-    idempotencyKey: string,
-    sessionId?: string,
-  ) {
+  async processOrder(userUuid: string, checkoutSnapshotId: string, idempotencyKey: string) {
     // Check if this order was already processed using idempotency key
 
     const existingOrder = await this.orderValidationService.validateIdempotency(
@@ -114,7 +121,8 @@ export class OrderService {
     }
 
     // Retrieve and validate checkout snapshot
-    const snapshot = this.checkoutSnapshots.get(checkoutSnapshotId);
+    const snapshotKey = this.getSnapshotKey(checkoutSnapshotId);
+    const snapshot = await this.redisService.get<CheckoutSnapshot>(snapshotKey);
 
     this.orderValidationService.validateCheckoutSession(snapshot, userUuid);
 
@@ -158,14 +166,14 @@ export class OrderService {
             await this.cartService.invalidateUserCartCache(userUuid);
             break;
           case CheckoutType.SESSION:
-            await this.sessionCartService.clearSessionCart(sessionId);
+            await this.sessionCartService.clearSessionCart(snapshot.sessionId);
             break;
           case CheckoutType.BUY_NOW:
             break;
         }
 
         // Clear checkout session
-        this.checkoutSnapshots.delete(checkoutSnapshotId);
+        await this.redisService.del(snapshotKey);
 
         // Invalidate order cache after successful order placement
         await this.invalidateOrderCache(userUuid);
@@ -300,27 +308,6 @@ export class OrderService {
     return orders.map(this.orderUtilityService.transformOrder);
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
-  cleanupAgedSnapshots() {
-    const now = new Date();
-    const maxAgeMs = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
-    let removedCount = 0;
-
-    for (const id in this.checkoutSnapshots) {
-      const snapshot = this.checkoutSnapshots.get(id);
-      const ageMs = now.getTime() - snapshot.createdAt.getTime();
-
-      if (ageMs > maxAgeMs) {
-        this.checkoutSnapshots.delete(id);
-        removedCount++;
-      }
-    }
-
-    if (removedCount > 0) {
-      this.logger.log(`Removed ${removedCount} expired checkout snapshots (older than 3 hours)`);
-    }
-  }
-
   async invalidateOrderCache(userUuid: string, orderId?: number): Promise<void> {
     try {
       // Delete all order-user cache entries for this user
@@ -339,5 +326,9 @@ export class OrderService {
     } catch (error) {
       this.logger.error(`Failed to invalidate order cache for user ${userUuid}:`, error);
     }
+  }
+
+  private getSnapshotKey(checkoutSnapshotId: string): string {
+    return `checkout-snapshot:${checkoutSnapshotId}`;
   }
 }

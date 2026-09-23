@@ -31,8 +31,8 @@ export class OrderValidationService {
       );
     }
 
-    // Check session expiry (15 minutes)
-    const sessionAge = Date.now() - snapshot.createdAt.getTime();
+    // Check session expiry (15 minutes). createdAt is an ISO string after the Redis round trip.
+    const sessionAge = Date.now() - new Date(snapshot.createdAt).getTime();
     if (sessionAge > 15 * 60 * 1000) {
       throw new AppError(
         ErrorType.CHECKOUT_SESSION_EXPIRED,
