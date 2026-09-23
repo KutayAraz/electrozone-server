@@ -85,7 +85,7 @@ export class OrderService {
       totalQuantity: cartResponse.totalQuantity,
       createdAt: new Date(),
       checkoutType,
-      sessionId: checkoutType === CheckoutType.SESSION ? sessionId : undefined,
+      sessionId: checkoutType === CheckoutType.NORMAL ? undefined : sessionId,
     };
 
     const stored = await this.redisService.set(
@@ -128,16 +128,13 @@ export class OrderService {
 
     // Process order in a transaction with REPEATABLE READ isolation
     // This prevents phantom reads and ensures consistency during the entire order process
-    return this.dataSource.transaction(
+    const { orderId, updatedProducts } = await this.dataSource.transaction(
       "REPEATABLE READ" as IsolationLevel,
       async (transactionManager: EntityManager) => {
         const user = await transactionManager.findOneBy(User, {
           uuid: userUuid,
         });
         this.commonValidationService.validateUser(user);
-
-        // Get or create user's cart for cleanup later
-        const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
 
         // Create order and order items, update product stock
         const { savedOrder, updatedProducts, orderItemsEntities } =
@@ -148,43 +145,52 @@ export class OrderService {
             transactionManager,
           );
 
-        await this.orderUtilityService.handleLowStockProducts(updatedProducts);
-
         for (const orderItem of orderItemsEntities) {
           await transactionManager.save(OrderItem, orderItem);
         }
 
         // Clear the cart based on checkout type
         switch (snapshot.checkoutType) {
-          case CheckoutType.NORMAL:
+          case CheckoutType.NORMAL: {
+            const cart = await this.cartUtilityService.findOrCreateCart(
+              userUuid,
+              transactionManager,
+            );
             await this.orderUtilityService.handleNormalCartCleanup(
               cart,
               snapshot.cartItems,
               transactionManager,
             );
-
-            await this.cartService.invalidateUserCartCache(userUuid);
             break;
+          }
           case CheckoutType.SESSION:
-            await this.sessionCartService.clearSessionCart(snapshot.sessionId);
+            await this.sessionCartService.clearSessionCart(snapshot.sessionId, transactionManager);
             break;
           case CheckoutType.BUY_NOW:
+            await this.buyNowCartService.clearBuyNowCart(snapshot.sessionId, transactionManager);
             break;
         }
 
-        // Clear checkout session
-        await this.redisService.del(snapshotKey);
-
-        // Invalidate order cache after successful order placement
-        await this.invalidateOrderCache(userUuid);
-
-        // Invalidate review eligibility cache for ordered products
-        const productIds = snapshot.cartItems.map(item => item.id);
-        await this.reviewService.invalidateReviewEligibilityCache(userUuid, productIds);
-
-        return savedOrder.id;
+        return { orderId: savedOrder.id, updatedProducts };
       },
     );
+
+    await this.redisService.del(snapshotKey);
+
+    if (snapshot.checkoutType === CheckoutType.NORMAL) {
+      await this.cartService.invalidateUserCartCache(userUuid);
+    }
+
+    await this.orderUtilityService.handleLowStockProducts(updatedProducts);
+
+    // Invalidate order cache after successful order placement
+    await this.invalidateOrderCache(userUuid);
+
+    // Invalidate review eligibility cache for ordered products
+    const productIds = snapshot.cartItems.map(item => item.id);
+    await this.reviewService.invalidateReviewEligibilityCache(userUuid, productIds);
+
+    return orderId;
   }
 
   async cancelOrder(userUuid: string, orderId: number) {
