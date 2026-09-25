@@ -8,8 +8,7 @@ import { Review } from "src/entities/Review.entity";
 import { Subcategory } from "src/entities/Subcategory.entity";
 import { User } from "src/entities/User.entity";
 import { Wishlist } from "src/entities/Wishlist.entity";
-import { SubcategoryService } from "src/subcategories/subcategory.service";
-import { UserService } from "src/users/services/user.service";
+import { UserModule } from "src/users/user.module";
 import { ProductController } from "./controllers/product.controller";
 import { ReviewController } from "./controllers/review.controller";
 import { WishlistController } from "./controllers/wishlist.controller";
@@ -20,15 +19,10 @@ import { WishlistService } from "./services/wishlist.service";
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, User, Wishlist, Review, Order, OrderItem, Subcategory]),
+    UserModule,
   ],
   controllers: [ProductController, ReviewController, WishlistController],
-  providers: [
-    ProductService,
-    ReviewService,
-    SubcategoryService,
-    WishlistService,
-    UserService,
-    CommonValidationService,
-  ],
+  providers: [ProductService, ReviewService, WishlistService, CommonValidationService],
+  exports: [ReviewService],
 })
 export class ProductModule {}
