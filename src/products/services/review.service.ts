@@ -1,6 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import Decimal from "decimal.js";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
 import { Order } from "src/entities/Order.entity";
@@ -9,16 +8,18 @@ import { Review } from "src/entities/Review.entity";
 import { User } from "src/entities/User.entity";
 import { CacheResult } from "src/redis/cache-result.decorator";
 import { RedisService } from "src/redis/redis.service";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, EntityManager, Repository } from "typeorm";
+import { getProductReviewCacheKeys, recalculateAverageRating } from "../helpers/review-helpers";
 import { ProductReviewsResponse } from "../types/product-reviews-response.type";
 import { RatingDistribution } from "../types/rating-distribution.type";
 import { TransformedReview } from "../types/transformed-review.type";
 
 @Injectable()
 export class ReviewService {
+  private readonly logger = new Logger(ReviewService.name);
+
   constructor(
     @InjectRepository(Review) private readonly reviewsRepo: Repository<Review>,
-    @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
     private readonly redisService: RedisService,
     private readonly dataSource: DataSource,
   ) {}
@@ -119,9 +120,17 @@ export class ReviewService {
     paramKeys: ["productId", "userUuid"],
   })
   async checkReviewEligibility(productId: number, userUuid: string): Promise<boolean> {
+    return this.isEligibleToReview(productId, userUuid, this.dataSource.manager);
+  }
+
+  private async isEligibleToReview(
+    productId: number,
+    userUuid: string,
+    manager: EntityManager,
+  ): Promise<boolean> {
     // Check if the user has ordered the product
-    const hasOrderedProduct = await this.ordersRepo
-      .createQueryBuilder("order")
+    const hasOrderedProduct = await manager
+      .createQueryBuilder(Order, "order")
       .innerJoin("order.user", "user")
       .innerJoin("order.orderItems", "orderItem")
       .innerJoin("orderItem.product", "product")
@@ -137,7 +146,7 @@ export class ReviewService {
     }
 
     // Check if the user has already reviewed the product
-    const existingReview = await this.reviewsRepo.findOne({
+    const existingReview = await manager.findOne(Review, {
       where: {
         product: { id: productId },
         user: { uuid: userUuid },
@@ -153,22 +162,32 @@ export class ReviewService {
     rating: string,
     comment: string,
   ): Promise<string> {
-    const canReview = await this.checkReviewEligibility(productId, userUuid);
-    if (!canReview) {
-      throw new AppError(
-        ErrorType.INELIGABLE_REVIEW,
-        "You are not eligible to review this product",
+    const averageRating = await this.dataSource.transaction(async transactionalEntityManager => {
+      const canReview = await this.isEligibleToReview(
+        productId,
+        userUuid,
+        transactionalEntityManager,
       );
-    }
 
-    return this.dataSource.transaction(async transactionalEntityManager => {
+      if (!canReview) {
+        throw new AppError(
+          ErrorType.INELIGABLE_REVIEW,
+          "You are not eligible to review this product",
+        );
+      }
+
       const [product, user] = await Promise.all([
-        transactionalEntityManager.findOneOrFail(Product, {
-          where: { id: productId },
-          relations: ["reviews"],
-        }),
-        transactionalEntityManager.findOneByOrFail(User, { uuid: userUuid }),
+        transactionalEntityManager.findOneBy(Product, { id: productId }),
+        transactionalEntityManager.findOneBy(User, { uuid: userUuid }),
       ]);
+
+      if (!product) {
+        throw new AppError(ErrorType.PRODUCT_NOT_FOUND, "Product not found");
+      }
+
+      if (!user) {
+        throw new AppError(ErrorType.USER_NOT_FOUND, "User not found");
+      }
 
       const review = transactionalEntityManager.create(Review, {
         product,
@@ -179,18 +198,18 @@ export class ReviewService {
 
       await transactionalEntityManager.save(review);
 
-      // Update product's average rating
-      product.reviews.push(review);
-      const ratingTotal = product.reviews.reduce(
-        (total, rev) => total.plus(new Decimal(rev.rating)),
-        new Decimal(0),
-      );
-      product.averageRating = ratingTotal.div(product.reviews.length).toFixed(2);
-
-      await transactionalEntityManager.save(product);
-
-      return product.averageRating;
+      return recalculateAverageRating(transactionalEntityManager, productId);
     });
+
+    await Promise.all([
+      ...getProductReviewCacheKeys(this.redisService, productId).map(key =>
+        this.redisService.del(key),
+      ),
+      this.redisService.invalidateProductCache(productId),
+      this.invalidateReviewEligibilityCache(userUuid, [productId]),
+    ]);
+
+    return averageRating;
   }
 
   async invalidateReviewEligibilityCache(userUuid: string, productIds: number[]): Promise<void> {
@@ -202,11 +221,14 @@ export class ReviewService {
 
       await Promise.all(cacheKeys.map(key => this.redisService.del(key)));
 
-      console.log(
+      this.logger.debug(
         `Invalidated review eligibility cache for user ${userUuid} and ${productIds.length} products`,
       );
     } catch (error) {
-      console.error(`Failed to invalidate review eligibility cache for user ${userUuid}:`, error);
+      this.logger.error(
+        `Failed to invalidate review eligibility cache for user ${userUuid}:`,
+        error,
+      );
     }
   }
 }
