@@ -5,16 +5,22 @@ import {
   Delete,
   Get,
   Patch,
+  Res,
   UseInterceptors,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
+import { Response } from "express";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
 import { UpdateUserDto } from "../dtos/update-user.dto";
+import { AuthUtilityService } from "../services/auth-utility.service";
 import { UserService } from "../services/user.service";
 
 @Controller("user")
 export class UserController {
-  constructor(private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    private authUtilityService: AuthUtilityService,
+  ) {}
 
   @UseInterceptors(ClassSerializerInterceptor)
   @Get("/profile")
@@ -30,7 +36,11 @@ export class UserController {
 
   @Throttle({ default: { limit: 1, ttl: 3600000 } })
   @Delete("/profile")
-  deleteUser(@UserUuid() userUuid: string) {
-    return this.userService.deleteUser(userUuid);
+  async deleteUser(@UserUuid() userUuid: string, @Res({ passthrough: true }) res: Response) {
+    const result = await this.userService.deleteUser(userUuid);
+
+    this.authUtilityService.clearAuthCookies(res);
+
+    return result;
   }
 }
