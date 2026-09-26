@@ -53,7 +53,7 @@ export class OrderService {
     checkoutType: CheckoutType,
     sessionId?: string,
   ): Promise<{ checkoutSnapshotId: string; cartData: CartResponse }> {
-    let cartResponse: CartResponse | PromiseLike<CartResponse>;
+    let cartResponse: CartResponse | null;
 
     switch (checkoutType) {
       case CheckoutType.NORMAL:
@@ -69,7 +69,7 @@ export class OrderService {
         throw new AppError(ErrorType.INVALID_CHECKOUT_TYPE, "Invalid checkout type");
     }
 
-    if (cartResponse.cartItems.length === 0) {
+    if (!cartResponse || cartResponse.cartItems.length === 0) {
       throw new AppError(ErrorType.EMPTY_CART, "Cart is empty");
     }
 
@@ -270,7 +270,7 @@ export class OrderService {
     this.commonValidationService.validateUser(user);
 
     const order = user.orders.find(o => o.id === orderId);
-    this.orderValidationService.validateOrder(order);
+    this.orderValidationService.validateOrder(order, orderId);
 
     const transformedOrderItems = order.orderItems.map(this.orderUtilityService.transformOrderItem);
 

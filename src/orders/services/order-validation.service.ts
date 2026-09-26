@@ -100,7 +100,7 @@ export class OrderValidationService {
       relations: ["user", "orderItems", "orderItems.product"],
     });
 
-    this.validateOrder(order);
+    this.validateOrder(order, orderId);
 
     if (order.user.uuid !== userUuid) {
       throw new AppError(
@@ -117,9 +117,13 @@ export class OrderValidationService {
     return new Date().getTime() - orderDate.getTime() <= 86400000;
   }
 
-  validateOrder(order: Order) {
+  validateOrder(order: Order | null, orderId: number) {
     if (!order) {
-      throw new AppError(ErrorType.ORDER_NOT_FOUND, `Order with id of ${order.id} is not found`);
+      throw new AppError(
+        ErrorType.ORDER_NOT_FOUND,
+        `Order with id of ${orderId} is not found`,
+        HttpStatus.NOT_FOUND,
+      );
     }
   }
 }

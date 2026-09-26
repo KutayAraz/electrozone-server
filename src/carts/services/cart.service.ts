@@ -1,5 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import Decimal from "decimal.js";
+import { AppError } from "src/common/errors/app-error";
+import { ErrorType } from "src/common/errors/error-type";
 import { getErrorMessage } from "src/common/errors/get-error-message";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Cart } from "src/entities/Cart.entity";
@@ -233,6 +235,13 @@ export class CartService {
           relations: ["product"],
         }),
       ]);
+
+      if (!cartItemToRemove) {
+        throw new AppError(
+          ErrorType.CART_ITEM_NOT_FOUND,
+          "This product is already not in your cart",
+        );
+      }
 
       await this.cartItemService.removeCartItem(cart, cartItemToRemove, transactionalEntityManager);
 
