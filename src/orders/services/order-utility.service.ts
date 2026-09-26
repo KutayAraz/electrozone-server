@@ -27,7 +27,7 @@ export class OrderUtilityService {
     return {
       id: orderItem.product.id,
       quantity: orderItem.quantity,
-      price: new Decimal(orderItem.quantity).times(orderItem.product.price).toFixed(2),
+      price: orderItem.totalPrice,
       productName: orderItem.product.productName,
       brand: orderItem.product.brand,
       thumbnail: orderItem.product.thumbnail,
