@@ -29,24 +29,19 @@ export function CacheResult(options: CacheOptions) {
 
       const cacheKey = redis.generateKey(options.prefix, params);
 
-      try {
-        const cachedResult = await redis.get(cacheKey);
-        if (cachedResult !== null) {
-          return cachedResult;
-        }
-
-        const result = await originalMethod.apply(this, args);
-
-        if (result !== undefined && result !== null) {
-          // Use enhanced tracking when setting cache
-          await redis.trackProductReference(cacheKey, result, options.ttl);
-        }
-
-        return result;
-      } catch (error) {
-        console.error("Cache error:", error);
-        return originalMethod.apply(this, args);
+      const cachedResult = await redis.get(cacheKey);
+      if (cachedResult !== null) {
+        return cachedResult;
       }
+
+      const result = await originalMethod.apply(this, args);
+
+      if (result !== undefined && result !== null) {
+        // Use enhanced tracking when setting cache
+        await redis.trackProductReference(cacheKey, result, options.ttl);
+      }
+
+      return result;
     };
 
     return descriptor;
