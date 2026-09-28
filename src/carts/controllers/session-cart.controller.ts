@@ -37,6 +37,7 @@ export class SessionCartController {
     );
   }
 
+  @Public()
   @SkipThrottle()
   @Patch("item")
   async updateItemQuantity(
