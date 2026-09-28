@@ -279,45 +279,17 @@ export class SessionCartService {
         return await this.cartService.getUserCart(userUuid, transactionalEntityManager);
       }
 
-      // Since we have items to merge, get or create the user cart WITH relations
-      const userCart = await this.cartUtilityService.findOrCreateCart(
-        userUuid,
-        transactionalEntityManager,
-      );
-
-      // Create a map of existing items in the user's cart for quick lookup
-      const existingItemsMap = new Map<number, CartItem>();
-
-      // Make sure cartItems are loaded
-      if (userCart.cartItems && userCart.cartItems.length > 0) {
-        userCart.cartItems.forEach(item => {
-          existingItemsMap.set(item.product.id, item);
-        });
-      }
-
       for (const sessionCartItem of existingSessionCart.cartItems) {
-        // Check if the product already exists in the user's cart
-        const existingProduct = existingItemsMap.get(sessionCartItem.product.id);
-
-        if (existingProduct) {
-          // If the product exists, update the quantity
-          const newQuantity = sessionCartItem.quantity + existingProduct.quantity;
-
-          await this.cartService.updateCartItemQuantity(
-            userUuid,
-            sessionCartItem.product.id,
-            newQuantity,
-            transactionalEntityManager,
-          );
-        } else {
-          // If the product doesn't exist, add it to the user's cart
-          await this.cartService.addProductToCart(
-            userUuid,
-            sessionCartItem.product.id,
-            sessionCartItem.quantity,
-            transactionalEntityManager,
-          );
+        if (!sessionCartItem.product || sessionCartItem.product.stock <= 0) {
+          continue;
         }
+
+        await this.cartService.addProductToCart(
+          userUuid,
+          sessionCartItem.product.id,
+          sessionCartItem.quantity,
+          transactionalEntityManager,
+        );
       }
 
       // Delete the session cart and its items after merging
