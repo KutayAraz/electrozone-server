@@ -259,9 +259,10 @@ export class CartService {
         transactionalEntityManager,
       );
 
+      await transactionalEntityManager.delete(CartItem, { cart: { id: cart.id } });
+
       cart.cartTotal = new Decimal(0).toFixed(2);
       cart.totalQuantity = 0;
-      cart.cartItems = [];
 
       await transactionalEntityManager.save(cart);
 
