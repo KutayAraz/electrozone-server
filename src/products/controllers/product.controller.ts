@@ -1,11 +1,12 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from "@nestjs/common";
-import { ProductService } from "../services/product.service";
 import { Public } from "src/common/decorators/public.decorator";
-import { SearchResult } from "../types/search-result.type";
-import { TopProduct } from "../types/top-product.type";
-import { ProductDetails } from "../types/product-details.type";
-import { SuggestedProducts } from "../types/suggested-products.type";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { clampPageSize, parseOffset, safeDecodeURIComponent } from "src/common/utils/query-params";
+import { ProductService } from "../services/product.service";
+import { ProductDetails } from "../types/product-details.type";
+import { SearchResult } from "../types/search-result.type";
+import { SuggestedProducts } from "../types/suggested-products.type";
+import { TopProduct } from "../types/top-product.type";
 
 @Controller("product")
 export class ProductController {
@@ -37,34 +38,38 @@ export class ProductController {
 
   @Public()
   @Get(":id/suggested-products")
-  async getSuggestedProducts(@Param("id") productId: number): Promise<SuggestedProducts> {
+  async getSuggestedProducts(
+    @Param("id", ParseIntPipe) productId: number,
+  ): Promise<SuggestedProducts> {
     return await this.productService.getSuggestedProducts(productId);
   }
 
   @Public()
   @Get()
   async getProductsBySearch(
-    @Query("query") encodedSearchQuery: string,
-    @Query("skip") skip: number = 0,
-    @Query("limit") take: number = 10,
-    @Query("sort") sort: string = "relevance",
+    @Query("query") encodedSearchQuery = "",
+    @Query("skip") skip?: string,
+    @Query("limit") take?: string,
+    @Query("sort") sort = "relevance",
     @Query("stock_status") stockStatus?: string,
-    @Query("min_price") minPrice: number = 0,
-    @Query("max_price") maxPrice?: number,
+    @Query("min_price") minPrice?: string,
+    @Query("max_price") maxPrice?: string,
     @Query("brands") brandString?: string,
     @Query("subcategories") subcategoriesString?: string,
   ): Promise<SearchResult> {
-    const searchQuery = decodeURIComponent(encodedSearchQuery);
-    const brands = brandString ? brandString.split(" ").map(decodeURIComponent) : undefined;
+    const searchQuery = safeDecodeURIComponent(encodedSearchQuery);
+    const brands = brandString ? brandString.split(" ").map(safeDecodeURIComponent) : undefined;
     const subcategories = subcategoriesString
-      ? subcategoriesString.split(" ").map(decodeURIComponent)
+      ? subcategoriesString.split(" ").map(safeDecodeURIComponent)
       : undefined;
 
-    const priceRange = maxPrice ? { min: minPrice, max: maxPrice } : undefined;
+    const max = Number(maxPrice);
+    const priceRange = max > 0 ? { min: Number(minPrice) || 0, max } : undefined;
+
     return this.productService.findBySearch(
       searchQuery,
-      skip,
-      take,
+      parseOffset(skip),
+      clampPageSize(take, 10),
       sort,
       stockStatus,
       priceRange,

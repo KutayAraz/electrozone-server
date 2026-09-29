@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { Public } from "src/common/decorators/public.decorator";
+import { clampPageSize, parseOffset, safeDecodeURIComponent } from "src/common/utils/query-params";
 import { SubcategoryService } from "./subcategory.service";
 import { ProductQueryResult } from "./types/product-query-result.type";
 import {
@@ -15,8 +16,8 @@ export class SubcategoryController {
 
   private parseCommonParams(queryParams: CommonQueryParams): ProcessedQueryParams {
     const { skip, limit, stock_status, min_price, max_price, brands } = queryParams;
-    const parsedSkip = skip ? parseInt(skip, 10) : 0;
-    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    const parsedSkip = parseOffset(skip);
+    const parsedLimit = clampPageSize(limit, 10);
     let priceRange: { min?: number; max?: number } | undefined;
 
     if (min_price || max_price) {
@@ -25,7 +26,7 @@ export class SubcategoryController {
       if (max_price) priceRange.max = parseFloat(max_price);
     }
 
-    const brandsArray = brands ? brands.split(" ").map(decodeURIComponent) : undefined;
+    const brandsArray = brands ? brands.split(" ").map(safeDecodeURIComponent) : undefined;
 
     return {
       skip: parsedSkip,

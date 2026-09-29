@@ -13,6 +13,7 @@ import {
 } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
 import { UserUuid } from "src/common/decorators/user-uuid.decorator";
+import { clampPageSize, parseOffset } from "src/common/utils/query-params";
 import { ProcessOrderDto } from "./dtos/process-order.dto";
 import { OrderService } from "./services/order.service";
 import { CheckoutType } from "./types/checkoutType.enum";
@@ -56,9 +57,7 @@ export class OrderController {
     @Query("skip", new ParseIntPipe({ optional: true })) skip?: number,
     @Query("limit", new ParseIntPipe({ optional: true })) take?: number,
   ) {
-    skip = skip || 0;
-    take = take || 10;
-    return this.orderService.getOrdersForUser(userUuid, skip, take);
+    return this.orderService.getOrdersForUser(userUuid, parseOffset(skip), clampPageSize(take, 10));
   }
 
   @Get(":orderId")
