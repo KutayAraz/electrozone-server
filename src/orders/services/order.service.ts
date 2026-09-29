@@ -13,7 +13,6 @@ import { OrderItem } from "src/entities/OrderItem.entity";
 import { Product } from "src/entities/Product.entity";
 import { User } from "src/entities/User.entity";
 import { ReviewService } from "src/products/services/review.service";
-import { CacheResult } from "src/redis/cache-result.decorator";
 import { RedisService } from "src/redis/redis.service";
 import { DataSource, EntityManager, Repository } from "typeorm";
 import { IsolationLevel } from "typeorm/driver/types/IsolationLevel";
@@ -31,7 +30,6 @@ export class OrderService {
 
   constructor(
     @InjectRepository(Order) private orderRepository: Repository<Order>,
-    @InjectRepository(User) private userRepository: Repository<User>,
     private readonly cartService: CartService,
     private readonly orderValidationService: OrderValidationService,
     private readonly commonValidationService: CommonValidationService,
@@ -145,9 +143,7 @@ export class OrderService {
             transactionManager,
           );
 
-        for (const orderItem of orderItemsEntities) {
-          await transactionManager.save(OrderItem, orderItem);
-        }
+        await transactionManager.save(OrderItem, orderItemsEntities);
 
         // Clear the cart based on checkout type
         switch (snapshot.checkoutType) {
@@ -182,9 +178,6 @@ export class OrderService {
     }
 
     await this.orderUtilityService.handleLowStockProducts(updatedProducts);
-
-    // Invalidate order cache after successful order placement
-    await this.invalidateOrderCache(userUuid);
 
     // Invalidate review eligibility cache for ordered products
     const productIds = snapshot.cartItems.map(item => item.id);
@@ -240,36 +233,24 @@ export class OrderService {
       return orderItems.map(orderItem => orderItem.product.id);
     });
 
-    // Invalidate order cache after successful cancellation
-    // This invalidates both the order-user cache and the specific order-id cache
-    await this.invalidateOrderCache(userUuid, orderId);
-
     // Invalidate review eligibility cache for canceled products
     await this.reviewService.invalidateReviewEligibilityCache(userUuid, cancelledProductIds);
 
     return { success: true, message: "Order cancelled successfully" };
   }
 
-  @CacheResult({
-    prefix: "order-id",
-    ttl: 1800,
-    paramKeys: ["userUuid", "orderId"],
-  })
   async getOrderById(userUuid: string, orderId: number) {
-    const user = await this.userRepository.findOne({
-      where: { uuid: userUuid },
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId, user: { uuid: userUuid } },
       relations: [
-        "orders",
-        "orders.orderItems",
-        "orders.orderItems.product",
-        "orders.orderItems.product.subcategory",
-        "orders.orderItems.product.subcategory.category",
+        "user",
+        "orderItems",
+        "orderItems.product",
+        "orderItems.product.subcategory",
+        "orderItems.product.subcategory.category",
       ],
     });
 
-    this.commonValidationService.validateUser(user);
-
-    const order = user.orders.find(o => o.id === orderId);
     this.orderValidationService.validateOrder(order, orderId);
 
     const transformedOrderItems = order.orderItems.map(this.orderUtilityService.transformOrderItem);
@@ -279,10 +260,10 @@ export class OrderService {
     return {
       id: order.id,
       user: {
-        firstName: user.firstName,
-        lastName: user.lastName,
-        address: user.address,
-        city: user.city,
+        firstName: order.user.firstName,
+        lastName: order.user.lastName,
+        address: order.user.address,
+        city: order.user.city,
       },
       orderTotal: order.orderTotal,
       orderDate: order.orderDate,
@@ -291,11 +272,6 @@ export class OrderService {
     };
   }
 
-  @CacheResult({
-    prefix: "order-user",
-    ttl: 86400,
-    paramKeys: ["userUuid", "skip", "take"],
-  })
   async getOrdersForUser(userUuid: string, skip: number, take: number) {
     const orders = await this.orderRepository.find({
       where: { user: { uuid: userUuid } },
@@ -306,32 +282,12 @@ export class OrderService {
         "orderItems.product.subcategory",
         "orderItems.product.subcategory.category",
       ],
-      order: { orderDate: "DESC" },
+      order: { orderDate: "DESC", id: "DESC" },
       skip, // Offset: Number of rows to skip
       take, // Limit: Maximum number of rows to return
     });
 
     return orders.map(this.orderUtilityService.transformOrder);
-  }
-
-  async invalidateOrderCache(userUuid: string, orderId?: number): Promise<void> {
-    try {
-      // Delete all order-user cache entries for this user
-      // This will match any key that starts with order-user and contains the userUuid
-      await this.redisService.delPattern(`order-user:*"userUuid":"${userUuid}"*`);
-
-      // If orderId is provided (for cancellation), also invalidate that specific order cache
-      if (orderId) {
-        const orderCacheKey = this.redisService.generateKey("order-id", { userUuid, orderId });
-        await this.redisService.del(orderCacheKey);
-      }
-
-      this.logger.debug(
-        `Invalidated order cache for user ${userUuid}${orderId ? ` and order ${orderId}` : ""}`,
-      );
-    } catch (error) {
-      this.logger.error(`Failed to invalidate order cache for user ${userUuid}:`, error);
-    }
   }
 
   private getSnapshotKey(checkoutSnapshotId: string): string {
