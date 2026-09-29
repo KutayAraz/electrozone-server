@@ -86,6 +86,16 @@ export class CartUtilityService {
     return queryBuilder.getMany();
   }
 
+  calculateTotals(cartItems: FormattedCartItem[]): { cartTotal: string; totalQuantity: number } {
+    const cartTotal = cartItems
+      .reduce((total, item) => total.plus(new Decimal(item.amount)), new Decimal(0))
+      .toFixed(2);
+
+    const totalQuantity = cartItems.reduce((total, item) => total + item.quantity, 0);
+
+    return { cartTotal, totalQuantity };
+  }
+
   formatCartItem(item: CartItem): FormattedCartItem {
     return {
       cartItemId: item.id,

@@ -2,7 +2,6 @@ import { Injectable, Logger } from "@nestjs/common";
 import Decimal from "decimal.js";
 import { AppError } from "src/common/errors/app-error";
 import { ErrorType } from "src/common/errors/error-type";
-import { getErrorMessage } from "src/common/errors/get-error-message";
 import { CommonValidationService } from "src/common/services/common-validation.service";
 import { Cart } from "src/entities/Cart.entity";
 import { CartItem } from "src/entities/CartItem.entity";
@@ -13,7 +12,6 @@ import { RedisService } from "src/redis/redis.service";
 import { DataSource, EntityManager } from "typeorm";
 import { CartOperationResponse } from "../types/cart-operation-response.type";
 import { CartResponse } from "../types/cart-response.type";
-import { FormattedCartItem } from "../types/formatted-cart-item.type";
 import { CartItemService } from "./cart-item.service";
 import { CartUtilityService } from "./cart-utility.service";
 
@@ -34,87 +32,32 @@ export class CartService {
     transactionalEntityManager?: EntityManager,
   ): Promise<CartResponse> {
     const manager = transactionalEntityManager || this.dataSource.manager;
-    const cacheKey = this.redisService.generateKey("cart-user", { userUuid });
 
-    // Try to get the core cart data from cache
-    const cachedCartData = await this.redisService.get<{
-      cartTotal: string;
-      totalQuantity: number;
-      cartItems: FormattedCartItem[];
-    }>(cacheKey);
+    return manager.transaction(async transactionManager => {
+      const cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
 
-    if (cachedCartData) {
-      // We have cached cart data, but need to calculate notifications
-      return manager.transaction(async transactionManager => {
-        let cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
+      // Get the cart items and any notification data
+      const { cartItems, removedCartItems, priceChanges, quantityChanges } =
+        await this.cartItemService.fetchAndUpdateCartItems(transactionManager, {
+          cartId: cart.id,
+        });
 
-        // Check for any changes/notifications
-        const { removedCartItems, priceChanges, quantityChanges } =
-          await this.cartItemService.fetchAndUpdateCartItems(transactionManager, {
-            cartId: cart.id,
-          });
+      const { cartTotal, totalQuantity } = this.cartUtilityService.calculateTotals(cartItems);
 
-        // If there are changes, invalidate the cache for next time
-        const hasChanges =
-          (removedCartItems && removedCartItems.length > 0) ||
-          (priceChanges && priceChanges.length > 0) ||
-          (quantityChanges && quantityChanges.length > 0);
+      if (cart.cartTotal !== cartTotal || cart.totalQuantity !== totalQuantity) {
+        await transactionManager.update(Cart, cart.id, { cartTotal, totalQuantity });
+        await this.invalidateUserCartCache(userUuid);
+      }
 
-        if (hasChanges) {
-          process.nextTick(() => {
-            this.invalidateUserCartCache(userUuid).catch(err => {
-              this.logger.error(
-                `Failed to invalidate cache after cart changes: ${getErrorMessage(err)}`,
-              );
-            });
-          });
-        }
-
-        // Return cached data + fresh notifications
-        return {
-          ...cachedCartData,
-          removedCartItems,
-          priceChanges,
-          quantityChanges,
-        };
-      });
-    } else {
-      // No cache hit, need to calculate everything
-      return manager.transaction(async transactionManager => {
-        let cart = await this.cartUtilityService.findOrCreateCart(userUuid, transactionManager);
-
-        // Get the cart items and any notification data
-        const { cartItems, removedCartItems, priceChanges, quantityChanges } =
-          await this.cartItemService.fetchAndUpdateCartItems(transactionManager, {
-            cartId: cart.id,
-          });
-
-        // Calculate totals
-        const cartTotal = cartItems
-          .reduce((total, product) => {
-            return total.plus(new Decimal(product.amount));
-          }, new Decimal(0))
-          .toFixed(2);
-
-        const totalQuantity = cartItems.reduce((total, product) => total + product.quantity, 0);
-
-        // Cache only the core data
-        const coreCartData = {
-          cartTotal,
-          totalQuantity,
-          cartItems,
-        };
-
-        await this.redisService.trackProductReference(cacheKey, coreCartData, 3600);
-
-        return {
-          ...coreCartData,
-          removedCartItems,
-          priceChanges,
-          quantityChanges,
-        };
-      });
-    }
+      return {
+        cartTotal,
+        totalQuantity,
+        cartItems,
+        removedCartItems,
+        priceChanges,
+        quantityChanges,
+      };
+    });
   }
 
   @CacheResult({
@@ -278,14 +221,8 @@ export class CartService {
   // Helper method to invalidate user cart cache
   async invalidateUserCartCache(userUuid: string): Promise<void> {
     try {
-      const cacheKeys = [
-        this.redisService.generateKey("cart-user", { userUuid }),
-        this.redisService.generateKey("cart-count", { userUuid }),
-      ];
-
-      // Delete all cache keys in parallel
-      await Promise.all(cacheKeys.map(key => this.redisService.del(key)));
-      this.logger.debug(`Invalidated cache keys for user ${userUuid}`);
+      await this.redisService.del(this.redisService.generateKey("cart-count", { userUuid }));
+      this.logger.debug(`Invalidated cart count cache for user ${userUuid}`);
     } catch (error) {
       this.logger.error("Failed to invalidate user caches:", error);
     }
