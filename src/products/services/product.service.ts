@@ -247,7 +247,7 @@ export class ProductService {
     brands?: string[],
     subcategories?: string[],
   ): Promise<SearchResult> {
-    const searchWords = search.split(" ");
+    const searchWords = search.split(" ").filter(word => word.length > 0);
 
     const baseQuery = this.productsRepo
       .createQueryBuilder("product")
@@ -270,10 +270,11 @@ export class ProductService {
             // Use the first 3 characters of the word if it's longer than 2 characters
             const fragment = word.length > 2 ? word.substring(0, 3) : word;
             qb.orWhere(`product.productName LIKE :${likeKey}`, { [likeKey]: `%${fragment}%` });
-            qb.orWhere("product.brand LIKE :brandSearch", { brandSearch: `%${search}%` });
-            qb.orWhere("product.description LIKE :descriptionSearch", {
-              descriptionSearch: `%${search}%`,
-            });
+          });
+
+          qb.orWhere("product.brand LIKE :brandSearch", { brandSearch: `%${search}%` });
+          qb.orWhere("product.description LIKE :descriptionSearch", {
+            descriptionSearch: `%${search}%`,
           });
         }),
       );
@@ -283,22 +284,22 @@ export class ProductService {
     applyCommonWhere(subcategoriesQuery);
     applyCommonWhere(priceRangeQuery);
 
-    const priceRangeResult = await priceRangeQuery
-      .select("MIN(CAST(product.price AS DECIMAL(10,2)))", "min")
-      .addSelect("MAX(CAST(product.price AS DECIMAL(10,2)))", "max")
-      .getRawOne();
-
-    // Select distinct brands
-    const uniqueBrands = await brandsQuery
-      .select("DISTINCT product.brand", "brand")
-      .orderBy("product.brand", "ASC")
-      .getRawMany();
-
-    // Select distinct subcategories
-    const uniqueSubcategories = await subcategoriesQuery
-      .select("DISTINCT subcategory.subcategory", "subcategory")
-      .orderBy("subcategory.subcategory", "ASC")
-      .getRawMany();
+    const [priceRangeResult, uniqueBrands, uniqueSubcategories] = await Promise.all([
+      priceRangeQuery
+        .select("MIN(CAST(product.price AS DECIMAL(10,2)))", "min")
+        .addSelect("MAX(CAST(product.price AS DECIMAL(10,2)))", "max")
+        .getRawOne(),
+      // Select distinct brands
+      brandsQuery
+        .select("DISTINCT product.brand", "brand")
+        .orderBy("product.brand", "ASC")
+        .getRawMany(),
+      // Select distinct subcategories
+      subcategoriesQuery
+        .select("DISTINCT subcategory.subcategory", "subcategory")
+        .orderBy("subcategory.subcategory", "ASC")
+        .getRawMany(),
+    ]);
 
     // Now, apply filters and pagination to the main query
     applyCommonWhere(baseQuery);
@@ -346,11 +347,10 @@ export class ProductService {
     // which breaks pagination just as badly.
     baseQuery.addOrderBy("product.id", "ASC");
 
-    // Get the count of filtered products
-    const count = await baseQuery.getCount();
-
-    // pagination
-    const products = await baseQuery.offset(skip).limit(take).getMany();
+    const [count, products] = await Promise.all([
+      baseQuery.clone().getCount(),
+      baseQuery.offset(skip).limit(take).getMany(),
+    ]);
 
     return {
       products,
