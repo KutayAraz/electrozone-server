@@ -9,7 +9,6 @@ import { Repository } from "typeorm";
 import { CreateUserDto } from "../dtos/create-user.dto";
 import { SignUserDto } from "../dtos/sign-user.dto";
 import { ChangePasswordDto } from "../dtos/update-password.dto";
-import { Tokens } from "../types/tokens.type";
 import { UserRole } from "../types/user-role.enum";
 import { AuthUtilityService } from "./auth-utility.service";
 import { UserService } from "./user.service";
@@ -55,17 +54,19 @@ export class AuthService {
     return { isSuccess: true };
   }
 
-  async register(createUserDto: CreateUserDto, res: Response): Promise<Tokens & Partial<User>> {
+  async register(createUserDto: CreateUserDto, res: Response): Promise<Partial<User>> {
+    // Validate password match
+    if (createUserDto.password !== createUserDto.retypedPassword) {
+      throw new AppError(ErrorType.PASSWORD_MISMATCH, "Your new password does not match");
+    }
+
+    if (!this.authUtilityService.isPasswordStrong(createUserDto.password)) {
+      throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "Password is not strong enough");
+    }
+
+    const hashedPassword = await this.authUtilityService.hashPassword(createUserDto.password);
+
     return this.usersRepo.manager.transaction(async transactionalEntityManager => {
-      // Validate password match
-      if (createUserDto.password !== createUserDto.retypedPassword) {
-        throw new AppError(ErrorType.PASSWORD_MISMATCH, "Your new password does not match");
-      }
-
-      if (!this.authUtilityService.isPasswordStrong(createUserDto.password)) {
-        throw new AppError(ErrorType.INVALID_NEW_PASSWORD, "Password is not strong enough");
-      }
-
       // Check if user already exists
       const existingUser = await transactionalEntityManager.findOne(User, {
         where: { email: createUserDto.email },
@@ -83,7 +84,7 @@ export class AuthService {
       const user = transactionalEntityManager.create(User, {
         ...createUserDto,
         role: UserRole.CUSTOMER,
-        password: await this.authUtilityService.hashPassword(createUserDto.password),
+        password: hashedPassword,
         firstName: this.authUtilityService.capitalizeFirstLetterOfEachWord(createUserDto.firstName),
         lastName: this.authUtilityService.capitalizeFirstLetterOfEachWord(createUserDto.lastName),
         address: this.authUtilityService.capitalizeFirstLetterOfEachWord(createUserDto.address),
@@ -106,49 +107,38 @@ export class AuthService {
 
       // Remove sensitive data before returning user info
       const { password, hashedRt, role, ...result } = user;
-      return { ...result, ...tokens };
+      return result;
     });
   }
 
   async login(dto: SignUserDto, res: Response): Promise<Partial<User>> {
-    return this.usersRepo.manager.transaction(async transactionalEntityManager => {
-      const user = await transactionalEntityManager.findOne(User, { where: { email: dto.email } });
+    const user = await this.usersRepo.findOne({ where: { email: dto.email } });
 
-      if (!user)
-        throw new AppError(
-          ErrorType.USER_NOT_FOUND,
-          "A user with this e-mail does not exist",
-          HttpStatus.NOT_FOUND,
-        );
-
-      // Validate password
-      if (!(await bcrypt.compare(dto.password, user.password))) {
-        throw new AppError(
-          ErrorType.INVALID_CREDENTIALS,
-          "Your credentials are invalid",
-          HttpStatus.UNAUTHORIZED,
-        );
-      }
-
-      // Generate tokens and update refresh token hash
-      const tokens = await this.authUtilityService.getTokens(user);
-      await this.authUtilityService.updateRtHash(
-        user.uuid,
-        tokens.refresh_token,
-        transactionalEntityManager,
+    // Same error for an unknown email, so accounts cannot be enumerated
+    if (!user || !(await bcrypt.compare(dto.password, user.password))) {
+      throw new AppError(
+        ErrorType.INVALID_CREDENTIALS,
+        "Your credentials are invalid",
+        HttpStatus.UNAUTHORIZED,
       );
+    }
 
-      // Set both cookies
-      this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);
-      this.authUtilityService.setAccessTokenCookie(res, tokens.access_token);
+    // Generate tokens and update refresh token hash
+    const tokens = await this.authUtilityService.getTokens(user);
+    await this.authUtilityService.updateRtHash(
+      user.uuid,
+      tokens.refresh_token,
+      this.usersRepo.manager,
+    );
 
-      // Remove sensitive data before returning user info
-      const { password, hashedRt, id, uuid, role, ...result } = user;
+    // Set both cookies
+    this.authUtilityService.setRefreshTokenCookie(res, tokens.refresh_token);
+    this.authUtilityService.setAccessTokenCookie(res, tokens.access_token);
 
-      return {
-        ...result,
-      };
-    });
+    // Remove sensitive data before returning user info
+    const { password, hashedRt, id, uuid, role, ...result } = user;
+
+    return result;
   }
 
   async logout(refreshToken: string | undefined, res: Response): Promise<boolean> {
