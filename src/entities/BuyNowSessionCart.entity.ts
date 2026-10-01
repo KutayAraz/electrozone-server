@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from "typeorm";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  Index,
+} from "typeorm";
 import { Product } from "./Product.entity";
 
 @Entity()
@@ -6,6 +13,7 @@ export class BuyNowSessionCart {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index("IDX_buy_now_session_cart_sessionId")
   @Column()
   sessionId: string;
 
