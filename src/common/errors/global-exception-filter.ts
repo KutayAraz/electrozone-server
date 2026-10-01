@@ -21,10 +21,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     const errorResponse: StandardErrorResponse = this.createErrorResponse(exception);
 
-    this.logger.error(
-      `Exception: ${JSON.stringify(errorResponse)}`,
-      exception instanceof Error ? exception.stack : undefined,
-    );
+    if (errorResponse.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        `Exception: ${JSON.stringify(errorResponse)}` +
+          (exception instanceof QueryFailedError ? ` - ${exception.message}` : ""),
+        exception instanceof Error ? exception.stack : undefined,
+      );
+    } else {
+      this.logger.warn(`Exception: ${JSON.stringify(errorResponse)}`);
+    }
 
     response.status(errorResponse.statusCode).json(errorResponse);
   }
@@ -56,11 +61,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof QueryFailedError) {
+      if ((exception.driverError as { code?: string })?.code === "ER_DUP_ENTRY") {
+        return {
+          statusCode: HttpStatus.CONFLICT,
+          type: "Database Error",
+          message: "This record already exists",
+        };
+      }
+
       return {
-        statusCode: HttpStatus.BAD_REQUEST,
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         type: "Database Error",
         message: "A database error occurred",
-        details: exception.message,
       };
     }
 
