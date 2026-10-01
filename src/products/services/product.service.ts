@@ -400,7 +400,7 @@ export class ProductService {
 
       if (typeof updates.newStock === "number") {
         if (updates.newStock < 0) {
-          throw new Error("Stock cannot be negative");
+          throw new AppError(ErrorType.INVALID_INPUT, "Stock cannot be negative");
         }
         product.stock = updates.newStock;
       }
