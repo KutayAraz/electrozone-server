@@ -101,7 +101,7 @@ export class ProductService {
       .limit(8)
       .getRawMany();
 
-    let baseProductQuery = this.productsRepo
+    const baseProductQuery = this.productsRepo
       .createQueryBuilder("product")
       .leftJoinAndSelect("product.subcategory", "subcategory")
       .leftJoinAndSelect("subcategory.category", "category")
@@ -164,7 +164,7 @@ export class ProductService {
   })
   async getTopProducts(
     orderBy: "sold" | "wishlisted" | "averageRating",
-    take: number = 10,
+    take = 10,
   ): Promise<TopProduct[]> {
     const selectFields = [
       "product.id",
@@ -215,7 +215,7 @@ export class ProductService {
     ttl: 10800,
     paramKeys: ["take"],
   })
-  async getBestSellers(take: number = 10): Promise<TopProduct[]> {
+  async getBestSellers(take = 10): Promise<TopProduct[]> {
     return this.getTopProducts("sold", take);
   }
 
@@ -224,7 +224,7 @@ export class ProductService {
     ttl: 10800,
     paramKeys: ["take"],
   })
-  async getTopWishlisted(take: number = 10): Promise<TopProduct[]> {
+  async getTopWishlisted(take = 10): Promise<TopProduct[]> {
     return this.getTopProducts("wishlisted", take);
   }
 
@@ -233,7 +233,7 @@ export class ProductService {
     ttl: 10800,
     paramKeys: ["take"],
   })
-  async getBestRated(take: number = 10): Promise<TopProduct[]> {
+  async getBestRated(take = 10): Promise<TopProduct[]> {
     return this.getTopProducts("averageRating", take);
   }
 
