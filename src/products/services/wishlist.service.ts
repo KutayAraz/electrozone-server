@@ -50,8 +50,6 @@ export class WishlistService {
       ])
       .getRawMany();
 
-    console.log("user Wishlist", userWishlist);
-
     // Map the raw query result to the WishlistItem type
     return userWishlist.map(wishlist => {
       return {
