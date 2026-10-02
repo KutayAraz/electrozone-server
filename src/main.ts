@@ -14,6 +14,7 @@ async function bootstrap() {
     app.set("trust proxy", 1);
   }
 
+  app.setGlobalPrefix("api", { exclude: ["health", "health/ready"] });
   app.use(cookieParser());
   app.useGlobalFilters(new GlobalExceptionFilter());
 
